@@ -1,0 +1,1 @@
+This file is a no-op placeholder to mark that the domain scaffolding and audit artifacts have been programmatically extended elsewhere. It can be deleted once all domain files are in place.
