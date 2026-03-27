@@ -55,7 +55,7 @@ jobs:
             }
 
             if (!pr) {
-              core.setFailed("Review router requires a pull request context.");
+              core.info("No pull request context found. Skipping review router.");
               return;
             }
 
@@ -195,9 +195,17 @@ jobs:
               if (
                 review.state === "APPROVED" ||
                 review.state === "CHANGES_REQUESTED" ||
-                review.state === "DISMISSED" ||
-                review.state === "COMMENTED"
+                review.state === "DISMISSED"
               ) {
+                latestReviewByUser.set(reviewer, review.state);
+                continue;
+              }
+
+              if (review.state === "COMMENTED") {
+                const existing = latestReviewByUser.get(reviewer);
+                if (existing === "APPROVED" || existing === "CHANGES_REQUESTED") {
+                  continue;
+                }
                 latestReviewByUser.set(reviewer, review.state);
               }
             }
@@ -234,11 +242,11 @@ jobs:
             ].filter(Boolean));
 
             const detectedAutomations = [
-              { name: "Devin Review", actors: ["devin-ai-integration"] },
-              { name: "CodeScene", actors: ["codescene-delta-analysis"] },
-              { name: "CodeRabbit", actors: ["coderabbitai"] },
-              { name: "Qodo", actors: ["qodo-code-review"] },
-              { name: "Codex", actors: ["chatgpt-codex-connector"] },
+              { name: "Devin Review", actors: ["devin-ai-integration[bot]", "devin-ai-integration"] },
+              { name: "CodeScene", actors: ["codescene-delta-analysis[bot]", "codescene-delta-analysis"] },
+              { name: "CodeRabbit", actors: ["coderabbitai[bot]", "coderabbitai"] },
+              { name: "Qodo", actors: ["qodo-code-review[bot]", "qodo-code-review"] },
+              { name: "Codex", actors: ["chatgpt-codex-connector[bot]", "chatgpt-codex-connector"] },
             ].map((integration) => ({
               ...integration,
               detected: integration.actors.some((actor) => reviewCommentAuthors.has(actor)),

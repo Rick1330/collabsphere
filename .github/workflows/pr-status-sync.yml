@@ -93,6 +93,14 @@ jobs:
               return cleaned.length > 0 ? cleaned : [fallbackLine];
             }
 
+            function hasMeaningfulSectionContent(lines) {
+              const normalized = normalizeSectionLines(lines, "");
+              return normalized.some((line) => {
+                const value = line.trim().toLowerCase();
+                return value.length > 0 && !/^-?\s*none\.?$/.test(value);
+              });
+            }
+
             function escapeRegExp(value) {
               return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
             }
@@ -141,19 +149,19 @@ jobs:
 
             async function syncMergedIssueBody(issue) {
               const currentBody = issue.body || "";
-              const summaryLines =
-                extractSection(body, "Handoff Summary").length > 0
-                  ? extractSection(body, "Handoff Summary")
-                  : extractSection(body, "Summary");
-              const validationLines =
-                extractSection(body, "Handoff Validation Evidence").length > 0
-                  ? extractSection(body, "Handoff Validation Evidence")
-                  : extractSection(body, "Validation");
+              const handoffSummaryLines = extractSection(body, "Handoff Summary");
+              const handoffValidationLines = extractSection(body, "Handoff Validation Evidence");
               const followUpLines = extractSection(body, "Handoff Open Issues / Follow-ups");
-              const riskLines =
-                extractSection(body, "Handoff Risks / Deviations").length > 0
-                  ? extractSection(body, "Handoff Risks / Deviations")
-                  : extractSection(body, "Risks / Notes");
+              const handoffRiskLines = extractSection(body, "Handoff Risks / Deviations");
+              const summaryLines = hasMeaningfulSectionContent(handoffSummaryLines)
+                ? handoffSummaryLines
+                : extractSection(body, "Summary");
+              const validationLines = hasMeaningfulSectionContent(handoffValidationLines)
+                ? handoffValidationLines
+                : extractSection(body, "Validation");
+              const riskLines = hasMeaningfulSectionContent(handoffRiskLines)
+                ? handoffRiskLines
+                : extractSection(body, "Risks / Notes");
 
               const mergedAt = pr.merged_at || new Date().toISOString();
               const summary = normalizeSectionLines(summaryLines, `- merged via PR #${pr.number}`);
