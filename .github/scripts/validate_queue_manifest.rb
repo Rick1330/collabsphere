@@ -77,6 +77,7 @@ projects.each do |project_entry|
     require_key(story_validation, "issue", "#{project_path} story.validation")
 
     tasks = require_array(story["tasks"], "#{project_path} story.tasks")
+    fail_with("#{project_path} story.tasks must not be empty.") if tasks.empty?
     tasks.each do |task_entry|
       task = require_hash(task_entry, "#{project_path} task")
       require_key(task, "id", "#{project_path} task")

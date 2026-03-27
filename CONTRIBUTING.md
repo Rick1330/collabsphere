@@ -68,6 +68,13 @@ Expected service set:
 - `apps/worker`
 - required Docker services
 
+Health checks after startup:
+
+- run `docker compose ps` and confirm PostgreSQL, Redis, and MailHog are healthy or running
+- confirm the `pnpm dev` process stays attached without immediate worker or app exits
+- open MailHog at `http://localhost:8025` if enabled locally
+- verify the expected local ports are bound before starting implementation work
+
 If startup fails:
 
 - verify Docker is running
@@ -227,6 +234,20 @@ Minimum required PR checks:
 - build for `web`, `api`, `collab`, and `worker`
 
 Integration tests require the necessary backing services.
+
+Workflow files to check when CI fails:
+
+- `.github/workflows/queue-manifest-validate.yml`
+- `.github/workflows/handoff-check.yml`
+- `.github/workflows/pr-status-sync.yml`
+- `.github/workflows/review-router.yml`
+- `.github/workflows/story-project-gates.yml`
+
+GitHub Actions logs:
+
+- open the PR in GitHub
+- open the `Checks` tab or the failing workflow run in `Actions`
+- inspect the exact failing job and step before retrying locally
 
 If CI fails:
 

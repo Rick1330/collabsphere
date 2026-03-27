@@ -27,7 +27,13 @@ Enable:
 
 ### Require status checks to pass before merging
 
-Enable and require the CI jobs that represent the documented minimum gate:
+Enable and require these exact current check names for the repo-operations foundation:
+
+- `Queue Manifest Validate / validate`
+- `Handoff Check / validate`
+- `Review Router / route`
+
+When the application CI workflows are added, require their exact job names too. The intended minimum application gate remains:
 
 - lint
 - typecheck
@@ -37,11 +43,6 @@ Enable and require the CI jobs that represent the documented minimum gate:
 - build `api`
 - build `collab`
 - build `worker`
-- queue-manifest-validate / validate
-- handoff-check / validate
-- review-router / route
-
-Use the exact workflow job names once the repo workflows are added.
 
 ### Require branches to be up to date before merging
 
@@ -62,7 +63,7 @@ Recommended if the team wants a cleaner history. If enabled, use merge methods t
 ## Operational Notes
 
 - branch protection is a GitHub settings step; this file documents the intended configuration
-- keep the required-check list aligned with actual workflow job names
+- keep the required-check list aligned with exact workflow and job names as shown in GitHub Checks
 - if a new CI gate is promoted to required, update this file and the workflow in the same change
 - `review:critical` work should pair branch protection approvals with the review-router check and the repo variable `REQUIRE_HUMAN_APPROVAL_FOR_CRITICAL=true`
 

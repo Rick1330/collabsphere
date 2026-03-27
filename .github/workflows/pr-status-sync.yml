@@ -16,6 +16,10 @@ permissions:
   issues: write
   pull-requests: read
 
+concurrency:
+  group: pr-status-sync-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
 jobs:
   sync:
     runs-on: ubuntu-latest
@@ -26,18 +30,29 @@ jobs:
         with:
           script: |
             const body = context.payload.pull_request.body || "";
-            const matches = [...body.matchAll(/(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?|refs?)\s+#(\d+)/gi)];
-            const issueNumbers = [...new Set(matches.map((match) => Number(match[1])).filter(Boolean))];
+            const closingMatches = [...body.matchAll(/(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)/gi)];
+            const referenceMatches = [...body.matchAll(/(?:ref(?:s|erences)?)\s+#(\d+)/gi)];
+            const linkedIssueNumbers = [
+              ...new Set([...closingMatches, ...referenceMatches].map((match) => Number(match[1])).filter(Boolean)),
+            ];
+            const lifecycleIssueNumbers = [...new Set(closingMatches.map((match) => Number(match[1])).filter(Boolean))];
 
-            if (issueNumbers.length === 0) {
+            if (linkedIssueNumbers.length === 0) {
               core.info("No linked issue references found in PR body.");
+              return;
+            }
+
+            if (lifecycleIssueNumbers.length === 0) {
+              core.info("No closing issue references found in PR body. Skipping lifecycle status sync.");
               return;
             }
 
             const pr = context.payload.pull_request;
             const isMerged = context.payload.action === "closed" && Boolean(pr.merged);
             const isClosedWithoutMerge = context.payload.action === "closed" && !pr.merged;
-            const isReadyForReview = context.payload.action === "ready_for_review" && !pr.draft;
+            const isReadyForReview =
+              !pr.draft &&
+              ["opened", "reopened", "ready_for_review"].includes(context.payload.action);
 
             function determineTargetStatus(labelNames) {
               if (labelNames.includes("type:epic") || labelNames.includes("type:story")) {
@@ -62,10 +77,10 @@ jobs:
                 return "status:in_review";
               }
 
-              return "status:in_progress";
+              return null;
             }
 
-            for (const issueNumber of issueNumbers) {
+            for (const issueNumber of lifecycleIssueNumbers) {
               const { data: issue } = await github.rest.issues.get({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -91,10 +106,11 @@ jobs:
                 ...currentLabels.filter((label) => !label.startsWith("status:")),
                 targetStatus,
               ].sort((left, right) => left.localeCompare(right));
+              const sortedCurrentLabels = [...currentLabels].sort((left, right) => left.localeCompare(right));
 
               const labelsChanged =
-                nextLabels.length !== currentLabels.length ||
-                nextLabels.some((label, index) => currentLabels.slice().sort((a, b) => a.localeCompare(b))[index] !== label);
+                nextLabels.length !== sortedCurrentLabels.length ||
+                nextLabels.some((label, index) => sortedCurrentLabels[index] !== label);
 
               if (!labelsChanged) {
                 core.info(`No label change needed for #${issueNumber}.`);

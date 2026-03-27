@@ -37,6 +37,11 @@ Define the operational lifecycle for CollabSphere GitHub issues, including deliv
 - `type:task`
 - `type:validation`
 
+Gate labels used with delivery validation issues:
+
+- `gate:story-validation` for story-level validation gates
+- `gate:project-validation` for project-level validation gates
+
 ### Maintenance lane
 
 - `type:bug`
@@ -52,6 +57,7 @@ Define the operational lifecycle for CollabSphere GitHub issues, including deliv
 - `lane:delivery` for planned project/story/task execution
 - `lane:maintenance` for non-roadmap work
 - `lane:hotfix` for urgent work that preempts normal execution
+- gate labels combine with `lane:delivery` and `type:validation` to mark validation issues that block queue progression until acceptance evidence is complete
 
 ## Status Model
 

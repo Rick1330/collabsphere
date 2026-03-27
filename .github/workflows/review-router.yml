@@ -22,6 +22,10 @@ permissions:
   issues: write
   pull-requests: write
 
+concurrency:
+  group: review-router-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
 env:
   DEVIN_REVIEW_ENABLED: ${{ vars.DEVIN_REVIEW_ENABLED }}
   CODESCENE_ENABLED: ${{ vars.CODESCENE_ENABLED }}
@@ -44,7 +48,7 @@ jobs:
 
             const owner = context.repo.owner;
             const repo = context.repo.repo;
-            const issueRefPattern = /(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?|refs?)\s+#(\d+)/gi;
+            const issueRefPattern = /(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?|ref(?:s|erences)?)\s+#(\d+)/gi;
             const body = pr.body || "";
             const issueNumbers = [...new Set([...body.matchAll(issueRefPattern)].map((match) => Number(match[1])).filter(Boolean))];
 
@@ -58,6 +62,17 @@ jobs:
               "review:elevated": 2,
               "review:critical": 3,
             };
+            const executableTypes = new Set([
+              "type:task",
+              "type:validation",
+              "type:bug",
+              "type:dependency",
+              "type:docs",
+              "type:ops",
+              "type:incident",
+              "type:investigation",
+              "type:chore",
+            ]);
 
             const linkedIssues = [];
             let requiredReviewLabel = "review:standard";
@@ -78,7 +93,13 @@ jobs:
               const labels = issue.labels
                 .map((label) => typeof label === "string" ? label : label.name)
                 .filter(Boolean);
+              const isExecutable = labels.some((label) => executableTypes.has(label));
               const reviewLabels = labels.filter((label) => label.startsWith("review:"));
+
+              if (!isExecutable) {
+                core.info(`Skipping non-executable issue #${issueNumber} for review-tier enforcement.`);
+                continue;
+              }
 
               if (reviewLabels.length === 0) {
                 core.setFailed(`Linked issue #${issueNumber} is missing a review:* label.`);
@@ -154,10 +175,13 @@ jobs:
             const latestReviewByUser = new Map();
             for (const review of reviews) {
               const reviewer = review.user?.login;
-              if (!reviewer || reviewer === pr.user.login) {
+              const reviewerType = review.user?.type;
+              if (!reviewer || reviewer === pr.user.login || reviewerType !== "User") {
                 continue;
               }
-              latestReviewByUser.set(reviewer, review.state);
+              if (review.state === "APPROVED" || review.state === "CHANGES_REQUESTED" || review.state === "DISMISSED") {
+                latestReviewByUser.set(reviewer, review.state);
+              }
             }
 
             const approvalCount = [...latestReviewByUser.values()].filter((state) => state === "APPROVED").length;

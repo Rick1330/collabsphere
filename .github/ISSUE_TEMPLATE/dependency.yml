@@ -32,6 +32,7 @@ body:
     id: source
     attributes:
       label: Source
+      description: The maintenance-intake workflow applies the matching `source:*` label from this value.
       options:
         - source:dependabot
         - source:manual

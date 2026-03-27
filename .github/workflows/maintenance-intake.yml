@@ -1,0 +1,95 @@
+name: Maintenance Intake
+
+on:
+  issues:
+    types:
+      - opened
+      - edited
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  sync-dependency-source:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Sync dependency source label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            if (!issue || issue.pull_request) {
+              core.info("No issue context or issue is a pull request. Skipping.");
+              return;
+            }
+
+            const labels = issue.labels
+              .map((label) => typeof label === "string" ? label : label.name)
+              .filter(Boolean);
+
+            if (!labels.includes("type:dependency")) {
+              core.info(`Issue #${issue.number} is not a dependency issue. Skipping.`);
+              return;
+            }
+
+            function extractSectionValue(body, heading) {
+              const lines = (body || "").split(/\r?\n/);
+              const target = heading.trim().toLowerCase();
+              let inSection = false;
+
+              for (const line of lines) {
+                const trimmed = line.trim();
+                if (trimmed.startsWith("### ")) {
+                  const headingName = trimmed.slice(4).trim().toLowerCase();
+                  if (inSection) {
+                    break;
+                  }
+                  inSection = headingName === target;
+                  continue;
+                }
+
+                if (inSection && trimmed.length > 0) {
+                  return trimmed;
+                }
+              }
+
+              return null;
+            }
+
+            const selectedSource = extractSectionValue(issue.body || "", "Source");
+            const allowedSources = new Set([
+              "source:dependabot",
+              "source:manual",
+              "source:security-advisory",
+              "source:ci",
+            ]);
+
+            if (!selectedSource || !allowedSources.has(selectedSource)) {
+              core.info(`Issue #${issue.number} does not expose a supported dependency source value. Skipping.`);
+              return;
+            }
+
+            const nextLabels = [
+              ...labels.filter((label) => !label.startsWith("source:")),
+              selectedSource,
+            ].sort((left, right) => left.localeCompare(right));
+            const sortedCurrentLabels = [...labels].sort((left, right) => left.localeCompare(right));
+            const changed =
+              nextLabels.length !== sortedCurrentLabels.length ||
+              nextLabels.some((label, index) => sortedCurrentLabels[index] !== label);
+
+            if (!changed) {
+              core.info(`Issue #${issue.number} already has ${selectedSource}.`);
+              return;
+            }
+
+            await github.rest.issues.setLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              labels: nextLabels,
+            });
+
+            core.info(`Issue #${issue.number} updated with ${selectedSource}.`);

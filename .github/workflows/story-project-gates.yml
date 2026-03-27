@@ -35,7 +35,7 @@ jobs:
 
             function done(issue) {
               const labels = labelNames(issue);
-              return issue.state === "closed" || labels.includes("status:done");
+              return labels.includes("status:done");
             }
 
             function extractSection(body, heading) {
@@ -171,7 +171,9 @@ jobs:
                 return labels.includes("type:task");
               });
 
-              const allImplementationDone = implementationIssues.every((issue) => done(issue));
+              const allImplementationDone =
+                implementationIssues.length > 0 &&
+                implementationIssues.every((issue) => done(issue));
               const validationDone = done(validationIssue);
 
               if (allImplementationDone) {
@@ -201,7 +203,7 @@ jobs:
               const stories = await Promise.all(storyIssueNumbers.map((issueNumber) => fetchIssue(issueNumber)));
               const validationIssue = await fetchIssue(validationIssueNumbers[0]);
 
-              const allStoriesDone = stories.every((issue) => done(issue));
+              const allStoriesDone = stories.length > 0 && stories.every((issue) => done(issue));
               const validationDone = done(validationIssue);
 
               if (allStoriesDone) {

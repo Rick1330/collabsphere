@@ -30,7 +30,7 @@ jobs:
             }
 
             const body = pr.body || "";
-            const issueMatches = [...body.matchAll(/(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?|refs?)\s+#(\d+)/gi)];
+            const issueMatches = [...body.matchAll(/(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?|ref(?:s|erences)?)\s+#(\d+)/gi)];
             const issueNumbers = [...new Set(issueMatches.map((match) => Number(match[1])).filter(Boolean))];
 
             if (issueNumbers.length === 0) {
@@ -49,11 +49,18 @@ jobs:
             let requiresHandoff = false;
 
             for (const issueNumber of issueNumbers) {
-              const { data: issue } = await github.rest.issues.get({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issueNumber,
-              });
+              let issue;
+              try {
+                const response = await github.rest.issues.get({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueNumber,
+                });
+                issue = response.data;
+              } catch (error) {
+                core.setFailed(`Unable to load linked issue #${issueNumber} in ${context.repo.owner}/${context.repo.repo}: ${error.message}`);
+                return;
+              }
 
               if (issue.pull_request) {
                 continue;
