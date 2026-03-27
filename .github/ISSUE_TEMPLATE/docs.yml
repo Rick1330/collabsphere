@@ -1,0 +1,30 @@
+name: Documentation Update
+description: Request a docs-only correction or improvement.
+title: "[DOCS] "
+labels:
+  - type:docs
+  - lane:maintenance
+  - source:manual
+  - status:triage
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What docs problem needs to be fixed.
+    validations:
+      required: true
+  - type: textarea
+    id: files
+    attributes:
+      label: Affected files or sections
+      description: List the repo files or docs sections involved.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: Describe the corrected or improved documentation state.
+    validations:
+      required: true

@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: CollabSphere Contributor Guide
+    url: https://github.com/Rick1330/collabsphere/blob/main/CONTRIBUTING.md
+    about: Read the contribution workflow, validation expectations, and handoff rules before opening work.

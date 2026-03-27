@@ -1,0 +1,272 @@
+name: Story Project Gates
+
+on:
+  issues:
+    types:
+      - opened
+      - edited
+      - reopened
+      - closed
+      - labeled
+      - unlabeled
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Sync story and project gates
+        uses: actions/github-script@v7
+        with:
+          script: |
+            function labelNames(issue) {
+              return issue.labels
+                .map((label) => typeof label === "string" ? label : label.name)
+                .filter(Boolean);
+            }
+
+            function hasLabel(labels, value) {
+              return labels.includes(value);
+            }
+
+            function done(issue) {
+              const labels = labelNames(issue);
+              return labels.includes("status:done");
+            }
+
+            function extractSection(body, heading) {
+              const lines = (body || "").split(/\r?\n/);
+              const target = heading.trim().toLowerCase();
+              const collected = [];
+              let inSection = false;
+
+              for (const line of lines) {
+                const trimmed = line.trim();
+                const isHeading = trimmed.startsWith("## ");
+
+                if (isHeading) {
+                  const headingName = trimmed.slice(3).trim().toLowerCase();
+                  if (inSection) {
+                    break;
+                  }
+
+                  if (headingName === target) {
+                    inSection = true;
+                  }
+
+                  continue;
+                }
+
+                if (inSection) {
+                  collected.push(line);
+                }
+              }
+
+              return collected;
+            }
+
+            function extractIssueNumbers(body, heading) {
+              const seen = new Set();
+              const issueNumbers = [];
+
+              for (const line of extractSection(body, heading)) {
+                const matches = line.matchAll(/#(\d+)/g);
+                for (const match of matches) {
+                  const issueNumber = Number(match[1]);
+                  if (seen.has(issueNumber)) {
+                    continue;
+                  }
+                  seen.add(issueNumber);
+                  issueNumbers.push(issueNumber);
+                }
+              }
+
+              return issueNumbers;
+            }
+
+            async function fetchIssue(issueNumber) {
+              const response = await github.rest.issues.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+              });
+              return response.data;
+            }
+
+            async function fetchParent(issueNumber) {
+              try {
+                const response = await github.rest.issues.getParent({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueNumber,
+                });
+                return response.data;
+              } catch (error) {
+                if (error.status === 404) {
+                  return null;
+                }
+                throw error;
+              }
+            }
+
+            async function setStatus(issue, targetStatus) {
+              const current = labelNames(issue);
+              const next = [...current.filter((label) => !label.startsWith("status:")), targetStatus]
+                .sort((left, right) => left.localeCompare(right));
+              const sortedCurrent = [...current].sort((left, right) => left.localeCompare(right));
+              const changed =
+                next.length !== sortedCurrent.length ||
+                next.some((label, index) => sortedCurrent[index] !== label);
+
+              if (!changed) {
+                return;
+              }
+
+              await github.rest.issues.setLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: next,
+              });
+            }
+
+            async function ensureState(issue, desiredState) {
+              if (issue.state === desiredState) {
+                return;
+              }
+
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: desiredState,
+              });
+            }
+
+            async function evaluateStory(storyIssue) {
+              const taskIssueNumbers = extractIssueNumbers(storyIssue.body || "", "Planned Tasks");
+              if (taskIssueNumbers.length === 0) {
+                core.info(`Story #${storyIssue.number} has no Planned Tasks references. Skipping gate sync.`);
+                return;
+              }
+
+              const children = await Promise.all(taskIssueNumbers.map((issueNumber) => fetchIssue(issueNumber)));
+              const validationIssues = children.filter((issue) => {
+                const labels = labelNames(issue);
+                return labels.includes("type:validation") && labels.includes("gate:story-validation");
+              });
+
+              if (validationIssues.length !== 1) {
+                core.info(`Story #${storyIssue.number} does not have exactly one story validation issue. Skipping gate sync.`);
+                return;
+              }
+
+              const validationIssue = validationIssues[0];
+              const implementationIssues = children.filter((issue) => {
+                const labels = labelNames(issue);
+                return labels.includes("type:task");
+              });
+
+              const allImplementationDone =
+                implementationIssues.length > 0 &&
+                implementationIssues.every((issue) => done(issue));
+              const validationDone = done(validationIssue);
+
+              if (allImplementationDone) {
+                await setStatus(validationIssue, validationDone ? "status:done" : "status:ready");
+              } else {
+                await setStatus(validationIssue, "status:blocked");
+              }
+
+              if (allImplementationDone && validationDone) {
+                await setStatus(storyIssue, "status:done");
+                await ensureState(storyIssue, "closed");
+              } else if (storyIssue.state === "closed" || hasLabel(labelNames(storyIssue), "status:done")) {
+                await ensureState(storyIssue, "open");
+                await setStatus(storyIssue, "status:blocked");
+              }
+            }
+
+            async function evaluateProject(projectIssue) {
+              const storyIssueNumbers = extractIssueNumbers(projectIssue.body || "", "Stories");
+              const validationIssueNumbers = extractIssueNumbers(projectIssue.body || "", "Validation task");
+
+              if (storyIssueNumbers.length === 0 || validationIssueNumbers.length !== 1) {
+                core.info(`Project #${projectIssue.number} is missing stories or a single validation task reference. Skipping gate sync.`);
+                return;
+              }
+
+              const stories = await Promise.all(storyIssueNumbers.map((issueNumber) => fetchIssue(issueNumber)));
+              const validationIssue = await fetchIssue(validationIssueNumbers[0]);
+
+              const allStoriesDone = stories.length > 0 && stories.every((issue) => done(issue));
+              const validationDone = done(validationIssue);
+
+              if (allStoriesDone) {
+                await setStatus(validationIssue, validationDone ? "status:done" : "status:ready");
+              } else {
+                await setStatus(validationIssue, "status:blocked");
+              }
+
+              if (allStoriesDone && validationDone) {
+                await setStatus(projectIssue, "status:done");
+                await ensureState(projectIssue, "closed");
+              } else if (projectIssue.state === "closed" || hasLabel(labelNames(projectIssue), "status:done")) {
+                await ensureState(projectIssue, "open");
+                await setStatus(projectIssue, "status:blocked");
+              }
+            }
+
+            const issue = context.payload.issue;
+            const labels = labelNames(issue);
+
+            if (labels.includes("type:story")) {
+              await evaluateStory(issue);
+              const parentProject = await fetchParent(issue.number);
+              if (parentProject) {
+                const parentIssue = await fetchIssue(parentProject.number);
+                await evaluateProject(parentIssue);
+              }
+              return;
+            }
+
+            if (labels.includes("type:epic")) {
+              await evaluateProject(issue);
+              return;
+            }
+
+            if (labels.includes("type:task") || labels.includes("gate:story-validation")) {
+              const parentStory = await fetchParent(issue.number);
+              if (!parentStory) {
+                core.info(`Issue #${issue.number} has no parent story. Skipping.`);
+                return;
+              }
+
+              const storyIssue = await fetchIssue(parentStory.number);
+              await evaluateStory(storyIssue);
+
+              const parentProject = await fetchParent(storyIssue.number);
+              if (parentProject) {
+                const projectIssue = await fetchIssue(parentProject.number);
+                await evaluateProject(projectIssue);
+              }
+              return;
+            }
+
+            if (labels.includes("gate:project-validation")) {
+              const parentProject = await fetchParent(issue.number);
+              if (!parentProject) {
+                core.info(`Project validation issue #${issue.number} has no parent project. Skipping.`);
+                return;
+              }
+
+              const projectIssue = await fetchIssue(parentProject.number);
+              await evaluateProject(projectIssue);
+              return;
+            }
+
+            core.info(`Issue #${issue.number} is not part of gate automation scope.`);

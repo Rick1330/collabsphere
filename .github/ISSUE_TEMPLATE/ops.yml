@@ -1,0 +1,30 @@
+name: Ops / Infra Work
+description: Track CI/CD, infrastructure, release-process, or operational work outside the planned delivery queue.
+title: "[OPS] "
+labels:
+  - type:ops
+  - lane:maintenance
+  - source:manual
+  - status:triage
+body:
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective
+      description: What operational behavior needs to change.
+    validations:
+      required: true
+  - type: textarea
+    id: systems
+    attributes:
+      label: Systems affected
+      description: CI, deployments, env management, Docker, queues, branch protection, or other ops surfaces.
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation plan
+      description: State the commands, checks, or manual settings that prove the work is complete.
+    validations:
+      required: true

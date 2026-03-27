@@ -52,5 +52,10 @@ Provide an execution-focused index for operational concerns: local development, 
 - `migrations.md`
 - `deployment.md`
 - `release-readiness.md`
+- `github-issue-lifecycle.md`
+- `pr-review-workflow.md`
+- `review-automation.md`
+- `handoff-format.md`
+- `branch-protection.md`
 - `docs/agent-ref/rules/*`
 

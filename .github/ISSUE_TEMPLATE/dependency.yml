@@ -1,0 +1,42 @@
+name: Dependency Update
+description: Track a dependency upgrade, advisory remediation, or package maintenance task.
+title: "[DEPENDENCY] "
+labels:
+  - type:dependency
+  - lane:maintenance
+  - status:triage
+body:
+  - type: input
+    id: package
+    attributes:
+      label: Package or dependency
+      placeholder: package-name
+    validations:
+      required: true
+  - type: textarea
+    id: reason
+    attributes:
+      label: Reason
+      description: Why should this dependency be updated now.
+      placeholder: Security advisory, compatibility, maintenance, or planned upgrade.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: Describe the affected apps/packages and expected validation.
+    validations:
+      required: true
+  - type: dropdown
+    id: source
+    attributes:
+      label: Source
+      description: The maintenance-intake workflow applies the matching `source:*` label from this value.
+      options:
+        - source:dependabot
+        - source:manual
+        - source:security-advisory
+        - source:ci
+    validations:
+      required: true
