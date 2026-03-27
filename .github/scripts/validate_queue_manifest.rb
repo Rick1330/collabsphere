@@ -7,6 +7,7 @@ require "pathname"
 ROOT = Pathname.new(__dir__).join("..", "..").expand_path
 QUEUE_ROOT = ROOT.join(".github", "queue")
 INDEX_PATH = QUEUE_ROOT.join("index.yaml")
+QUEUE_ROOT_PREFIX = "#{QUEUE_ROOT.expand_path}#{File::SEPARATOR}"
 
 def fail_with(message)
   warn(message)
@@ -47,7 +48,10 @@ projects.each do |project_entry|
   project_validation_issue = require_key(project, "validation_issue", "project #{project_id}")
   project_file = require_key(project, "file", "project #{project_id}")
 
-  project_path = QUEUE_ROOT.join(project_file)
+  project_path = QUEUE_ROOT.join(project_file).expand_path
+  unless project_path.to_s.start_with?(QUEUE_ROOT_PREFIX)
+    fail_with("Referenced project file must be inside #{QUEUE_ROOT}: #{project_file}")
+  end
   fail_with("Referenced project file does not exist: #{project_path}") unless project_path.exist?
 
   project_manifest = require_hash(YAML.safe_load(project_path.read), project_path.to_s)
@@ -59,7 +63,7 @@ projects.each do |project_entry|
 
   manifest_validation = require_hash(
     manifest_project["validation"],
-    "#{project_path} project.validation",
+    "#{project_path} project.validation"
   )
   fail_with("#{project_path} validation issue mismatch.") unless manifest_validation["issue"] == project_validation_issue
 
