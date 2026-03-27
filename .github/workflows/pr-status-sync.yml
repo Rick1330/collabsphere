@@ -85,7 +85,10 @@ jobs:
             function normalizeSectionLines(lines, fallbackLine) {
               const cleaned = lines
                 .map((line) => line.trimRight())
-                .filter((line) => line.trim().length > 0);
+                .filter((line) => line.trim().length > 0)
+                .filter((line) => !/^\s*<!--.*-->\s*$/.test(line))
+                .filter((line) => !/^\s*\[[^\]]*\]\s*$/.test(line))
+                .filter((line) => !/^\s*<[^>]+>\s*$/.test(line));
 
               return cleaned.length > 0 ? cleaned : [fallbackLine];
             }
@@ -274,7 +277,7 @@ jobs:
                 core.info(`Updated #${issueNumber} -> ${targetStatus}`);
               }
 
-              if (isMerged && (currentLabels.includes("type:task") || currentLabels.includes("type:validation"))) {
+              if (isMerged && currentLabels.includes("type:task")) {
                 await syncMergedIssueBody(issue);
               }
             }

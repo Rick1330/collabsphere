@@ -179,7 +179,12 @@ jobs:
               if (!reviewer || reviewer === pr.user.login || reviewerType !== "User") {
                 continue;
               }
-              if (review.state === "APPROVED" || review.state === "CHANGES_REQUESTED" || review.state === "DISMISSED") {
+              if (
+                review.state === "APPROVED" ||
+                review.state === "CHANGES_REQUESTED" ||
+                review.state === "DISMISSED" ||
+                review.state === "COMMENTED"
+              ) {
                 latestReviewByUser.set(reviewer, review.state);
               }
             }
@@ -203,11 +208,17 @@ jobs:
               issue_number: pr.number,
               per_page: 100,
             });
-            const reviewCommentAuthors = new Set(
-              issueComments
-                .map((comment) => comment.user?.login)
-                .filter(Boolean)
-            );
+            const reviewComments = await github.paginate(github.rest.pulls.listReviewComments, {
+              owner,
+              repo,
+              pull_number: pr.number,
+              per_page: 100,
+            });
+            const reviewCommentAuthors = new Set([
+              ...issueComments.map((comment) => comment.user?.login),
+              ...reviewComments.map((comment) => comment.user?.login),
+              ...reviews.map((review) => review.user?.login),
+            ].filter(Boolean));
 
             const detectedAutomations = [
               { name: "Devin Review", actors: ["devin-ai-integration"] },
@@ -268,13 +279,7 @@ jobs:
             }
 
             const commentBody = `${lines.join("\n")}\n`;
-            const existingComments = await github.paginate(github.rest.issues.listComments, {
-              owner,
-              repo,
-              issue_number: pr.number,
-              per_page: 100,
-            });
-            const existingComment = existingComments.find((comment) => comment.body?.includes(marker));
+            const existingComment = issueComments.find((comment) => comment.body?.includes(marker));
 
             if (existingComment) {
               await github.rest.issues.updateComment({
