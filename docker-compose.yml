@@ -99,4 +99,3 @@ volumes:
 
 networks:
   collabsphere:
-    name: collabsphere-local
