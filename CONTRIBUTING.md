@@ -41,8 +41,14 @@ This guide defines the default contribution workflow for CollabSphere. Follow it
 
 ```bash
 pnpm install
-cp .env.example .env.local
+cp .env.example .env
 ```
+
+Current local env-file split:
+
+- `.env` is the Docker Compose override file for local infrastructure ports and credentials.
+- `.env.local` remains reserved for app runtime overrides and must not be committed.
+- The current `.env.example` file covers the Docker Compose infrastructure keys required for local services. Broader app env coverage lands with the later env setup task.
 
 Required local services are expected to run through Docker Compose:
 
@@ -78,14 +84,14 @@ Health checks after startup:
 If startup fails:
 
 - verify Docker is running
-- verify `.env.local` is present and aligned with `.env.example`
-- verify required ports are free or overridden in local env
+- verify `.env` is present and aligned with `.env.example` for Docker Compose overrides
+- verify required ports are free or overridden in `.env`
 - inspect service logs before retrying
 
 ### Common troubleshooting
 
-- Port conflict: update the conflicting port in `.env.local`, then restart.
-- Missing env vars: copy missing keys from `.env.example` and retry.
+- Port conflict: update the conflicting port in `.env`, then restart Docker Compose.
+- Missing env vars: copy missing keys from `.env.example` into the env file used by the affected process, then retry.
 - Stale Docker state: stop services, remove stale containers or volumes if appropriate, then restart.
 - Dependency drift: run `pnpm install` again after pulling new changes.
 - Cache confusion: if Turborepo or package state looks stale, run `pnpm turbo prune` only if you know why; otherwise start with a clean install and rerun the failing command.
