@@ -37,7 +37,7 @@ jobs:
 
     steps:
       - name: Route review expectations
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const pr = context.payload.pull_request;
@@ -185,10 +185,45 @@ jobs:
             }
 
             const approvalCount = [...latestReviewByUser.values()].filter((state) => state === "APPROVED").length;
+            const approvalReviewers = [...latestReviewByUser.entries()]
+              .filter(([, state]) => state === "APPROVED")
+              .map(([reviewer]) => reviewer)
+              .sort((left, right) => left.localeCompare(right));
+            const humanReviewStates = [...latestReviewByUser.entries()]
+              .map(([reviewer, state]) => `${reviewer} (${state.toLowerCase()})`)
+              .sort((left, right) => left.localeCompare(right));
             const devinEnabled = String(process.env.DEVIN_REVIEW_ENABLED || "").toLowerCase() === "true";
             const codesceneEnabled = String(process.env.CODESCENE_ENABLED || "").toLowerCase() === "true";
             const requireHumanApproval =
               String(process.env.REQUIRE_HUMAN_APPROVAL_FOR_CRITICAL || "").toLowerCase() !== "false";
+
+            const issueComments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number: pr.number,
+              per_page: 100,
+            });
+            const reviewCommentAuthors = new Set(
+              issueComments
+                .map((comment) => comment.user?.login)
+                .filter(Boolean)
+            );
+
+            const detectedAutomations = [
+              { name: "Devin Review", actors: ["devin-ai-integration"] },
+              { name: "CodeScene", actors: ["codescene-delta-analysis"] },
+              { name: "CodeRabbit", actors: ["coderabbitai"] },
+              { name: "Qodo", actors: ["qodo-code-review"] },
+              { name: "Codex", actors: ["chatgpt-codex-connector"] },
+            ].map((integration) => ({
+              ...integration,
+              detected: integration.actors.some((actor) => reviewCommentAuthors.has(actor)),
+            }));
+
+            const detectedAutomationNames = detectedAutomations
+              .filter((integration) => integration.detected)
+              .map((integration) => integration.name)
+              .sort((left, right) => left.localeCompare(right));
 
             const marker = "<!-- review-router -->";
             const tierPolicy = {
@@ -215,10 +250,14 @@ jobs:
               "Linked issues:",
               ...linkedIssues.map((issue) => `- #${issue.number} ${issue.title} (${issue.reviewLabel})`),
               "",
-              "Automation flags:",
-              `- Devin Review enabled: ${devinEnabled ? "yes" : "no"}`,
-              `- CodeScene enabled: ${codesceneEnabled ? "yes" : "no"}`,
-              `- Non-author approvals recorded: ${approvalCount}`,
+              "Configured integrations:",
+              `- Devin auto-review configured: ${devinEnabled ? "yes" : "no"}`,
+              `- CodeScene auto-review configured: ${codesceneEnabled ? "yes" : "no"}`,
+              "",
+              "Observed review activity on this PR:",
+              `- Human approvals recorded: ${approvalCount}${approvalReviewers.length > 0 ? ` (${approvalReviewers.join(", ")})` : ""}`,
+              `- Human review states: ${humanReviewStates.length > 0 ? humanReviewStates.join("; ") : "none"}`,
+              `- Automated review sources detected: ${detectedAutomationNames.length > 0 ? detectedAutomationNames.join(", ") : "none"}`,
               "",
               "Policy:",
               ...tierPolicy[requiredReviewLabel].map((line) => `- ${line}`),

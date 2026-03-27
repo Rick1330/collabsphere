@@ -14,13 +14,17 @@ permissions:
   contents: read
   issues: write
 
+concurrency:
+  group: story-project-gates-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
 jobs:
   sync:
     runs-on: ubuntu-latest
 
     steps:
       - name: Sync story and project gates
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             function labelNames(issue) {
@@ -99,7 +103,7 @@ jobs:
 
             async function fetchParent(issueNumber) {
               try {
-                const response = await github.rest.issues.getParent({
+                const response = await github.request("GET /repos/{owner}/{repo}/issues/{issue_number}/parent", {
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   issue_number: issueNumber,

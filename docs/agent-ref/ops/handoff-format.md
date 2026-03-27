@@ -87,6 +87,7 @@ Every handoff should include:
 - do not hide skipped validation
 - if a comment rejects a review finding, state why
 - if the work is blocked, say exactly what is blocking it
+- when a PR merges, automation may sync task issue `Done When` and `Handoff` sections from the merged PR body; keep PR summary, validation, and risks sections accurate
 
 ## Related Files
 
