@@ -16,6 +16,10 @@ on:
       - submitted
       - dismissed
       - edited
+  issue_comment:
+    types:
+      - created
+      - edited
 
 permissions:
   contents: read
@@ -23,7 +27,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: review-router-${{ github.event.pull_request.number }}
+  group: review-router-${{ github.event.pull_request.number || github.event.issue.number }}
   cancel-in-progress: false
 
 env:
@@ -40,7 +44,16 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
-            const pr = context.payload.pull_request;
+            let pr = context.payload.pull_request;
+            if (!pr && context.payload.issue?.pull_request) {
+              const response = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.issue.number,
+              });
+              pr = response.data;
+            }
+
             if (!pr) {
               core.setFailed("Review router requires a pull request context.");
               return;
