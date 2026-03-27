@@ -123,6 +123,7 @@ An implementation task is complete only when:
 - validation was run or explicitly waived with reason
 - the PR is merged or the issue is otherwise explicitly resolved
 - required handoff content is posted
+- the task issue body is synced to reflect merged completion evidence when automation can do so safely
 - the issue is labeled `status:done`
 
 ### Story complete

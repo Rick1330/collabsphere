@@ -84,6 +84,7 @@ The repo-native review router workflow should:
 - determine the highest required review tier
 - sync that review tier onto the PR for visibility
 - post or update a sticky policy comment describing the expected review level
+- report both configured external review integrations and the review activity actually detected on the PR
 - enforce human approval for `review:critical` PRs
 
 The review router should not:

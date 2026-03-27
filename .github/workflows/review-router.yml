@@ -16,6 +16,10 @@ on:
       - submitted
       - dismissed
       - edited
+  issue_comment:
+    types:
+      - created
+      - edited
 
 permissions:
   contents: read
@@ -23,7 +27,7 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: review-router-${{ github.event.pull_request.number }}
+  group: review-router-${{ github.event.pull_request.number || github.event.issue.number }}
   cancel-in-progress: false
 
 env:
@@ -37,12 +41,21 @@ jobs:
 
     steps:
       - name: Route review expectations
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
-            const pr = context.payload.pull_request;
+            let pr = context.payload.pull_request;
+            if (!pr && context.payload.issue?.pull_request) {
+              const response = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.issue.number,
+              });
+              pr = response.data;
+            }
+
             if (!pr) {
-              core.setFailed("Review router requires a pull request context.");
+              core.info("No pull request context found. Skipping review router.");
               return;
             }
 
@@ -179,16 +192,70 @@ jobs:
               if (!reviewer || reviewer === pr.user.login || reviewerType !== "User") {
                 continue;
               }
-              if (review.state === "APPROVED" || review.state === "CHANGES_REQUESTED" || review.state === "DISMISSED") {
+              if (
+                review.state === "APPROVED" ||
+                review.state === "CHANGES_REQUESTED" ||
+                review.state === "DISMISSED"
+              ) {
+                latestReviewByUser.set(reviewer, review.state);
+                continue;
+              }
+
+              if (review.state === "COMMENTED") {
+                const existing = latestReviewByUser.get(reviewer);
+                if (existing === "APPROVED" || existing === "CHANGES_REQUESTED") {
+                  continue;
+                }
                 latestReviewByUser.set(reviewer, review.state);
               }
             }
 
             const approvalCount = [...latestReviewByUser.values()].filter((state) => state === "APPROVED").length;
+            const approvalReviewers = [...latestReviewByUser.entries()]
+              .filter(([, state]) => state === "APPROVED")
+              .map(([reviewer]) => reviewer)
+              .sort((left, right) => left.localeCompare(right));
+            const humanReviewStates = [...latestReviewByUser.entries()]
+              .map(([reviewer, state]) => `${reviewer} (${state.toLowerCase()})`)
+              .sort((left, right) => left.localeCompare(right));
             const devinEnabled = String(process.env.DEVIN_REVIEW_ENABLED || "").toLowerCase() === "true";
             const codesceneEnabled = String(process.env.CODESCENE_ENABLED || "").toLowerCase() === "true";
             const requireHumanApproval =
               String(process.env.REQUIRE_HUMAN_APPROVAL_FOR_CRITICAL || "").toLowerCase() !== "false";
+
+            const issueComments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number: pr.number,
+              per_page: 100,
+            });
+            const reviewComments = await github.paginate(github.rest.pulls.listReviewComments, {
+              owner,
+              repo,
+              pull_number: pr.number,
+              per_page: 100,
+            });
+            const reviewCommentAuthors = new Set([
+              ...issueComments.map((comment) => comment.user?.login),
+              ...reviewComments.map((comment) => comment.user?.login),
+              ...reviews.map((review) => review.user?.login),
+            ].filter(Boolean));
+
+            const detectedAutomations = [
+              { name: "Devin Review", actors: ["devin-ai-integration[bot]", "devin-ai-integration"] },
+              { name: "CodeScene", actors: ["codescene-delta-analysis[bot]", "codescene-delta-analysis"] },
+              { name: "CodeRabbit", actors: ["coderabbitai[bot]", "coderabbitai"] },
+              { name: "Qodo", actors: ["qodo-code-review[bot]", "qodo-code-review"] },
+              { name: "Codex", actors: ["chatgpt-codex-connector[bot]", "chatgpt-codex-connector"] },
+            ].map((integration) => ({
+              ...integration,
+              detected: integration.actors.some((actor) => reviewCommentAuthors.has(actor)),
+            }));
+
+            const detectedAutomationNames = detectedAutomations
+              .filter((integration) => integration.detected)
+              .map((integration) => integration.name)
+              .sort((left, right) => left.localeCompare(right));
 
             const marker = "<!-- review-router -->";
             const tierPolicy = {
@@ -215,10 +282,14 @@ jobs:
               "Linked issues:",
               ...linkedIssues.map((issue) => `- #${issue.number} ${issue.title} (${issue.reviewLabel})`),
               "",
-              "Automation flags:",
-              `- Devin Review enabled: ${devinEnabled ? "yes" : "no"}`,
-              `- CodeScene enabled: ${codesceneEnabled ? "yes" : "no"}`,
-              `- Non-author approvals recorded: ${approvalCount}`,
+              "Configured integrations:",
+              `- Devin auto-review configured: ${devinEnabled ? "yes" : "no"}`,
+              `- CodeScene auto-review configured: ${codesceneEnabled ? "yes" : "no"}`,
+              "",
+              "Observed review activity on this PR:",
+              `- Human approvals recorded: ${approvalCount}${approvalReviewers.length > 0 ? ` (${approvalReviewers.join(", ")})` : ""}`,
+              `- Human review states: ${humanReviewStates.length > 0 ? humanReviewStates.join("; ") : "none"}`,
+              `- Automated review sources detected: ${detectedAutomationNames.length > 0 ? detectedAutomationNames.join(", ") : "none"}`,
               "",
               "Policy:",
               ...tierPolicy[requiredReviewLabel].map((line) => `- ${line}`),
@@ -229,13 +300,7 @@ jobs:
             }
 
             const commentBody = `${lines.join("\n")}\n`;
-            const existingComments = await github.paginate(github.rest.issues.listComments, {
-              owner,
-              repo,
-              issue_number: pr.number,
-              per_page: 100,
-            });
-            const existingComment = existingComments.find((comment) => comment.body?.includes(marker));
+            const existingComment = issueComments.find((comment) => comment.body?.includes(marker));
 
             if (existingComment) {
               await github.rest.issues.updateComment({

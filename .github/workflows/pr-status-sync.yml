@@ -26,7 +26,7 @@ jobs:
 
     steps:
       - name: Sync linked issue statuses
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const body = context.payload.pull_request.body || "";
@@ -56,6 +56,159 @@ jobs:
             const isConvertedToDraft =
               pr.draft &&
               context.payload.action === "converted_to_draft";
+
+            function extractSection(bodyText, heading) {
+              const lines = (bodyText || "").split(/\r?\n/);
+              const target = heading.trim().toLowerCase();
+              const collected = [];
+              let inSection = false;
+
+              for (const line of lines) {
+                const trimmed = line.trim();
+                if (trimmed.startsWith("## ")) {
+                  const currentHeading = trimmed.slice(3).trim().toLowerCase();
+                  if (inSection) {
+                    break;
+                  }
+                  inSection = currentHeading === target;
+                  continue;
+                }
+
+                if (inSection) {
+                  collected.push(line);
+                }
+              }
+
+              return collected;
+            }
+
+            function normalizeSectionLines(lines, fallbackLine) {
+              const cleaned = lines
+                .map((line) => line.trimRight())
+                .filter((line) => line.trim().length > 0)
+                .filter((line) => !/^\s*<!--.*-->\s*$/.test(line))
+                .filter((line) => !/^\s*\[[^\]]*\]\s*$/.test(line))
+                .filter((line) => !/^\s*<[^>]+>\s*$/.test(line));
+
+              return cleaned.length > 0 ? cleaned : [fallbackLine];
+            }
+
+            function hasMeaningfulSectionContent(lines) {
+              const normalized = normalizeSectionLines(lines, "");
+              return normalized.some((line) => {
+                const value = line.trim().toLowerCase();
+                return value.length > 0 && !/^-?\s*none\.?$/.test(value);
+              });
+            }
+
+            function escapeRegExp(value) {
+              return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            }
+
+            function markDoneWhenCheckbox(issueBody, labelText) {
+              const pattern = new RegExp(`^(\\s*-\\s*\\[)(?: |x|X)(\\]\\s*${escapeRegExp(labelText)}\\s*)$`, "m");
+              return issueBody.replace(pattern, "$1x$2");
+            }
+
+            function replaceSection(issueBody, heading, replacementLines) {
+              const lines = (issueBody || "").split(/\r?\n/);
+              const target = heading.trim().toLowerCase();
+              const output = [];
+              let replaced = false;
+              let index = 0;
+
+              while (index < lines.length) {
+                const line = lines[index];
+                const trimmed = line.trim();
+
+                if (trimmed.startsWith("## ") && trimmed.slice(3).trim().toLowerCase() === target) {
+                  output.push(...replacementLines);
+                  replaced = true;
+                  index += 1;
+
+                  while (index < lines.length && !lines[index].trim().startsWith("## ")) {
+                    index += 1;
+                  }
+
+                  continue;
+                }
+
+                output.push(line);
+                index += 1;
+              }
+
+              if (!replaced) {
+                if (output.length > 0 && output[output.length - 1].trim() !== "") {
+                  output.push("");
+                }
+                output.push(...replacementLines);
+              }
+
+              return output.join("\n");
+            }
+
+            async function syncMergedIssueBody(issue) {
+              const currentBody = issue.body || "";
+              const handoffSummaryLines = extractSection(body, "Handoff Summary");
+              const handoffValidationLines = extractSection(body, "Handoff Validation Evidence");
+              const followUpLines = extractSection(body, "Handoff Open Issues / Follow-ups");
+              const handoffRiskLines = extractSection(body, "Handoff Risks / Deviations");
+              const summaryLines = hasMeaningfulSectionContent(handoffSummaryLines)
+                ? handoffSummaryLines
+                : extractSection(body, "Summary");
+              const validationLines = hasMeaningfulSectionContent(handoffValidationLines)
+                ? handoffValidationLines
+                : extractSection(body, "Validation");
+              const riskLines = hasMeaningfulSectionContent(handoffRiskLines)
+                ? handoffRiskLines
+                : extractSection(body, "Risks / Notes");
+
+              const mergedAt = pr.merged_at || new Date().toISOString();
+              const summary = normalizeSectionLines(summaryLines, `- merged via PR #${pr.number}`);
+              const validation = normalizeSectionLines(validationLines, `- see PR #${pr.number} for validation details`);
+              const followUps = normalizeSectionLines(followUpLines, "- none");
+              const risks = normalizeSectionLines(riskLines, "- none");
+
+              let nextBody = currentBody;
+              nextBody = markDoneWhenCheckbox(nextBody, "Deliverables implemented.");
+              nextBody = markDoneWhenCheckbox(nextBody, "Validation commands executed or explicitly waived.");
+              nextBody = markDoneWhenCheckbox(nextBody, "Handoff completed.");
+
+              nextBody = replaceSection(nextBody, "Handoff", [
+                "## Handoff",
+                "",
+                "### Summary of changes",
+                ...summary,
+                "",
+                "### Validation evidence",
+                ...validation,
+                "",
+                "### Open issues / follow-ups",
+                ...followUps,
+                "",
+                "### Risks or deviations",
+                ...risks,
+                "",
+                "### Delivery metadata",
+                `- Merged PR: #${pr.number}`,
+                `- Merge commit: \`${pr.merge_commit_sha || "unknown"}\``,
+                `- Merged at: ${mergedAt}`,
+              ]);
+
+              if (nextBody === currentBody) {
+                core.info(`Issue body for #${issue.number} already matches merged state.`);
+                return;
+              }
+
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: nextBody,
+              });
+
+              core.info(`Updated issue body for #${issue.number} after merge.`);
+            }
 
             function determineTargetStatus(labelNames) {
               if (labelNames.includes("type:epic") || labelNames.includes("type:story")) {
@@ -121,15 +274,18 @@ jobs:
 
               if (!labelsChanged) {
                 core.info(`No label change needed for #${issueNumber}.`);
-                continue;
+              } else {
+                await github.rest.issues.setLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueNumber,
+                  labels: nextLabels,
+                });
+
+                core.info(`Updated #${issueNumber} -> ${targetStatus}`);
               }
 
-              await github.rest.issues.setLabels({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issueNumber,
-                labels: nextLabels,
-              });
-
-              core.info(`Updated #${issueNumber} -> ${targetStatus}`);
+              if (isMerged && currentLabels.includes("type:task")) {
+                await syncMergedIssueBody(issue);
+              }
             }

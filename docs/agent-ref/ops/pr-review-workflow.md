@@ -72,6 +72,7 @@ Every executable issue should carry exactly one review-tier label:
 - `review:critical`
 
 The review router reads linked issue labels and applies the highest required review tier to the PR for visibility and enforcement.
+Its sticky PR comment should show both configured integrations and the review activity actually detected on the current PR.
 
 ## Review Resolution Rules
 
