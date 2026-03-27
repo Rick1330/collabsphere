@@ -1,6 +1,9 @@
-# Copy .env.example to .env before running Docker Compose if you want to override
-# the default local ports or credentials. MinIO stays disabled unless the
-# `minio` profile is enabled with `docker compose --profile minio up -d`.
+# Copy .env.example to .env before running Docker Compose if you need to override
+# local service ports or credentials. If a host port is already in use, change
+# the matching `*_PORT` value in `.env`, then rerun `docker compose up -d`.
+# Keep app runtime-only overrides in `.env.local`; Compose reads `.env`
+# automatically for interpolation. MinIO stays disabled unless the `minio`
+# profile is enabled with `docker compose --profile minio up -d`.
 
 services:
   postgres:
@@ -35,7 +38,7 @@ services:
       - "${MAILHOG_UI_PORT:-8025}:8025"
 
   minio:
-    image: minio/minio:latest
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
     restart: unless-stopped
     profiles:
       - minio
