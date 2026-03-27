@@ -53,6 +53,9 @@ jobs:
             const isReadyForReview =
               !pr.draft &&
               ["opened", "reopened", "ready_for_review"].includes(context.payload.action);
+            const isConvertedToDraft =
+              pr.draft &&
+              context.payload.action === "converted_to_draft";
 
             function determineTargetStatus(labelNames) {
               if (labelNames.includes("type:epic") || labelNames.includes("type:story")) {
@@ -75,6 +78,10 @@ jobs:
 
               if (isReadyForReview) {
                 return "status:in_review";
+              }
+
+              if (isConvertedToDraft) {
+                return "status:in_progress";
               }
 
               return null;

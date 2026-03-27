@@ -5,6 +5,7 @@ on:
     types:
       - opened
       - edited
+      - reopened
 
 permissions:
   contents: read
@@ -22,15 +23,6 @@ jobs:
             const issue = context.payload.issue;
             if (!issue || issue.pull_request) {
               core.info("No issue context or issue is a pull request. Skipping.");
-              return;
-            }
-
-            const labels = issue.labels
-              .map((label) => typeof label === "string" ? label : label.name)
-              .filter(Boolean);
-
-            if (!labels.includes("type:dependency")) {
-              core.info(`Issue #${issue.number} is not a dependency issue. Skipping.`);
               return;
             }
 
@@ -71,25 +63,54 @@ jobs:
               return;
             }
 
-            const nextLabels = [
-              ...labels.filter((label) => !label.startsWith("source:")),
-              selectedSource,
-            ].sort((left, right) => left.localeCompare(right));
-            const sortedCurrentLabels = [...labels].sort((left, right) => left.localeCompare(right));
-            const changed =
-              nextLabels.length !== sortedCurrentLabels.length ||
-              nextLabels.some((label, index) => sortedCurrentLabels[index] !== label);
+            const { data: labelObjects } = await github.rest.issues.listLabelsOnIssue({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+            });
 
-            if (!changed) {
+            const currentLabels = labelObjects
+              .map((label) => label?.name)
+              .filter(Boolean);
+
+            if (!currentLabels.includes("type:dependency")) {
+              core.info(`Issue #${issue.number} is not a dependency issue. Skipping.`);
+              return;
+            }
+
+            const sourceLabels = currentLabels.filter((label) => label.startsWith("source:"));
+            const labelsToRemove = sourceLabels.filter((label) => label !== selectedSource);
+            const needsSelectedSource = !sourceLabels.includes(selectedSource);
+
+            if (!needsSelectedSource && labelsToRemove.length === 0) {
               core.info(`Issue #${issue.number} already has ${selectedSource}.`);
               return;
             }
 
-            await github.rest.issues.setLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issue.number,
-              labels: nextLabels,
-            });
+            if (needsSelectedSource) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: [selectedSource],
+              });
+            }
+
+            for (const label of labelsToRemove) {
+              try {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  name: label,
+                });
+              } catch (error) {
+                if (error.status === 404) {
+                  core.info(`Source label ${label} was already removed from #${issue.number}.`);
+                  continue;
+                }
+                throw error;
+              }
+            }
 
             core.info(`Issue #${issue.number} updated with ${selectedSource}.`);
