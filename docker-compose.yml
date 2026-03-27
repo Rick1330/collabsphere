@@ -15,8 +15,18 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-collabsphere}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
+    networks:
+      - collabsphere
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U ${POSTGRES_USER:-collab} -d ${POSTGRES_DB:-collabsphere}
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
   redis:
     image: redis:7-alpine
@@ -27,8 +37,18 @@ services:
       - "yes"
     ports:
       - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - collabsphere
     volumes:
       - redis-data:/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - redis-cli ping | grep PONG
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
   mailhog:
     image: mailhog/mailhog:v1.0.1
@@ -36,6 +56,16 @@ services:
     ports:
       - "${MAILHOG_SMTP_PORT:-1025}:1025"
       - "${MAILHOG_UI_PORT:-8025}:8025"
+    networks:
+      - collabsphere
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - wget --spider --quiet http://127.0.0.1:8025/
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
   minio:
     image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
@@ -49,10 +79,23 @@ services:
     ports:
       - "${MINIO_API_PORT:-9000}:9000"
       - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    networks:
+      - collabsphere
     volumes:
       - minio-data:/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - curl --fail --silent http://127.0.0.1:9000/minio/health/ready > /dev/null
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
 volumes:
   postgres-data:
   redis-data:
   minio-data:
+
+networks:
+  collabsphere:
