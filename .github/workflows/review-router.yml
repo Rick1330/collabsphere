@@ -1,0 +1,241 @@
+name: Review Router
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - edited
+      - synchronize
+      - ready_for_review
+      - converted_to_draft
+      - labeled
+      - unlabeled
+  pull_request_review:
+    types:
+      - submitted
+      - dismissed
+      - edited
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+env:
+  DEVIN_REVIEW_ENABLED: ${{ vars.DEVIN_REVIEW_ENABLED }}
+  CODESCENE_ENABLED: ${{ vars.CODESCENE_ENABLED }}
+  REQUIRE_HUMAN_APPROVAL_FOR_CRITICAL: ${{ vars.REQUIRE_HUMAN_APPROVAL_FOR_CRITICAL }}
+
+jobs:
+  route:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Route review expectations
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            if (!pr) {
+              core.setFailed("Review router requires a pull request context.");
+              return;
+            }
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issueRefPattern = /(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?|refs?)\s+#(\d+)/gi;
+            const body = pr.body || "";
+            const issueNumbers = [...new Set([...body.matchAll(issueRefPattern)].map((match) => Number(match[1])).filter(Boolean))];
+
+            if (issueNumbers.length === 0) {
+              core.setFailed("PR body must reference at least one GitHub issue using Closes/Fixes/Resolves/Refs #<number>.");
+              return;
+            }
+
+            const reviewPriority = {
+              "review:standard": 1,
+              "review:elevated": 2,
+              "review:critical": 3,
+            };
+
+            const linkedIssues = [];
+            let requiredReviewLabel = "review:standard";
+            let requiredReviewValue = reviewPriority[requiredReviewLabel];
+
+            for (const issueNumber of issueNumbers) {
+              const { data: issue } = await github.rest.issues.get({
+                owner,
+                repo,
+                issue_number: issueNumber,
+              });
+
+              if (issue.pull_request) {
+                core.info(`Skipping #${issueNumber} because it is a pull request.`);
+                continue;
+              }
+
+              const labels = issue.labels
+                .map((label) => typeof label === "string" ? label : label.name)
+                .filter(Boolean);
+              const reviewLabels = labels.filter((label) => label.startsWith("review:"));
+
+              if (reviewLabels.length === 0) {
+                core.setFailed(`Linked issue #${issueNumber} is missing a review:* label.`);
+                return;
+              }
+
+              if (reviewLabels.length > 1) {
+                core.setFailed(`Linked issue #${issueNumber} has multiple review:* labels: ${reviewLabels.join(", ")}`);
+                return;
+              }
+
+              const reviewLabel = reviewLabels[0];
+              const priority = reviewPriority[reviewLabel];
+              if (!priority) {
+                core.setFailed(`Linked issue #${issueNumber} has unsupported review label ${reviewLabel}.`);
+                return;
+              }
+
+              if (priority > requiredReviewValue) {
+                requiredReviewLabel = reviewLabel;
+                requiredReviewValue = priority;
+              }
+
+              linkedIssues.push({
+                number: issueNumber,
+                title: issue.title,
+                reviewLabel,
+              });
+            }
+
+            if (linkedIssues.length === 0) {
+              core.setFailed("No linked issues remained after evaluation.");
+              return;
+            }
+
+            const { data: latestPr } = await github.rest.pulls.get({
+              owner,
+              repo,
+              pull_number: pr.number,
+            });
+            const currentPrLabels = latestPr.labels
+              .map((label) => typeof label === "string" ? label : label.name)
+              .filter(Boolean);
+            const syncedPrLabels = [
+              ...currentPrLabels.filter((label) => !label.startsWith("review:")),
+              requiredReviewLabel,
+            ].sort((left, right) => left.localeCompare(right));
+
+            const sortedCurrentPrLabels = [...currentPrLabels].sort((left, right) => left.localeCompare(right));
+            const labelsChanged =
+              syncedPrLabels.length !== sortedCurrentPrLabels.length ||
+              syncedPrLabels.some((label, index) => sortedCurrentPrLabels[index] !== label);
+
+            if (labelsChanged) {
+              await github.rest.issues.setLabels({
+                owner,
+                repo,
+                issue_number: pr.number,
+                labels: syncedPrLabels,
+              });
+              core.info(`Synced PR #${pr.number} to ${requiredReviewLabel}.`);
+            } else {
+              core.info(`PR #${pr.number} already has ${requiredReviewLabel}.`);
+            }
+
+            const reviews = await github.paginate(github.rest.pulls.listReviews, {
+              owner,
+              repo,
+              pull_number: pr.number,
+              per_page: 100,
+            });
+
+            const latestReviewByUser = new Map();
+            for (const review of reviews) {
+              const reviewer = review.user?.login;
+              if (!reviewer || reviewer === pr.user.login) {
+                continue;
+              }
+              latestReviewByUser.set(reviewer, review.state);
+            }
+
+            const approvalCount = [...latestReviewByUser.values()].filter((state) => state === "APPROVED").length;
+            const devinEnabled = String(process.env.DEVIN_REVIEW_ENABLED || "").toLowerCase() === "true";
+            const codesceneEnabled = String(process.env.CODESCENE_ENABLED || "").toLowerCase() === "true";
+            const requireHumanApproval =
+              String(process.env.REQUIRE_HUMAN_APPROVAL_FOR_CRITICAL || "").toLowerCase() !== "false";
+
+            const marker = "<!-- review-router -->";
+            const tierPolicy = {
+              "review:standard": [
+                "Standard: at least one additional review source is expected before merge.",
+                "Allowed sources: human reviewer, local IDE review agent, Devin Review, or CodeScene.",
+              ],
+              "review:elevated": [
+                "Elevated: deeper independent review is expected before merge.",
+                "Recommended: at least two review passes, with at least one pass independent from the working agent.",
+              ],
+              "review:critical": [
+                "Critical: human approval is required before merge.",
+                "Automated review comments do not replace human approval for this tier.",
+              ],
+            };
+
+            const lines = [
+              marker,
+              "## Review Router",
+              "",
+              `Required review tier: \`${requiredReviewLabel}\``,
+              "",
+              "Linked issues:",
+              ...linkedIssues.map((issue) => `- #${issue.number} ${issue.title} (${issue.reviewLabel})`),
+              "",
+              "Automation flags:",
+              `- Devin Review enabled: ${devinEnabled ? "yes" : "no"}`,
+              `- CodeScene enabled: ${codesceneEnabled ? "yes" : "no"}`,
+              `- Non-author approvals recorded: ${approvalCount}`,
+              "",
+              "Policy:",
+              ...tierPolicy[requiredReviewLabel].map((line) => `- ${line}`),
+            ];
+
+            if (requiredReviewLabel === "review:critical") {
+              lines.push(`- Human approval enforced by router: ${requireHumanApproval ? "yes" : "no"}`);
+            }
+
+            const commentBody = `${lines.join("\n")}\n`;
+            const existingComments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number: pr.number,
+              per_page: 100,
+            });
+            const existingComment = existingComments.find((comment) => comment.body?.includes(marker));
+
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existingComment.id,
+                body: commentBody,
+              });
+              core.info("Updated existing review-router comment.");
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: pr.number,
+                body: commentBody,
+              });
+              core.info("Created review-router comment.");
+            }
+
+            if (
+              requiredReviewLabel === "review:critical" &&
+              requireHumanApproval &&
+              !latestPr.draft &&
+              approvalCount < 1
+            ) {
+              core.setFailed("review:critical PRs require at least one non-author approval before merge.");
+            }

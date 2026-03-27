@@ -1,0 +1,30 @@
+name: Investigation
+description: Open a discovery or root-cause issue before committing to implementation.
+title: "[INVESTIGATION] "
+labels:
+  - type:investigation
+  - lane:maintenance
+  - source:manual
+  - status:triage
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Question to answer
+      description: What uncertainty needs to be resolved.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Relevant files, systems, or prior work.
+    validations:
+      required: true
+  - type: textarea
+    id: expected_output
+    attributes:
+      label: Expected output
+      description: Decision note, root cause, spike result, or follow-up tasks.
+    validations:
+      required: true

@@ -1,0 +1,46 @@
+name: Incident
+description: Track a production or release-blocking incident requiring hotfix handling.
+title: "[INCIDENT] "
+labels:
+  - type:incident
+  - lane:hotfix
+  - source:manual
+  - status:triage
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Incident summary
+      description: Describe the incident in one concise paragraph.
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - severity:S0
+        - severity:S1
+        - severity:S2
+        - severity:S3
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: User, system, and release impact.
+    validations:
+      required: true
+  - type: textarea
+    id: mitigation
+    attributes:
+      label: Immediate mitigation
+      description: What has already been done to reduce impact.
+    validations:
+      required: true
+  - type: textarea
+    id: followup
+    attributes:
+      label: Required follow-up
+      description: Postmortem, cleanup, monitoring, or permanent-fix work.

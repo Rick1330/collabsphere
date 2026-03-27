@@ -1,0 +1,59 @@
+name: Bug Report
+description: Report a product defect or regression that should enter the maintenance lane.
+title: "[BUG] "
+labels:
+  - type:bug
+  - lane:maintenance
+  - source:manual
+  - status:triage
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Describe the bug and why it matters.
+      placeholder: A concise defect summary.
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: Describe the user or system impact.
+      placeholder: Who is affected, what is broken, and whether this blocks release.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Provide exact steps, inputs, and current results.
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: Describe the correct expected behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Include logs, screenshots, traces, or links.
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Initial severity
+      options:
+        - severity:S3
+        - severity:S2
+        - severity:S1
+        - severity:S0
+    validations:
+      required: true

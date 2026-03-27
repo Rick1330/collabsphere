@@ -1,0 +1,26 @@
+name: Queue Manifest Validate
+
+on:
+  pull_request:
+    paths:
+      - ".github/queue/**"
+      - ".github/scripts/validate_queue_manifest.rb"
+      - ".github/workflows/queue-manifest-validate.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/queue/**"
+      - ".github/scripts/validate_queue_manifest.rb"
+      - ".github/workflows/queue-manifest-validate.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate queue manifest
+        run: ruby .github/scripts/validate_queue_manifest.rb

@@ -1,0 +1,14 @@
+# CollabSphere code ownership
+# Primary maintainer and default code owner: Elshaday Mengesha (@Rick1330)
+
+* @Rick1330
+
+/apps/api/ @Rick1330
+/apps/collab/ @Rick1330
+/apps/web/ @Rick1330
+/apps/worker/ @Rick1330
+/packages/ @Rick1330
+/docs/ @Rick1330
+/.github/ @Rick1330
+/AGENTS.md @Rick1330
+/CONTRIBUTING.md @Rick1330
