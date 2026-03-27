@@ -103,6 +103,9 @@ jobs:
 
             async function fetchParent(issueNumber) {
               try {
+                // This parent endpoint is available on GitHub.com and GHES 3.18+.
+                // Older GHES versions return 404 here, which we currently treat as
+                // "no parent" and therefore skip gate propagation for that issue.
                 const response = await github.request("GET /repos/{owner}/{repo}/issues/{issue_number}/parent", {
                   owner: context.repo.owner,
                   repo: context.repo.repo,
