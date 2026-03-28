@@ -44,11 +44,14 @@ pnpm install
 cp .env.example .env
 ```
 
+If you need machine-specific app runtime overrides, copy just those keys into
+`.env.local` after seeding `.env` from `.env.example`.
+
 Current local env-file split:
 
-- `.env` is the Docker Compose override file for local infrastructure ports and credentials.
-- `.env.local` remains reserved for app runtime overrides and must not be committed.
-- The current `.env.example` file covers the Docker Compose infrastructure keys required for local services. Broader app env coverage lands with the later env setup task.
+- `.env` is the shared local baseline. Docker Compose reads it for infrastructure ports and credentials, and it can also seed local runtime defaults from `.env.example`.
+- `.env.local` is for developer-machine-only app runtime overrides and must not be committed.
+- `.env.example` now documents both the current Docker Compose infrastructure keys and the canonical local runtime defaults/placeholders used by this repo's env contract.
 
 Required local services are expected to run through Docker Compose:
 
