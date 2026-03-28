@@ -32,8 +32,8 @@ This guide defines the default contribution workflow for CollabSphere. Follow it
 
 ### Prerequisites
 
-- Node.js 22+
-- pnpm 10+
+- Node.js 20 LTS
+- pnpm 9.x
 - Docker Desktop or compatible Docker runtime
 - Git
 
@@ -60,10 +60,26 @@ Optional local service:
 
 - MinIO
 
-### One-command startup
+### Current startup flow
+
+The current repo state separates infrastructure startup from app startup:
+
+1. start Docker services with `docker compose up -d`
+2. verify service health with `docker compose ps`
+3. run `pnpm dev` for the application processes
+
+Default startup:
 
 ```bash
+docker compose up -d
+docker compose ps
 pnpm dev
+```
+
+Optional MinIO startup:
+
+```bash
+docker compose --profile minio up -d
 ```
 
 Expected service set:
@@ -77,13 +93,15 @@ Expected service set:
 Health checks after startup:
 
 - run `docker compose ps` and confirm PostgreSQL, Redis, and MailHog are healthy or running
+- confirm MinIO is healthy too if you enabled the `minio` profile
 - confirm the `pnpm dev` process stays attached without immediate worker or app exits
-- open MailHog at `http://localhost:8025` if enabled locally
+- open MailHog at `http://localhost:8025` if enabled locally, or the port configured through `MAILHOG_UI_PORT`
 - verify the expected local ports are bound before starting implementation work
 
 If startup fails:
 
 - verify Docker is running
+- rerun `docker compose up -d` and confirm the required services are present in `docker compose ps`
 - verify `.env` is present and aligned with `.env.example` for Docker Compose overrides
 - verify required ports are free or overridden in `.env`
 - inspect service logs before retrying
@@ -91,6 +109,9 @@ If startup fails:
 ### Common troubleshooting
 
 - Port conflict: update the conflicting port in `.env`, then restart Docker Compose.
+- MailHog UI port conflict: set `MAILHOG_UI_PORT` in `.env`, rerun `docker compose up -d`, then open MailHog on the overridden port.
+- MailHog SMTP port conflict: set `MAILHOG_SMTP_PORT` in `.env`, then restart Docker Compose.
+- Service startup failure: inspect `docker compose ps` first, then check the failing service with `docker compose logs <service>`.
 - Missing env vars: copy missing keys from `.env.example` into the env file used by the affected process, then retry.
 - Stale Docker state: stop services, remove stale containers or volumes if appropriate, then restart.
 - Dependency drift: run `pnpm install` again after pulling new changes.
