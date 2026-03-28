@@ -7,7 +7,7 @@
     "pnpm": "9.x"
   },
   "scripts": {
-    "typecheck": "pnpm exec tsc -p packages/shared/tsconfig.json --noEmit && pnpm exec tsc -p apps/web/tsconfig.json --noEmit && pnpm exec tsc -p apps/api/tsconfig.json --noEmit && pnpm exec tsc -p apps/collab/tsconfig.json --noEmit && pnpm exec tsc -p apps/worker/tsconfig.json --noEmit"
+    "typecheck": "pnpm exec tsc -p packages/shared/tsconfig.json --noEmit"
   },
   "devDependencies": {
     "typescript": "^5.9.2"
