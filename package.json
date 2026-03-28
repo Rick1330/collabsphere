@@ -5,5 +5,11 @@
   "engines": {
     "node": ">=20",
     "pnpm": "9.x"
+  },
+  "scripts": {
+    "typecheck": "pnpm exec tsc -p packages/shared/tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2"
   }
 }
