@@ -10,6 +10,7 @@ const envExamplePath = join(rootDir, ".env.example");
 const envPath = join(rootDir, ".env");
 const envLocalPath = join(rootDir, ".env.local");
 const composeFilePath = join(rootDir, "docker-compose.yml");
+const envAssignmentPattern = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/;
 
 const integerEnvKeys = new Set([
   "POSTGRES_PORT",
@@ -101,33 +102,47 @@ const parseArgs = (argv) => {
   return { skipCompose };
 };
 
+const unquoteEnvValue = (value) => {
+  if (
+    (value.startsWith("\"") && value.endsWith("\"")) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    return value.slice(1, -1);
+  }
+
+  return value;
+};
+
+const parseEnvAssignment = (rawLine, lineNumber, label) => {
+  const line = rawLine.trim();
+
+  if (!line || line.startsWith("#")) {
+    return null;
+  }
+
+  const match = rawLine.match(envAssignmentPattern);
+
+  if (!match) {
+    throw new Error(`${label} has an invalid assignment on line ${lineNumber}.`);
+  }
+
+  const [, key, value] = match;
+  return [key, unquoteEnvValue(value)];
+};
+
 const parseEnvFile = (filePath, label) => {
   const content = readFileSync(filePath, "utf8");
   const values = {};
   const lines = content.split(/\r?\n/);
 
   for (const [index, rawLine] of lines.entries()) {
-    const line = rawLine.trim();
+    const assignment = parseEnvAssignment(rawLine, index + 1, label);
 
-    if (!line || line.startsWith("#")) {
+    if (!assignment) {
       continue;
     }
 
-    const match = rawLine.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
-
-    if (!match) {
-      throw new Error(`${label} has an invalid assignment on line ${index + 1}.`);
-    }
-
-    let [, key, value] = match;
-
-    if (
-      (value.startsWith("\"") && value.endsWith("\"")) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-
+    const [key, value] = assignment;
     values[key] = value;
   }
 
@@ -138,13 +153,13 @@ const hasValue = (value) => typeof value === "string" && value.trim().length > 0
 
 const validateIntegerValue = (key, value) => {
   if (!/^\d+$/.test(value)) {
-    throw new Error(`${key} must be a positive integer in .env or your shell environment.`);
+    throw new Error(`${key} must be a positive integer in .env or .env.local.`);
   }
 
   const parsed = Number.parseInt(value, 10);
 
   if (!Number.isInteger(parsed) || parsed <= 0 || parsed > 65535) {
-    throw new Error(`${key} must be between 1 and 65535 in .env or your shell environment.`);
+    throw new Error(`${key} must be between 1 and 65535 in .env or .env.local.`);
   }
 };
 
@@ -152,7 +167,7 @@ const validateUrlValue = (key, value) => {
   try {
     new URL(value);
   } catch {
-    throw new Error(`${key} must be a valid absolute URL in .env or your shell environment.`);
+    throw new Error(`${key} must be a valid absolute URL in .env or .env.local.`);
   }
 };
 
@@ -175,7 +190,7 @@ const validateCorsOrigins = (value) => {
   }
 };
 
-const loadValidatedEnv = () => {
+const ensureRequiredEnvFiles = () => {
   if (!existsSync(envExamplePath)) {
     throw new Error("Missing .env.example; cannot validate local startup configuration.");
   }
@@ -183,17 +198,16 @@ const loadValidatedEnv = () => {
   if (!existsSync(envPath)) {
     throw new Error("Missing .env. Copy .env.example to .env before running pnpm dev.");
   }
+};
 
-  const exampleValues = parseEnvFile(envExamplePath, ".env.example");
-  const envValues = parseEnvFile(envPath, ".env");
-  const envLocalValues = existsSync(envLocalPath) ? parseEnvFile(envLocalPath, ".env.local") : {};
-  const mergedValues = {
-    ...envValues,
-    ...envLocalValues,
-    ...process.env
-  };
+const loadEnvSources = () => ({
+  exampleValues: parseEnvFile(envExamplePath, ".env.example"),
+  envValues: parseEnvFile(envPath, ".env"),
+  envLocalValues: existsSync(envLocalPath) ? parseEnvFile(envLocalPath, ".env.local") : {}
+});
 
-  const missingKeys = Object.keys(exampleValues).filter((key) => !hasValue(mergedValues[key]));
+const validateRequiredKeys = (exampleValues, localValues) => {
+  const missingKeys = Object.keys(exampleValues).filter((key) => !hasValue(localValues[key]));
 
   if (missingKeys.length > 0) {
     throw new Error(
@@ -201,8 +215,10 @@ const loadValidatedEnv = () => {
         "Use .env.example as the reference and keep .env in sync."
     );
   }
+};
 
-  for (const [key, value] of Object.entries(mergedValues)) {
+const validateKnownEnvValues = (values) => {
+  for (const [key, value] of Object.entries(values)) {
     if (!hasValue(value)) {
       continue;
     }
@@ -219,12 +235,29 @@ const loadValidatedEnv = () => {
       validateCorsOrigins(value);
     }
   }
+};
+
+const loadValidatedEnv = () => {
+  ensureRequiredEnvFiles();
+  const { exampleValues, envValues, envLocalValues } = loadEnvSources();
+  const appLocalValues = {
+    ...envValues,
+    ...envLocalValues
+  };
+
+  validateRequiredKeys(exampleValues, appLocalValues);
+  validateKnownEnvValues(envValues);
+  validateKnownEnvValues(appLocalValues);
 
   return {
-    childEnv: {
+    // Compose follows repo-local .env, while app children can layer runtime-only .env.local overrides.
+    composeEnv: {
       ...process.env,
-      ...envValues,
-      ...envLocalValues
+      ...envValues
+    },
+    appEnv: {
+      ...process.env,
+      ...appLocalValues
     }
   };
 };
@@ -341,7 +374,7 @@ const main = async () => {
 
   logInfo("validating local environment against .env.example");
   ensureAppSurfaces();
-  const { childEnv } = loadValidatedEnv();
+  const { composeEnv, appEnv } = loadValidatedEnv();
   const pnpmRunner = resolvePnpmRunner();
   const children = new Map();
   let shuttingDown = false;
@@ -383,7 +416,7 @@ const main = async () => {
     logInfo("ensuring docker compose services are up and healthy");
     await runCommand("docker", ["compose", "-f", composeFilePath, "up", "-d", "--wait"], {
       cwd: rootDir,
-      env: childEnv
+      env: composeEnv
     });
     logInfo("docker compose services are ready");
   }
@@ -396,7 +429,7 @@ const main = async () => {
       [...pnpmRunner.baseArgs, "--filter", surface.filter, "run", "dev"],
       {
         cwd: rootDir,
-        env: childEnv,
+        env: appEnv,
         stdio: "inherit",
         windowsHide: false
       }
@@ -427,8 +460,9 @@ const main = async () => {
       const detail = signal
         ? `${surface.label} exited unexpectedly due to signal ${signal}`
         : `${surface.label} exited unexpectedly with code ${code}`;
+      const exitCode = !Number.isInteger(code) || code === 0 ? 1 : code;
 
-      void shutdown(detail, code ?? 1);
+      void shutdown(detail, exitCode);
     });
   }
 
