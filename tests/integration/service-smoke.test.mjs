@@ -28,9 +28,25 @@ function openSocket(host, port) {
 
 function readOnce(socket) {
   return new Promise((resolve, reject) => {
-    socket.once("data", (chunk) => resolve(chunk));
-    socket.once("error", reject);
-    socket.once("close", () => reject(new Error("socket closed before any data was received")));
+    const onData = (chunk) => {
+      socket.off("error", onError);
+      socket.off("close", onClose);
+      resolve(chunk);
+    };
+    const onError = (error) => {
+      socket.off("data", onData);
+      socket.off("close", onClose);
+      reject(error);
+    };
+    const onClose = () => {
+      socket.off("data", onData);
+      socket.off("error", onError);
+      reject(new Error("socket closed before any data was received"));
+    };
+
+    socket.once("data", onData);
+    socket.once("error", onError);
+    socket.once("close", onClose);
   });
 }
 

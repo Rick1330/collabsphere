@@ -19,6 +19,8 @@ export default [
       "tests/**/*.mjs",
     ],
     languageOptions: {
+      ...js.configs.recommended.languageOptions,
+      ecmaVersion: "latest",
       sourceType: "module",
       globals: {
         ...globals.node,
@@ -31,6 +33,8 @@ export default [
       ".github/scripts/**/*.js",
     ],
     languageOptions: {
+      ...js.configs.recommended.languageOptions,
+      ecmaVersion: "latest",
       sourceType: "commonjs",
       globals: {
         ...globals.node,
@@ -38,10 +42,13 @@ export default [
     },
   },
   {
+    ...js.configs.recommended,
     files: [
       "packages/**/*.ts",
     ],
     languageOptions: {
+      ...js.configs.recommended.languageOptions,
+      ecmaVersion: "latest",
       parser: tsParser,
       parserOptions: {
         sourceType: "module",
