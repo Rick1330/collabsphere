@@ -3,6 +3,11 @@ import { createServer } from "node:http";
 const host = process.env.HOST ?? "127.0.0.1";
 const defaultPort = 3000;
 
+const warnInvalidPort = (service, value, fallback) => {
+  console.warn(`[${service}] invalid PORT value "${value}", falling back to ${fallback}`);
+  return fallback;
+};
+
 const parsePort = (value, fallback, service) => {
   const trimmed = value?.trim();
 
@@ -11,15 +16,21 @@ const parsePort = (value, fallback, service) => {
   }
 
   if (!/^\d+$/.test(trimmed)) {
-    console.warn(`[${service}] invalid PORT value "${value}", falling back to ${fallback}`);
-    return fallback;
+    return warnInvalidPort(service, value, fallback);
   }
 
   const parsed = Number.parseInt(trimmed, 10);
 
-  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 65535) {
-    console.warn(`[${service}] invalid PORT value "${value}", falling back to ${fallback}`);
-    return fallback;
+  if (!Number.isInteger(parsed)) {
+    return warnInvalidPort(service, value, fallback);
+  }
+
+  if (parsed < 0) {
+    return warnInvalidPort(service, value, fallback);
+  }
+
+  if (parsed > 65535) {
+    return warnInvalidPort(service, value, fallback);
   }
 
   return parsed;
