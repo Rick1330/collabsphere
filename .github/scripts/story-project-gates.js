@@ -8,16 +8,27 @@ function hasLabel(labels, value) {
   return labels.includes(value);
 }
 
+function statusLabels(issue) {
+  return labelNames(issue)
+    .filter((label) => label.startsWith("status:"))
+    .sort((left, right) => left.localeCompare(right));
+}
+
 function statusLabel(issue) {
-  return labelNames(issue).find((label) => label.startsWith("status:")) || null;
+  const labels = statusLabels(issue);
+  return labels.length === 1 ? labels[0] : null;
+}
+
+function hasStatus(issue, value) {
+  return statusLabels(issue).includes(value);
 }
 
 function done(issue) {
-  return statusLabel(issue) === "status:done";
+  return hasStatus(issue, "status:done");
 }
 
 function cancelled(issue) {
-  return statusLabel(issue) === "status:cancelled";
+  return hasStatus(issue, "status:cancelled");
 }
 
 function terminal(issue) {
@@ -42,8 +53,10 @@ function evaluateValidationGate(children, validationIssue) {
 function evaluateParentGate(children, validationIssue, parentIssue) {
   const gate = evaluateValidationGate(children, validationIssue);
   const parentLabels = labelNames(parentIssue);
-  const shouldClose = gate.allTerminal && gate.validationDone;
+  const parentCancelled = cancelled(parentIssue);
+  const shouldClose = !parentCancelled && gate.allTerminal && gate.validationDone;
   const shouldReopen =
+    !parentCancelled &&
     !shouldClose &&
     (parentIssue.state === "closed" || hasLabel(parentLabels, "status:done"));
 
@@ -57,9 +70,11 @@ function evaluateParentGate(children, validationIssue, parentIssue) {
 module.exports = {
   cancelled,
   done,
+  hasStatus,
   evaluateParentGate,
   evaluateValidationGate,
   labelNames,
+  statusLabels,
   statusLabel,
   terminal,
 };

@@ -32,6 +32,7 @@ jobs:
           script: |
             const {
               evaluateParentGate,
+              labelNames,
             } = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/story-project-gates`);
 
             function extractSection(body, heading) {
