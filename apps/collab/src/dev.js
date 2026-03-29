@@ -73,10 +73,17 @@ const listen = (candidatePort) => {
 
 listen(port);
 
+let shuttingDown = false;
+
 const shutdown = (signal) => {
+  if (shuttingDown) {
+    return;
+  }
+
+  shuttingDown = true;
   console.log(`[collab] received ${signal}, shutting down`);
   server.close(() => process.exit(0));
 };
 
-process.on("SIGINT", () => shutdown("SIGINT"));
-process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.once("SIGINT", () => shutdown("SIGINT"));
+process.once("SIGTERM", () => shutdown("SIGTERM"));
