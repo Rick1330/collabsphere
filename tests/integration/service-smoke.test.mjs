@@ -8,45 +8,132 @@ const redisHost = process.env.REDIS_HOST ?? "127.0.0.1";
 const redisPort = Number.parseInt(process.env.REDIS_PORT ?? "6379", 10);
 const retryDelayMs = 1000;
 const maxAttempts = 20;
+const attemptTimeoutMs = 2000;
+
+function validatePort(name, value) {
+  if (!Number.isInteger(value) || value < 1 || value > 65_535) {
+    throw new Error(`${name} must be a valid TCP port (1-65535), got: ${String(value)}`);
+  }
+}
+
+validatePort("POSTGRES_PORT", postgresPort);
+validatePort("REDIS_PORT", redisPort);
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function openSocket(host, port) {
+function openSocket(host, port, timeoutMs = attemptTimeoutMs) {
   return new Promise((resolve, reject) => {
     const socket = net.createConnection({ host, port });
+    let settled = false;
 
-    socket.once("error", (error) => {
+    const cleanup = () => {
+      socket.off("connect", onConnect);
+      socket.off("error", onError);
+      socket.off("timeout", onTimeout);
+    };
+
+    const onConnect = () => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      cleanup();
+      socket.setTimeout(0);
+      resolve(socket);
+    };
+
+    const onError = (error) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      cleanup();
       socket.destroy();
       reject(error);
-    });
+    };
 
-    socket.once("connect", () => resolve(socket));
+    const onTimeout = () => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      cleanup();
+      socket.destroy();
+      reject(new Error(`connection to ${host}:${port} timed out after ${timeoutMs}ms`));
+    };
+
+    socket.setTimeout(timeoutMs);
+    socket.once("connect", onConnect);
+    socket.once("error", onError);
+    socket.once("timeout", onTimeout);
   });
 }
 
-function readOnce(socket) {
+function readOnce(socket, timeoutMs = attemptTimeoutMs) {
   return new Promise((resolve, reject) => {
-    const onData = (chunk) => {
+    let settled = false;
+
+    const cleanup = () => {
+      socket.off("data", onData);
       socket.off("error", onError);
       socket.off("close", onClose);
+      socket.off("timeout", onTimeout);
+    };
+
+    const onData = (chunk) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      cleanup();
+      socket.setTimeout(0);
       resolve(chunk);
     };
+
     const onError = (error) => {
-      socket.off("data", onData);
-      socket.off("close", onClose);
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      cleanup();
+      socket.setTimeout(0);
       reject(error);
     };
+
     const onClose = () => {
-      socket.off("data", onData);
-      socket.off("error", onError);
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      cleanup();
+      socket.setTimeout(0);
       reject(new Error("socket closed before any data was received"));
     };
 
+    const onTimeout = () => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      cleanup();
+      socket.setTimeout(0);
+      reject(new Error(`socket read timed out after ${timeoutMs}ms`));
+    };
+
+    socket.setTimeout(timeoutMs);
     socket.once("data", onData);
     socket.once("error", onError);
     socket.once("close", onClose);
+    socket.once("timeout", onTimeout);
   });
 }
 
