@@ -8,9 +8,23 @@
   },
   "scripts": {
     "dev": "node scripts/dev.mjs",
-    "typecheck": "pnpm exec tsc -p packages/shared/tsconfig.json --noEmit"
+    "lint": "pnpm exec eslint . --max-warnings=0",
+    "typecheck": "pnpm exec tsc -p packages/shared/tsconfig.json --noEmit",
+    "test": "pnpm run test:unit && pnpm run test:integration",
+    "test:unit": "node --test .github/scripts/story-project-gates.test.js tests/unit",
+    "test:integration": "node --test tests/integration",
+    "build": "pnpm run build:web && pnpm run build:api && pnpm run build:collab && pnpm run build:worker",
+    "build:web": "pnpm --filter @collabsphere/web run build",
+    "build:api": "pnpm --filter @collabsphere/api run build",
+    "build:collab": "pnpm --filter @collabsphere/collab run build",
+    "build:worker": "pnpm --filter @collabsphere/worker run build"
   },
   "devDependencies": {
+    "@eslint/js": "^9.36.0",
+    "@typescript-eslint/parser": "^8.44.1",
+    "eslint": "^9.36.0",
+    "globals": "^16.4.0",
+    "yaml": "^2.8.1",
     "typescript": "^5.9.2"
   }
 }

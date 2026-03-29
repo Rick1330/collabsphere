@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --watch src/dev.js"
+    "dev": "node --watch src/dev.js",
+    "build": "node ../../scripts/build-bootstrap-app.mjs ."
   }
 }
