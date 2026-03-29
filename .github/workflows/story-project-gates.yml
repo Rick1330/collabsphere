@@ -23,24 +23,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
       - name: Sync story and project gates
         uses: actions/github-script@v8
         with:
           script: |
-            function labelNames(issue) {
-              return issue.labels
-                .map((label) => typeof label === "string" ? label : label.name)
-                .filter(Boolean);
-            }
-
-            function hasLabel(labels, value) {
-              return labels.includes(value);
-            }
-
-            function done(issue) {
-              const labels = labelNames(issue);
-              return labels.includes("status:done");
-            }
+            const {
+              evaluateParentGate,
+              labelNames,
+            } = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/story-project-gates`);
 
             function extractSection(body, heading) {
               const lines = (body || "").split(/\r?\n/);
@@ -178,21 +171,14 @@ jobs:
                 return labels.includes("type:task");
               });
 
-              const allImplementationDone =
-                implementationIssues.length > 0 &&
-                implementationIssues.every((issue) => done(issue));
-              const validationDone = done(validationIssue);
+              const gate = evaluateParentGate(implementationIssues, validationIssue, storyIssue);
 
-              if (allImplementationDone) {
-                await setStatus(validationIssue, validationDone ? "status:done" : "status:ready");
-              } else {
-                await setStatus(validationIssue, "status:blocked");
-              }
+              await setStatus(validationIssue, gate.validationStatus);
 
-              if (allImplementationDone && validationDone) {
-                await setStatus(storyIssue, "status:done");
-                await ensureState(storyIssue, "closed");
-              } else if (storyIssue.state === "closed" || hasLabel(labelNames(storyIssue), "status:done")) {
+              if (gate.parentStatus === "status:done") {
+                await setStatus(storyIssue, gate.parentStatus);
+                await ensureState(storyIssue, gate.parentState);
+              } else if (gate.parentStatus === "status:blocked") {
                 await ensureState(storyIssue, "open");
                 await setStatus(storyIssue, "status:blocked");
               }
@@ -210,19 +196,14 @@ jobs:
               const stories = await Promise.all(storyIssueNumbers.map((issueNumber) => fetchIssue(issueNumber)));
               const validationIssue = await fetchIssue(validationIssueNumbers[0]);
 
-              const allStoriesDone = stories.length > 0 && stories.every((issue) => done(issue));
-              const validationDone = done(validationIssue);
+              const gate = evaluateParentGate(stories, validationIssue, projectIssue);
 
-              if (allStoriesDone) {
-                await setStatus(validationIssue, validationDone ? "status:done" : "status:ready");
-              } else {
-                await setStatus(validationIssue, "status:blocked");
-              }
+              await setStatus(validationIssue, gate.validationStatus);
 
-              if (allStoriesDone && validationDone) {
-                await setStatus(projectIssue, "status:done");
-                await ensureState(projectIssue, "closed");
-              } else if (projectIssue.state === "closed" || hasLabel(labelNames(projectIssue), "status:done")) {
+              if (gate.parentStatus === "status:done") {
+                await setStatus(projectIssue, gate.parentStatus);
+                await ensureState(projectIssue, gate.parentState);
+              } else if (gate.parentStatus === "status:blocked") {
                 await ensureState(projectIssue, "open");
                 await setStatus(projectIssue, "status:blocked");
               }
