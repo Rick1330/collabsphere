@@ -191,6 +191,8 @@ Non-roadmap work uses maintenance issue types:
 - Validation issues typically use `status:ready`, `status:in_progress`, `status:blocked`, `status:done`, `status:cancelled`.
 - Maintenance work may use `status:triage` before `status:ready`.
 
+For delivery gate automation, `status:done` and `status:cancelled` are terminal child states. Validation still remains the final completion gate, so cancelled work does not let stories or projects skip validation.
+
 ## PR Workflow
 
 ### Before opening a PR

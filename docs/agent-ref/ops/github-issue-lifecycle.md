@@ -130,7 +130,7 @@ An implementation task is complete only when:
 
 A story is complete only when:
 
-- all implementation child tasks are `status:done`
+- all implementation child tasks are in terminal states (`status:done` or `status:cancelled`)
 - the story validation issue runs
 - the story validation issue passes and becomes `status:done`
 - the story issue is closed and labeled `status:done`
@@ -139,10 +139,17 @@ A story is complete only when:
 
 A project is complete only when:
 
-- all stories are `status:done`
+- all stories are in terminal states (`status:done` or `status:cancelled`)
 - the project validation issue runs
 - the project validation issue passes and becomes `status:done`
 - the project issue is closed and labeled `status:done`
+
+## Terminal State Rules
+
+- `status:done` and `status:cancelled` are the terminal delivery states for implementation tasks, stories, and validation issues.
+- Gate automation should treat cancelled child work as no longer requiring execution.
+- Cancellation alone is not completion: story/project validation must still run and pass before a parent becomes `status:done`.
+- Non-terminal child states such as `status:ready`, `status:in_progress`, `status:in_review`, and `status:blocked` must continue to block validation readiness and parent closure.
 
 ## Failed Validation
 
