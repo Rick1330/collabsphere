@@ -4,10 +4,6 @@ function labelNames(issue) {
     .filter(Boolean);
 }
 
-function hasLabel(labels, value) {
-  return labels.includes(value);
-}
-
 function statusLabels(issue) {
   return labelNames(issue)
     .filter((label) => label.startsWith("status:"))
@@ -50,20 +46,40 @@ function evaluateValidationGate(children, validationIssue) {
   };
 }
 
+function evaluateParentMutation(parentIssue, gate) {
+  if (cancelled(parentIssue)) {
+    return {
+      parentStatus: null,
+      parentState: null,
+    };
+  }
+
+  if (gate.allTerminal && gate.validationDone) {
+    return {
+      parentStatus: "status:done",
+      parentState: "closed",
+    };
+  }
+
+  if (parentIssue.state === "closed" || done(parentIssue)) {
+    return {
+      parentStatus: "status:blocked",
+      parentState: "open",
+    };
+  }
+
+  return {
+    parentStatus: null,
+    parentState: null,
+  };
+}
+
 function evaluateParentGate(children, validationIssue, parentIssue) {
   const gate = evaluateValidationGate(children, validationIssue);
-  const parentLabels = labelNames(parentIssue);
-  const parentCancelled = cancelled(parentIssue);
-  const shouldClose = !parentCancelled && gate.allTerminal && gate.validationDone;
-  const shouldReopen =
-    !parentCancelled &&
-    !shouldClose &&
-    (parentIssue.state === "closed" || hasLabel(parentLabels, "status:done"));
 
   return {
     ...gate,
-    parentStatus: shouldClose ? "status:done" : shouldReopen ? "status:blocked" : null,
-    parentState: shouldClose ? "closed" : shouldReopen ? "open" : null,
+    ...evaluateParentMutation(parentIssue, gate),
   };
 }
 
@@ -72,6 +88,7 @@ module.exports = {
   done,
   hasStatus,
   evaluateParentGate,
+  evaluateParentMutation,
   evaluateValidationGate,
   labelNames,
   statusLabels,
