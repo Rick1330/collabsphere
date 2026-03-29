@@ -11,7 +11,15 @@ const maxAttempts = 20;
 const attemptTimeoutMs = 2000;
 
 function validatePort(name, value) {
-  if (!Number.isInteger(value) || value < 1 || value > 65_535) {
+  if (!Number.isInteger(value)) {
+    throw new Error(`${name} must be a valid TCP port (1-65535), got: ${String(value)}`);
+  }
+
+  if (value < 1) {
+    throw new Error(`${name} must be a valid TCP port (1-65535), got: ${String(value)}`);
+  }
+
+  if (value > 65_535) {
     throw new Error(`${name} must be a valid TCP port (1-65535), got: ${String(value)}`);
   }
 }
