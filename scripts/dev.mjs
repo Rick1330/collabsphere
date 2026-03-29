@@ -288,6 +288,19 @@ const loadValidatedEnv = () => {
   };
 };
 
+const getRunnableDevScript = (manifest) => {
+  if (!manifest.scripts) {
+    return null;
+  }
+
+  if (typeof manifest.scripts.dev !== "string") {
+    return null;
+  }
+
+  const devScript = manifest.scripts.dev.trim();
+  return devScript ? devScript : null;
+};
+
 const ensureAppSurfaces = () => {
   for (const surface of appSurfaces) {
     if (!existsSync(surface.packageJsonPath)) {
@@ -296,7 +309,7 @@ const ensureAppSurfaces = () => {
 
     const manifest = JSON.parse(readFileSync(surface.packageJsonPath, "utf8"));
 
-    if (!manifest.scripts || typeof manifest.scripts.dev !== "string" || !manifest.scripts.dev.trim()) {
+    if (!getRunnableDevScript(manifest)) {
       throw new Error(`Package ${surface.filter} is missing a runnable scripts.dev entry.`);
     }
   }
