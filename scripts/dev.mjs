@@ -102,12 +102,13 @@ const parseArgs = (argv) => {
   return { skipCompose };
 };
 
+const hasWrappedQuote = (value, quote) => value.startsWith(quote) && value.endsWith(quote);
+
 const unquoteEnvValue = (value) => {
-  if (
-    (value.startsWith("\"") && value.endsWith("\"")) ||
-    (value.startsWith("'") && value.endsWith("'"))
-  ) {
-    return value.slice(1, -1);
+  for (const quote of ["\"", "'"]) {
+    if (hasWrappedQuote(value, quote)) {
+      return value.slice(1, -1);
+    }
   }
 
   return value;
