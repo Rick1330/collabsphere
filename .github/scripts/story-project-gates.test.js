@@ -101,10 +101,23 @@ const parentScenarios = [
     },
   },
   {
-    name: "closed or done parent reopens only when terminal-state or validation requirements are not met",
+    name: "closed parent reopens when terminal-state or validation requirements are not met",
     children: [issue("status:done"), issue("status:blocked")],
     validation: issue("status:blocked"),
     parent: issue("status:done", { state: "closed" }),
+    expected: {
+      allTerminal: false,
+      validationDone: false,
+      validationStatus: "status:blocked",
+      parentStatus: "status:blocked",
+      parentState: "open",
+    },
+  },
+  {
+    name: "done-labelled open parent reopens when terminal-state or validation requirements are not met",
+    children: [issue("status:done"), issue("status:blocked")],
+    validation: issue("status:blocked"),
+    parent: issue("status:done", { state: "open" }),
     expected: {
       allTerminal: false,
       validationDone: false,
