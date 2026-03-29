@@ -112,11 +112,12 @@ Health checks after startup:
 ### Common troubleshooting
 
 - Missing `.env`: copy `.env.example` to `.env`, then rerun `pnpm dev`.
+- Missing required env keys: add the reported keys to `.env`, using `.env.example` as the reference, then rerun `pnpm dev`.
 - Invalid env values: fix the reported key in `.env` or `.env.local`, using `.env.example` as the reference, then rerun `pnpm dev`.
 - Docker not running or Compose startup failure: verify Docker is running, rerun `pnpm dev`, and inspect the reported `docker compose` failure before retrying.
 - Port conflict: update the conflicting port in `.env`, then rerun `pnpm dev` so Docker Compose restarts with the override.
-- MailHog UI port conflict: set `MAILHOG_UI_PORT` in `.env`, then rerun `pnpm dev` or restart Docker Compose before opening MailHog on the overridden port.
-- MailHog SMTP port conflict: set `MAILHOG_SMTP_PORT` in `.env`, then rerun `pnpm dev` or restart Docker Compose if you are reusing services with `--skip-compose`.
+- MailHog UI port conflict: set `MAILHOG_UI_PORT` in `.env`, then rerun `pnpm dev`. If you are reusing services with `pnpm dev --skip-compose`, manually restart Docker Compose or the MailHog container before opening MailHog on the overridden port.
+- MailHog SMTP port conflict: set `MAILHOG_SMTP_PORT` in `.env`, then rerun `pnpm dev`. If you are reusing services with `pnpm dev --skip-compose`, manually restart Docker Compose or the MailHog container before testing SMTP on the overridden port.
 - Already-running services: use `pnpm dev --skip-compose` when you intentionally want to reuse a healthy existing Docker Compose session instead of restarting it.
 - Service startup failure: inspect `docker compose ps` first, then check the failing service with `docker compose logs <service>`.
 - Stale Docker state: stop services, remove stale containers or volumes if appropriate, then restart.
