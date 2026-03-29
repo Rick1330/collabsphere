@@ -12,13 +12,16 @@ const envLocalPath = join(rootDir, ".env.local");
 const composeFilePath = join(rootDir, "docker-compose.yml");
 const envAssignmentPattern = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/;
 
-const integerEnvKeys = new Set([
+const portEnvKeys = new Set([
   "POSTGRES_PORT",
   "REDIS_PORT",
   "MAILHOG_SMTP_PORT",
   "MAILHOG_UI_PORT",
   "MINIO_API_PORT",
-  "MINIO_CONSOLE_PORT",
+  "MINIO_CONSOLE_PORT"
+]);
+
+const ttlEnvKeys = new Set([
   "JWT_ACCESS_TTL_MINUTES",
   "REFRESH_TOKEN_TTL_DAYS"
 ]);
@@ -152,14 +155,32 @@ const parseEnvFile = (filePath, label) => {
 
 const hasValue = (value) => typeof value === "string" && value.trim().length > 0;
 
-const validateIntegerValue = (key, value) => {
+const parsePositiveIntegerValue = (key, value) => {
   if (!/^\d+$/.test(value)) {
     throw new Error(`${key} must be a positive integer in .env or .env.local.`);
   }
 
   const parsed = Number.parseInt(value, 10);
 
-  if (!Number.isInteger(parsed) || parsed <= 0 || parsed > 65535) {
+  if (!Number.isInteger(parsed)) {
+    throw new Error(`${key} must be a positive integer in .env or .env.local.`);
+  }
+
+  if (parsed <= 0) {
+    throw new Error(`${key} must be a positive integer in .env or .env.local.`);
+  }
+
+  return parsed;
+};
+
+const validateIntegerValue = (key, value) => {
+  parsePositiveIntegerValue(key, value);
+};
+
+const validatePortValue = (key, value) => {
+  const parsed = parsePositiveIntegerValue(key, value);
+
+  if (parsed > 65535) {
     throw new Error(`${key} must be between 1 and 65535 in .env or .env.local.`);
   }
 };
@@ -224,7 +245,11 @@ const validateKnownEnvValues = (values) => {
       continue;
     }
 
-    if (integerEnvKeys.has(key)) {
+    if (portEnvKeys.has(key)) {
+      validatePortValue(key, value);
+    }
+
+    if (ttlEnvKeys.has(key)) {
       validateIntegerValue(key, value);
     }
 
