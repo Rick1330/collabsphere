@@ -53,30 +53,49 @@ const collectStream = (stream) => {
   return () => value;
 };
 
+const waitForChildExit = (child) => {
+  if (child.exitCode !== null || child.signalCode !== null) {
+    return Promise.resolve([child.exitCode, child.signalCode]);
+  }
+
+  return once(child, "exit");
+};
+
 const waitForListening = (child, stdoutText) =>
   new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
+      cleanup();
       reject(new Error(`Timed out waiting for API bootstrap readiness.\nstdout:\n${stdoutText()}`));
     }, 5000);
 
-    child.stdout.on("data", () => {
+    const onData = () => {
       const match = stdoutText().match(/bootstrap listening on http:\/\/[^:]+:(\d+)\/api\/v1\/health/);
       if (!match) {
         return;
       }
 
+      cleanup();
       clearTimeout(timeout);
       resolve(Number.parseInt(match[1], 10));
-    });
+    };
 
-    child.once("exit", (code, signal) => {
+    const onExit = (code, signal) => {
+      cleanup();
       clearTimeout(timeout);
       reject(
         new Error(
           `API bootstrap exited before listening (code=${code}, signal=${signal}).\nstdout:\n${stdoutText()}`,
         ),
       );
-    });
+    };
+
+    const cleanup = () => {
+      child.stdout.off("data", onData);
+      child.off("exit", onExit);
+    };
+
+    child.stdout.on("data", onData);
+    child.on("exit", onExit);
   });
 
 const getJson = (port) =>
@@ -118,8 +137,10 @@ test("API bootstrap listens when required env is valid", async () => {
     assert.equal(response.body?.data?.resource?.service, "api");
     assert.equal(stderrText(), "");
   } finally {
-    child.kill("SIGTERM");
-    await once(child, "exit");
+    if (child.exitCode === null && child.signalCode === null) {
+      child.kill("SIGTERM");
+    }
+    await waitForChildExit(child);
   }
 });
 
@@ -161,7 +182,9 @@ test("built API bootstrap artifact stays runnable without monorepo source import
     assert.equal(response.body?.data?.resource?.service, "api");
     assert.equal(stderrText(), "");
   } finally {
-    child.kill("SIGTERM");
-    await once(child, "exit");
+    if (child.exitCode === null && child.signalCode === null) {
+      child.kill("SIGTERM");
+    }
+    await waitForChildExit(child);
   }
 });
