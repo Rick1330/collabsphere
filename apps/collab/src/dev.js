@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { EnvValidationError, parseRuntimeEnv } from "../../../packages/shared/src/runtime-env.js";
 
 const host = process.env.HOST ?? "127.0.0.1";
 const defaultPort = 3002;
@@ -35,6 +36,21 @@ const parsePort = (value, fallback, service) => {
 
   return parsed;
 };
+
+const validateRuntimeEnv = () => {
+  try {
+    return parseRuntimeEnv(process.env);
+  } catch (error) {
+    if (error instanceof EnvValidationError) {
+      console.error(`[collab] ${error.message}`);
+      process.exit(1);
+    }
+
+    throw error;
+  }
+};
+
+validateRuntimeEnv();
 
 const port = parsePort(process.env.PORT, defaultPort, "collab");
 

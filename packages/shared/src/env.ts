@@ -1,12 +1,9 @@
-import { ZodError } from "zod";
 import {
-  declaredEnvKeys,
   envRedaction,
-  sharedEnvSchema,
   type SanitizedSharedEnv,
   type SharedEnv,
 } from "./env.schema.js";
-import { EnvValidationError, formatEnvValidationIssues } from "./env-core.js";
+import { parseRuntimeEnv } from "./runtime-env.js";
 
 export type { SanitizedSharedEnv, SharedEnv } from "./env.schema.js";
 export {
@@ -18,6 +15,7 @@ export {
 } from "./env.schema.js";
 export type { ApiRuntimeEnv } from "./api-env.js";
 export { apiEnvKeys, apiEnvSchema, parseApiRuntimeEnv } from "./api-env.js";
+export { parseRuntimeEnv } from "./runtime-env.js";
 export { EnvValidationError, formatEnvValidationIssues } from "./env-core.js";
 
 export interface EnvValidationIssue {
@@ -37,40 +35,6 @@ const redactUrlCredentials = (value: string) => {
   const hasCredentials = Boolean(parsedUrl.username || parsedUrl.password);
   const authority = hasCredentials ? `[redacted]@${parsedUrl.host}` : parsedUrl.host;
   return `${parsedUrl.protocol}//${authority}${parsedUrl.pathname}`;
-};
-
-const selectEnvSubset = <TKey extends string>(
-  input: Record<string, string | undefined>,
-  keys: readonly TKey[],
-) =>
-  Object.fromEntries(
-    keys.map((key) => [key, input[key]]),
-  ) as Record<TKey, string | undefined>;
-
-const parseScopedRuntimeEnv = <TEnv>(
-  input: Record<string, string | undefined>,
-  keys: readonly string[],
-  schema: {
-    safeParse: (
-      value: Record<string, string | undefined>,
-    ) =>
-      | { success: true; data: TEnv }
-      | { success: false; error: unknown };
-  },
-): TEnv => {
-  const parsed = schema.safeParse(selectEnvSubset(input, keys));
-
-  if (!parsed.success) {
-    throw new EnvValidationError(
-      formatEnvValidationIssues(parsed.error as InstanceType<typeof ZodError>),
-    );
-  }
-
-  return parsed.data;
-};
-
-export const parseRuntimeEnv = (input: Record<string, string | undefined>): SharedEnv => {
-  return parseScopedRuntimeEnv(input, declaredEnvKeys, sharedEnvSchema);
 };
 
 export const parseEnv = (input: Record<string, string | undefined>): SanitizedSharedEnv =>

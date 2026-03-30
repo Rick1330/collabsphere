@@ -18,11 +18,14 @@ const distDir = path.join(packageDir, "dist");
 const distEntryPath = path.join(distDir, "dev.js");
 const distPackageJsonPath = path.join(distDir, "package.json");
 const sharedApiEnvPath = path.join(repoRoot, "packages", "shared", "src", "api-env.js");
+const sharedRuntimeEnvPath = path.join(repoRoot, "packages", "shared", "src", "runtime-env.js");
 const sharedEnvCorePath = path.join(repoRoot, "packages", "shared", "src", "env-core.js");
 const sharedZodPackagePath = path.join(repoRoot, "packages", "shared", "node_modules", "zod");
 const sharedPackageJsonPath = path.join(repoRoot, "packages", "shared", "package.json");
 const sharedSourceImport = "../../../packages/shared/src/api-env.js";
+const sharedRuntimeSourceImport = "../../../packages/shared/src/runtime-env.js";
 const sharedDistImport = "./_shared/api-env.js";
+const sharedRuntimeDistImport = "./_shared/runtime-env.js";
 
 const packageJson = JSON.parse(await readFile(packageJsonPath, "utf8"));
 const sharedPackageJson = JSON.parse(await readFile(sharedPackageJsonPath, "utf8"));
@@ -38,24 +41,29 @@ await mkdir(distDir, { recursive: true });
 let distSourceCode = sourceCode;
 const distPackageDependencies = { ...(packageJson.dependencies ?? {}) };
 
-if (sourceCode.includes(sharedSourceImport)) {
+if (sourceCode.includes(sharedSourceImport) || sourceCode.includes(sharedRuntimeSourceImport)) {
   const sharedDistDir = path.join(distDir, "_shared");
   const distNodeModulesDir = path.join(distDir, "node_modules");
   await mkdir(sharedDistDir, { recursive: true });
   await mkdir(distNodeModulesDir, { recursive: true });
   await cp(sharedApiEnvPath, path.join(sharedDistDir, "api-env.js"));
+  await cp(sharedRuntimeEnvPath, path.join(sharedDistDir, "runtime-env.js"));
   await cp(sharedEnvCorePath, path.join(sharedDistDir, "env-core.js"));
   await cp(sharedZodPackagePath, path.join(distNodeModulesDir, "zod"), {
     recursive: true,
   });
-  distSourceCode = sourceCode.split(sharedSourceImport).join(sharedDistImport);
+  distSourceCode = sourceCode
+    .split(sharedSourceImport)
+    .join(sharedDistImport)
+    .split(sharedRuntimeSourceImport)
+    .join(sharedRuntimeDistImport);
   if (sharedPackageJson.dependencies?.zod) {
     distPackageDependencies.zod = sharedPackageJson.dependencies.zod;
   }
 }
 
-if (distSourceCode.includes(sharedSourceImport)) {
-  throw new Error(`Bootstrap artifact still references monorepo source path ${sharedSourceImport}.`);
+if (distSourceCode.includes(sharedSourceImport) || distSourceCode.includes(sharedRuntimeSourceImport)) {
+  throw new Error("Bootstrap artifact still references a monorepo shared source path.");
 }
 
 await writeFile(distEntryPath, distSourceCode, "utf8");

@@ -1,13 +1,9 @@
-import { z } from "zod";
 import {
-  createAbsoluteUrl,
-  createCorsOrigins,
-  createPositiveInteger,
-  createRequiredString,
   EnvValidationError,
-  formatEnvValidationIssues,
-} from "./env-core.js";
-export { EnvValidationError } from "./env-core.js";
+  sharedEnvSchema,
+} from "./runtime-env.js";
+import { formatEnvValidationIssues } from "./env-core.js";
+export { EnvValidationError } from "./runtime-env.js";
 
 export const apiEnvKeys = Object.freeze([
   "DATABASE_URL",
@@ -21,17 +17,17 @@ export const apiEnvKeys = Object.freeze([
   "BASE_URL",
 ]);
 
-export const apiEnvSchema = z
-  .object({
-    DATABASE_URL: createAbsoluteUrl("DATABASE_URL"),
-    REDIS_URL: createAbsoluteUrl("REDIS_URL"),
-    JWT_ACCESS_SECRET: createRequiredString("JWT_ACCESS_SECRET"),
-    JWT_ACCESS_TTL_MINUTES: createPositiveInteger("JWT_ACCESS_TTL_MINUTES"),
-    REFRESH_TOKEN_TTL_DAYS: createPositiveInteger("REFRESH_TOKEN_TTL_DAYS"),
-    CORS_ORIGINS: createCorsOrigins(),
-    EMAIL_PROVIDER_API_KEY: createRequiredString("EMAIL_PROVIDER_API_KEY"),
-    API_BASE_URL: createAbsoluteUrl("API_BASE_URL"),
-    BASE_URL: createAbsoluteUrl("BASE_URL"),
+export const apiEnvSchema = sharedEnvSchema
+  .pick({
+    DATABASE_URL: true,
+    REDIS_URL: true,
+    JWT_ACCESS_SECRET: true,
+    JWT_ACCESS_TTL_MINUTES: true,
+    REFRESH_TOKEN_TTL_DAYS: true,
+    CORS_ORIGINS: true,
+    EMAIL_PROVIDER_API_KEY: true,
+    API_BASE_URL: true,
+    BASE_URL: true,
   })
   .strict();
 
