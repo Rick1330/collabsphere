@@ -12,8 +12,16 @@ import {
   waitForStdoutMatch,
 } from "./bootstrap-test-helpers.mjs";
 
-const apiEntryPath = path.join(repoRoot, "apps", "api", "src", "dev.js");
+const apiEntryPath = path.join(repoRoot, "apps", "api", "src", "dev.ts");
 const builtApiEntryPath = path.join(repoRoot, "apps", "api", "dist", "dev.js");
+const pnpmCmd = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+
+const runTsc = (projectPath) => {
+  execFileSync(pnpmCmd, ["exec", "tsc", "-p", projectPath], {
+    cwd: repoRoot,
+    stdio: "inherit",
+  });
+};
 
 const validApiEnv = Object.freeze({
   HOST: "127.0.0.1",
@@ -86,6 +94,7 @@ test("API bootstrap fails fast with descriptive env validation errors", async ()
 });
 
 test("built API bootstrap artifact stays runnable without monorepo source imports", async () => {
+  runTsc(path.join(repoRoot, "apps", "api", "tsconfig.json"));
   execFileSync(process.execPath, ["scripts/build-bootstrap-app.mjs", "apps/api"], {
     cwd: repoRoot,
     stdio: "inherit",

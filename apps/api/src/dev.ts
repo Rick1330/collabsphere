@@ -1,16 +1,16 @@
-import { createServer } from "node:http";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
 import { EnvValidationError, parseApiRuntimeEnv } from "../../../packages/shared/src/api-env.js";
 
 const host = process.env.HOST ?? "127.0.0.1";
 const defaultPort = 3001;
 
-const warnInvalidPort = (service, value, fallback) => {
+const warnInvalidPort = (service: string, value: string | undefined, fallback: number) => {
   console.warn(`[${service}] invalid PORT value "${value}", falling back to ${fallback}`);
   return fallback;
 };
 
-const parsePort = (value, fallback, service) => {
+const parsePort = (value: string | undefined, fallback: number, service: string) => {
   const trimmed = value?.trim();
 
   if (!trimmed) {
@@ -55,14 +55,14 @@ validateRuntimeEnv();
 
 const port = parsePort(process.env.PORT, defaultPort, "api");
 
-const writeJson = (response, statusCode, payload) => {
+const writeJson = (response: ServerResponse, statusCode: number, payload: unknown) => {
   response.writeHead(statusCode, { "content-type": "application/json; charset=utf-8" });
   response.end(JSON.stringify(payload, null, 2));
 };
 
 const createRequestId = () => `req_${randomUUID()}`;
 
-const server = createServer((request, response) => {
+const server = createServer((request: IncomingMessage, response: ServerResponse) => {
   const requestId = createRequestId();
   let url;
 
@@ -104,7 +104,7 @@ const server = createServer((request, response) => {
   });
 });
 
-const listen = (candidatePort) => {
+const listen = (candidatePort: number) => {
   const onListening = () => {
     const address = server.address();
     const activePort = typeof address === "object" && address ? address.port : candidatePort;
@@ -112,7 +112,7 @@ const listen = (candidatePort) => {
   };
 
   server
-    .once("error", (error) => {
+    .once("error", (error: NodeJS.ErrnoException) => {
       server.removeListener("listening", onListening);
 
       if (error.code === "EADDRINUSE" && candidatePort !== 0) {
@@ -131,7 +131,7 @@ listen(port);
 
 let shuttingDown = false;
 
-const shutdown = (signal) => {
+const shutdown = (signal: string) => {
   if (shuttingDown) {
     return;
   }

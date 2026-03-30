@@ -12,6 +12,29 @@ export default [
     ],
   },
   {
+    files: [
+      "apps/**/src/**/*.js",
+    ],
+    languageOptions: {
+      ...js.configs.recommended.languageOptions,
+      ecmaVersion: "latest",
+      sourceType: "module",
+      globals: {
+        ...globals.node,
+      },
+    },
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "Program",
+          message:
+            "Use TypeScript for app entrypoints. JavaScript files under apps/*/src are not allowed.",
+        },
+      ],
+    },
+  },
+  {
     ...js.configs.recommended,
     files: [
       "apps/**/*.js",

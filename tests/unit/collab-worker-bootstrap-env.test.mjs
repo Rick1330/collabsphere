@@ -12,10 +12,18 @@ import {
   waitForStdoutMatch,
 } from "./bootstrap-test-helpers.mjs";
 
-const collabEntryPath = path.join(repoRoot, "apps", "collab", "src", "dev.js");
+const collabEntryPath = path.join(repoRoot, "apps", "collab", "src", "dev.ts");
 const builtCollabEntryPath = path.join(repoRoot, "apps", "collab", "dist", "dev.js");
-const workerEntryPath = path.join(repoRoot, "apps", "worker", "src", "dev.js");
+const workerEntryPath = path.join(repoRoot, "apps", "worker", "src", "dev.ts");
 const builtWorkerEntryPath = path.join(repoRoot, "apps", "worker", "dist", "dev.js");
+const pnpmCmd = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+
+const runTsc = (projectPath) => {
+  execFileSync(pnpmCmd, ["exec", "tsc", "-p", projectPath], {
+    cwd: repoRoot,
+    stdio: "inherit",
+  });
+};
 
 const validRuntimeEnv = Object.freeze({
   HOST: "127.0.0.1",
@@ -143,6 +151,7 @@ for (const service of serviceSpecs) {
   });
 
   test(`built ${service.name} bootstrap artifact stays runnable without monorepo source imports`, async () => {
+    runTsc(path.join(repoRoot, service.buildAppPath, "tsconfig.json"));
     execFileSync(process.execPath, ["scripts/build-bootstrap-app.mjs", service.buildAppPath], {
       cwd: repoRoot,
       stdio: "inherit",

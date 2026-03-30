@@ -6,6 +6,12 @@ import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 
 export const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+const tsxBin = path.join(
+  repoRoot,
+  "node_modules",
+  ".bin",
+  process.platform === "win32" ? "tsx.cmd" : "tsx",
+);
 
 export const collectStream = (stream) => {
   let value = "";
@@ -194,8 +200,12 @@ export const getJson = (port, pathName = "/") =>
     });
   });
 
-export const spawnBootstrap = ({ entryPath, cwd, envOverrides }) =>
-  spawn(process.execPath, [entryPath], {
+export const spawnBootstrap = ({ entryPath, cwd, envOverrides }) => {
+  const useTsx = entryPath.endsWith(".ts");
+  const command = useTsx ? tsxBin : process.execPath;
+  const args = useTsx ? [entryPath] : [entryPath];
+
+  return spawn(command, args, {
     cwd,
     env: {
       ...process.env,
@@ -203,3 +213,4 @@ export const spawnBootstrap = ({ entryPath, cwd, envOverrides }) =>
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
+};

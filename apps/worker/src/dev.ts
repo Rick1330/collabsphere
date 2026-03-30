@@ -17,7 +17,7 @@ const validateRuntimeEnv = () => {
   }
 };
 
-const parseHeartbeatMs = (value) => {
+const parseHeartbeatMs = (value: string | undefined) => {
   const trimmed = value?.trim();
 
   if (!trimmed) {
@@ -60,7 +60,7 @@ const timer = setInterval(() => {
   console.log(`[worker] heartbeat ${new Date().toISOString()}`);
 }, heartbeatMs);
 
-const shutdown = (signal) => {
+const shutdown = (signal: string) => {
   console.log(`[worker] received ${signal}, shutting down`);
   clearInterval(timer);
   process.exit(0);

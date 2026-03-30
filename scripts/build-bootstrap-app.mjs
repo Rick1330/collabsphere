@@ -1,4 +1,4 @@
-import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
@@ -13,7 +13,8 @@ if (!inputArg) {
 
 const packageDir = path.resolve(process.cwd(), inputArg);
 const packageJsonPath = path.join(packageDir, "package.json");
-const sourcePath = path.join(packageDir, "src", "dev.js");
+const sourceJsPath = path.join(packageDir, "src", "dev.js");
+const sourceTsPath = path.join(packageDir, "src", "dev.ts");
 const distDir = path.join(packageDir, "dist");
 const distEntryPath = path.join(distDir, "dev.js");
 const distPackageJsonPath = path.join(distDir, "package.json");
@@ -27,8 +28,33 @@ const sharedRuntimeSourceImport = "../../../packages/shared/src/runtime-env.js";
 const sharedDistImport = "./_shared/api-env.js";
 const sharedRuntimeDistImport = "./_shared/runtime-env.js";
 
+const fileExists = async (filePath) => {
+  try {
+    await stat(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const packageJson = JSON.parse(await readFile(packageJsonPath, "utf8"));
 const sharedPackageJson = JSON.parse(await readFile(sharedPackageJsonPath, "utf8"));
+const hasTsSource = await fileExists(sourceTsPath);
+const hasJsSource = await fileExists(sourceJsPath);
+
+if (hasTsSource && hasJsSource) {
+  throw new Error("Bootstrap entrypoint has both dev.ts and dev.js; remove the JS file.");
+}
+
+if (!hasTsSource && !hasJsSource) {
+  throw new Error("Missing bootstrap entrypoint (expected src/dev.ts or src/dev.js).");
+}
+
+if (hasTsSource && !(await fileExists(distEntryPath))) {
+  throw new Error(`Missing compiled bootstrap output at ${distEntryPath}. Run tsc before staging.`);
+}
+
+const sourcePath = hasTsSource ? distEntryPath : sourceJsPath;
 const sourceCode = await readFile(sourcePath, "utf8");
 
 execFileSync(process.execPath, ["--check", sourcePath], {
@@ -36,8 +62,14 @@ execFileSync(process.execPath, ["--check", sourcePath], {
   stdio: "pipe",
 });
 
-await rm(distDir, { recursive: true, force: true });
-await mkdir(distDir, { recursive: true });
+if (hasTsSource) {
+  await mkdir(distDir, { recursive: true });
+  await rm(path.join(distDir, "_shared"), { recursive: true, force: true });
+  await rm(path.join(distDir, "node_modules"), { recursive: true, force: true });
+} else {
+  await rm(distDir, { recursive: true, force: true });
+  await mkdir(distDir, { recursive: true });
+}
 let distSourceCode = sourceCode;
 const distPackageDependencies = { ...(packageJson.dependencies ?? {}) };
 

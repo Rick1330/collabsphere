@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --watch src/dev.js",
-    "build": "node ../../scripts/build-bootstrap-app.mjs ."
+    "dev": "tsx watch src/dev.ts",
+    "build": "pnpm exec tsc -p tsconfig.json && node ../../scripts/build-bootstrap-app.mjs ."
   }
 }
