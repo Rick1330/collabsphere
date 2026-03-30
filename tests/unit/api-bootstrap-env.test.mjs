@@ -164,7 +164,7 @@ test("API bootstrap fails fast with descriptive env validation errors", async ()
   assert.equal(stdoutText(), "");
   assert.match(stderrText(), /\[api\] Environment validation failed/);
   assert.match(stderrText(), /JWT_ACCESS_SECRET: JWT_ACCESS_SECRET is required\./);
-  assert.match(stderrText(), /CORS_ORIGINS: CORS_ORIGINS entries must be valid absolute URLs/);
+  assert.match(stderrText(), /CORS_ORIGINS: CORS_ORIGINS entry 1 must be a valid absolute origin\./);
   assert.doesNotMatch(stderrText(), /replace-with-local-jwt-secret/);
 });
 

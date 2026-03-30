@@ -156,6 +156,25 @@ test("API runtime parser accepts the API bootstrap subset without collab or stor
   ]);
 });
 
+test("API runtime parser normalizes CORS origins to bare origins", () => {
+  const parsed = parseApiRuntimeEnv({
+    DATABASE_URL: validEnv.DATABASE_URL,
+    REDIS_URL: validEnv.REDIS_URL,
+    JWT_ACCESS_SECRET: validEnv.JWT_ACCESS_SECRET,
+    JWT_ACCESS_TTL_MINUTES: validEnv.JWT_ACCESS_TTL_MINUTES,
+    REFRESH_TOKEN_TTL_DAYS: validEnv.REFRESH_TOKEN_TTL_DAYS,
+    CORS_ORIGINS: "http://localhost:3000/, https://example.com",
+    EMAIL_PROVIDER_API_KEY: validEnv.EMAIL_PROVIDER_API_KEY,
+    API_BASE_URL: validEnv.API_BASE_URL,
+    BASE_URL: validEnv.BASE_URL,
+  });
+
+  assert.deepEqual(parsed.CORS_ORIGINS, [
+    "http://localhost:3000",
+    "https://example.com",
+  ]);
+});
+
 test("shared env parser fails clearly for missing required keys", () => {
   assert.throws(
     () => parseRuntimeEnv({ ...validEnv, JWT_ACCESS_SECRET: undefined }),
@@ -189,6 +208,28 @@ test("shared env parser fails clearly for invalid values", () => {
       );
       assert.ok(error.issues.some((issue) => issue.key === "CORS_ORIGINS"));
       assert.ok(error.issues.some((issue) => issue.key === "COLLAB_WS_URL"));
+      return true;
+    },
+  );
+});
+
+test("shared env parser rejects non-origin CORS entries without echoing raw values", () => {
+  assert.throws(
+    () =>
+      parseRuntimeEnv({
+        ...validEnv,
+        CORS_ORIGINS: "https://user:secret@example.com/path?token=abc#frag",
+      }),
+    (error) => {
+      assert.ok(error instanceof EnvValidationError);
+      assert.deepEqual(error.issues, [
+        {
+          key: "CORS_ORIGINS",
+          message:
+            "CORS_ORIGINS entry 1 must be a bare origin (scheme, host, optional port).",
+        },
+      ]);
+      assert.doesNotMatch(error.message, /secret|token|example\.com\/path/);
       return true;
     },
   );

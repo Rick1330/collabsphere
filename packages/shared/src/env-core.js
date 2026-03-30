@@ -3,6 +3,7 @@ import { z, ZodError } from "zod";
 /** @typedef {{ key: string, message: string }} EnvValidationIssue */
 
 const positiveIntegerPattern = /^\d+$/;
+const corsOriginProtocols = ["http:", "https:"];
 
 const issueMessageByCode = (issue) => issue.message || "is invalid.";
 
@@ -124,6 +125,13 @@ export const createPositiveInteger = (key) =>
       message: `${key} must be a positive integer.`,
     });
 
+const isBareOrigin = (value) =>
+  !value.username &&
+  !value.password &&
+  value.pathname === "/" &&
+  !value.search &&
+  !value.hash;
+
 export const createCorsOrigins = () =>
   createRequiredString("CORS_ORIGINS")
     .transform((value) =>
@@ -136,25 +144,35 @@ export const createCorsOrigins = () =>
       if (origins.length === 0) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          message: "CORS_ORIGINS must include at least one absolute URL.",
+          message: "CORS_ORIGINS must include at least one absolute origin.",
         });
         return;
       }
 
-      for (const origin of origins) {
+      for (const [index, origin] of origins.entries()) {
         try {
           const parsedUrl = new URL(origin);
-          if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+          if (!corsOriginProtocols.includes(parsedUrl.protocol)) {
             context.addIssue({
               code: z.ZodIssueCode.custom,
-              message: `CORS_ORIGINS entries must use http: or https: (${origin}).`,
+              message: `CORS_ORIGINS entry ${index + 1} must use http: or https:.`,
+            });
+            continue;
+          }
+
+          if (!isBareOrigin(parsedUrl)) {
+            context.addIssue({
+              code: z.ZodIssueCode.custom,
+              message:
+                `CORS_ORIGINS entry ${index + 1} must be a bare origin (scheme, host, optional port).`,
             });
           }
         } catch {
           context.addIssue({
             code: z.ZodIssueCode.custom,
-            message: `CORS_ORIGINS entries must be valid absolute URLs (${origin}).`,
+            message: `CORS_ORIGINS entry ${index + 1} must be a valid absolute origin.`,
           });
         }
       }
-    });
+    })
+    .transform((origins) => origins.map((origin) => new URL(origin).origin));
