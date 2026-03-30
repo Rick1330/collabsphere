@@ -176,6 +176,17 @@ test("sanitizeEnv redacts secrets and URL credentials without losing safe fields
   ]);
 });
 
+test("sanitizeEnv strips query and hash from credential URLs", () => {
+  const rawEnv = parseRuntimeEnv({
+    ...validEnv,
+    REDIS_URL: "redis://:secret@localhost:6379/0?token=abc#frag",
+  });
+
+  const sanitized = sanitizeEnv(rawEnv);
+
+  assert.equal(sanitized.REDIS_URL, "redis://[redacted]@localhost:6379/0");
+});
+
 test("parseEnv returns the sanitized shared env surface by default", () => {
   const parsed = parseEnv(validEnv);
 

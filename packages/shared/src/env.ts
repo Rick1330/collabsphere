@@ -53,7 +53,7 @@ const redactUrlCredentials = (value: string) => {
   }
 
   const authority = `[redacted]@${parsedUrl.host}`;
-  return `${parsedUrl.protocol}//${authority}${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;
+  return `${parsedUrl.protocol}//${authority}${parsedUrl.pathname}`;
 };
 
 export class EnvValidationError extends Error {
