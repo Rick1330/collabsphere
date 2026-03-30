@@ -85,7 +85,6 @@ export const declaredEnvKeys: readonly [
 
 export const sharedEnvSchema: ZodType<
   SharedRuntimeEnv,
-  unknown,
   Record<string, string | undefined>
 >;
 
