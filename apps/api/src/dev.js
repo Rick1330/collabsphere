@@ -1,5 +1,6 @@
 import { createServer } from "node:http";
 import { randomUUID } from "node:crypto";
+import { EnvValidationError, parseApiRuntimeEnv } from "../../../packages/shared/src/api-env.js";
 
 const host = process.env.HOST ?? "127.0.0.1";
 const defaultPort = 3001;
@@ -36,6 +37,21 @@ const parsePort = (value, fallback, service) => {
 
   return parsed;
 };
+
+const validateRuntimeEnv = () => {
+  try {
+    return parseApiRuntimeEnv(process.env);
+  } catch (error) {
+    if (error instanceof EnvValidationError) {
+      console.error(`[api] ${error.message}`);
+      process.exit(1);
+    }
+
+    throw error;
+  }
+};
+
+validateRuntimeEnv();
 
 const port = parsePort(process.env.PORT, defaultPort, "api");
 
