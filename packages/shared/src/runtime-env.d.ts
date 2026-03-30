@@ -1,4 +1,6 @@
 import type { ZodType } from "zod";
+export { EnvValidationError } from "./env-core.js";
+export type { EnvValidationIssue } from "./env-core.js";
 
 export interface SharedRuntimeEnv {
   DATABASE_URL: string;
@@ -86,10 +88,6 @@ export const sharedEnvSchema: ZodType<
   unknown,
   Record<string, string | undefined>
 >;
-
-export class EnvValidationError extends Error {
-  readonly issues: readonly { key: string; message: string }[];
-}
 
 export function parseRuntimeEnv(
   input: Record<string, string | undefined>,

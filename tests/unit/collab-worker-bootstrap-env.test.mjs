@@ -60,101 +60,97 @@ const spawnBuiltWorker = (envOverrides) =>
     envOverrides,
   });
 
-const assertCollabBootstrapHealthy = async (spawnFn) => {
-  const child = spawnFn(validRuntimeEnv);
+const assertBootstrapHealthy = async ({
+  spawnFn,
+  healthyEnv,
+  readinessPattern,
+  readinessDescription,
+  assertReady,
+}) => {
+  const child = spawnFn(healthyEnv);
   const stdoutText = collectStream(child.stdout);
   const stderrText = collectStream(child.stderr);
 
   try {
-    const match = await waitForStdoutMatch(
-      child,
-      stdoutText,
-      /bootstrap listening on http:\/\/[^:]+:(\d+)/,
-      "collab bootstrap readiness",
-    );
-    const response = await getJson(Number.parseInt(match[1], 10));
-
-    assert.equal(response.statusCode, 200);
-    assert.equal(response.body?.service, "collab");
-    assert.equal(response.body?.status, "ok");
+    const match = await waitForStdoutMatch(child, stdoutText, readinessPattern, readinessDescription);
+    await assertReady({ match, stdoutText, stderrText });
     assert.equal(stderrText(), "");
   } finally {
     await stopChild(child);
   }
 };
 
-const assertWorkerBootstrapHealthy = async (spawnFn) => {
-  const child = spawnFn({
-    ...validRuntimeEnv,
-    WORKER_HEARTBEAT_MS: "1500",
-  });
-  const stdoutText = collectStream(child.stdout);
-  const stderrText = collectStream(child.stderr);
-
-  try {
-    const match = await waitForStdoutMatch(
-      child,
-      stdoutText,
-      /\[worker\] heartbeat interval (\d+)ms/,
-      "worker bootstrap readiness",
-    );
-
-    assert.equal(Number.parseInt(match[1], 10), 1500);
-    assert.match(stdoutText(), /\[worker\] bootstrap started/);
-    assert.equal(stderrText(), "");
-  } finally {
-    await stopChild(child);
-  }
-};
-
-test("collab bootstrap listens when shared env is valid", async () => {
-  await assertCollabBootstrapHealthy(spawnCollab);
-});
-
-test("collab bootstrap fails fast with descriptive env validation errors", async () => {
-  await assertBootstrapValidationFailure({
+const serviceSpecs = [
+  {
+    name: "collab",
+    buildAppPath: "apps/collab",
     spawnFn: spawnCollab,
-    envOverrides: {
+    spawnBuiltFn: spawnBuiltCollab,
+    healthyEnv: validRuntimeEnv,
+    invalidEnv: {
       ...validRuntimeEnv,
       COLLAB_JWT_SECRET: undefined,
     },
-    service: "collab",
     expectedMessages: [/COLLAB_JWT_SECRET: COLLAB_JWT_SECRET is required\./],
     forbiddenPatterns: [/replace-with-local-collab-secret/],
-  });
-});
+    readinessPattern: /bootstrap listening on http:\/\/[^:]+:(\d+)/,
+    readinessDescription: "collab bootstrap readiness",
+    assertReady: async ({ match }) => {
+      const response = await getJson(Number.parseInt(match[1], 10));
 
-test("built collab bootstrap artifact stays runnable without monorepo source imports", async () => {
-  execFileSync(process.execPath, ["scripts/build-bootstrap-app.mjs", "apps/collab"], {
-    cwd: repoRoot,
-    stdio: "inherit",
-  });
-
-  await assertCollabBootstrapHealthy(spawnBuiltCollab);
-});
-
-test("worker bootstrap starts when shared env is valid", async () => {
-  await assertWorkerBootstrapHealthy(spawnWorker);
-});
-
-test("worker bootstrap fails fast with descriptive env validation errors", async () => {
-  await assertBootstrapValidationFailure({
+      assert.equal(response.statusCode, 200);
+      assert.equal(response.body?.service, "collab");
+      assert.equal(response.body?.status, "ok");
+    },
+  },
+  {
+    name: "worker",
+    buildAppPath: "apps/worker",
     spawnFn: spawnWorker,
-    envOverrides: {
+    spawnBuiltFn: spawnBuiltWorker,
+    healthyEnv: {
+      ...validRuntimeEnv,
+      WORKER_HEARTBEAT_MS: "1500",
+    },
+    invalidEnv: {
       ...validRuntimeEnv,
       S3_BUCKET: undefined,
     },
-    service: "worker",
     expectedMessages: [/S3_BUCKET: S3_BUCKET is required\./],
     forbiddenPatterns: [/minioadmin/],
-  });
-});
+    readinessPattern: /\[worker\] heartbeat interval (\d+)ms/,
+    readinessDescription: "worker bootstrap readiness",
+    assertReady: async ({ match, stdoutText }) => {
+      assert.equal(Number.parseInt(match[1], 10), 1500);
+      assert.match(stdoutText(), /\[worker\] bootstrap started/);
+    },
+  },
+];
 
-test("built worker bootstrap artifact stays runnable without monorepo source imports", async () => {
-  execFileSync(process.execPath, ["scripts/build-bootstrap-app.mjs", "apps/worker"], {
-    cwd: repoRoot,
-    stdio: "inherit",
+for (const service of serviceSpecs) {
+  test(`${service.name} bootstrap starts when shared env is valid`, async () => {
+    await assertBootstrapHealthy(service);
   });
 
-  await assertWorkerBootstrapHealthy(spawnBuiltWorker);
-});
+  test(`${service.name} bootstrap fails fast with descriptive env validation errors`, async () => {
+    await assertBootstrapValidationFailure({
+      spawnFn: service.spawnFn,
+      envOverrides: service.invalidEnv,
+      service: service.name,
+      expectedMessages: service.expectedMessages,
+      forbiddenPatterns: service.forbiddenPatterns,
+    });
+  });
+
+  test(`built ${service.name} bootstrap artifact stays runnable without monorepo source imports`, async () => {
+    execFileSync(process.execPath, ["scripts/build-bootstrap-app.mjs", service.buildAppPath], {
+      cwd: repoRoot,
+      stdio: "inherit",
+    });
+
+    await assertBootstrapHealthy({
+      ...service,
+      spawnFn: service.spawnBuiltFn,
+    });
+  });
+}
