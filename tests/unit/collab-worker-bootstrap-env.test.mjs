@@ -16,10 +16,10 @@ const collabEntryPath = path.join(repoRoot, "apps", "collab", "src", "dev.ts");
 const builtCollabEntryPath = path.join(repoRoot, "apps", "collab", "dist", "dev.js");
 const workerEntryPath = path.join(repoRoot, "apps", "worker", "src", "dev.ts");
 const builtWorkerEntryPath = path.join(repoRoot, "apps", "worker", "dist", "dev.js");
-const pnpmCmd = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+const tscBin = path.join(repoRoot, "node_modules", "typescript", "bin", "tsc");
 
 const runTsc = (projectPath) => {
-  execFileSync(pnpmCmd, ["exec", "tsc", "-p", projectPath], {
+  execFileSync(process.execPath, [tscBin, "-p", projectPath], {
     cwd: repoRoot,
     stdio: "inherit",
   });

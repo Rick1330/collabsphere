@@ -14,10 +14,10 @@ import {
 
 const apiEntryPath = path.join(repoRoot, "apps", "api", "src", "dev.ts");
 const builtApiEntryPath = path.join(repoRoot, "apps", "api", "dist", "dev.js");
-const pnpmCmd = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+const tscBin = path.join(repoRoot, "node_modules", "typescript", "bin", "tsc");
 
 const runTsc = (projectPath) => {
-  execFileSync(pnpmCmd, ["exec", "tsc", "-p", projectPath], {
+  execFileSync(process.execPath, [tscBin, "-p", projectPath], {
     cwd: repoRoot,
     stdio: "inherit",
   });
