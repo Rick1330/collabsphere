@@ -288,11 +288,12 @@ pnpm lint
 pnpm typecheck
 pnpm test:unit
 pnpm build
-docker compose up -d --wait postgres redis
+docker compose up -d postgres redis
+docker compose ps
 pnpm test:integration
 ```
 
-Integration tests require PostgreSQL and Redis. In GitHub Actions, `CI / integration-tests` brings those services up through workflow services. Locally, start them before running `pnpm test:integration`.
+Integration tests require PostgreSQL and Redis. In GitHub Actions, `CI / integration-tests` brings those services up through workflow services. Locally, start them before running `pnpm test:integration`, then verify with `docker compose ps` that both services are healthy or running.
 
 Workflow files to check when CI fails:
 
