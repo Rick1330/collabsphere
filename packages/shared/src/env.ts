@@ -1,5 +1,4 @@
 import {
-  declaredEnvKeys,
   envRedaction,
   type SanitizedSharedEnv,
   type SharedEnv,
