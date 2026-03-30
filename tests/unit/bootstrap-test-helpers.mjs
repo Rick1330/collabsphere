@@ -74,26 +74,23 @@ export const assertBootstrapValidationFailure = async ({
   const child = spawnFn(envOverrides);
   const stdoutText = collectStream(child.stdout);
   const stderrText = collectStream(child.stderr);
-  const [code, signal] = await new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      if (child.exitCode === null && child.signalCode === null) {
-        child.kill("SIGTERM");
-      }
+  let code;
+  let signal;
 
-      reject(new Error(`Timed out waiting for [${service}] bootstrap to exit.`));
-    }, childExitTimeoutMs);
-
-    waitForChildExit(child).then(
-      (result) => {
-        clearTimeout(timeout);
-        resolve(result);
-      },
-      (error) => {
-        clearTimeout(timeout);
-        reject(error);
-      },
+  try {
+    [code, signal] = await waitForChildExitWithTimeout(
+      child,
+      childExitTimeoutMs,
+      `[${service}] bootstrap`,
     );
-  });
+  } catch (error) {
+    try {
+      await stopChild(child);
+    } catch {
+      // Cleanup best-effort; keep original timeout error context.
+    }
+    throw error;
+  }
 
   assert.equal(code, 1);
   assert.equal(signal, null);
