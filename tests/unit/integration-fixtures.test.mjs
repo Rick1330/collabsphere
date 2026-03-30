@@ -28,5 +28,29 @@ test("service smoke fixtures fail clearly on invalid ports", () => {
     () => createServiceSmokeFixtures({ REDIS_PORT: "abc" }),
     /REDIS_PORT must be a valid TCP port/,
   );
+
+  assert.throws(
+    () => createServiceSmokeFixtures({ POSTGRES_PORT: "5432foo" }),
+    /POSTGRES_PORT must be a valid TCP port/,
+  );
+
+  assert.throws(
+    () => createServiceSmokeFixtures({ POSTGRES_PORT: "0" }),
+    /POSTGRES_PORT must be a valid TCP port/,
+  );
+
+  assert.throws(
+    () => createServiceSmokeFixtures({ REDIS_PORT: "-1" }),
+    /REDIS_PORT must be a valid TCP port/,
+  );
+
+  assert.throws(
+    () => createServiceSmokeFixtures({ REDIS_PORT: "65536" }),
+    /REDIS_PORT must be a valid TCP port/,
+  );
 });
 
+test("service smoke fixtures accept valid port boundaries", () => {
+  assert.doesNotThrow(() => createServiceSmokeFixtures({ POSTGRES_PORT: "1" }));
+  assert.doesNotThrow(() => createServiceSmokeFixtures({ REDIS_PORT: "65535" }));
+});

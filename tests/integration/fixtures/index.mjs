@@ -3,14 +3,28 @@ const postgresHandshakeCode = 80877103;
 const defaultRetryDelayMs = 1000;
 const defaultMaxAttempts = 20;
 const defaultAttemptTimeoutMs = 2000;
+const digitsOnlyPattern = /^\d+$/;
+
+function createPortError(name, rawValue) {
+  return new Error(`${name} must be a valid TCP port (1-65535), got: ${String(rawValue)}`);
+}
+
+function requireDigitsOnly(name, rawValue) {
+  if (typeof rawValue !== "string" || !digitsOnlyPattern.test(rawValue)) {
+    throw createPortError(name, rawValue);
+  }
+}
+
+function requirePortRange(name, value, rawValue) {
+  if (value < 1 || value > 65_535) {
+    throw createPortError(name, rawValue);
+  }
+}
 
 function parsePort(name, rawValue) {
+  requireDigitsOnly(name, rawValue);
   const value = Number.parseInt(rawValue, 10);
-
-  if (!Number.isInteger(value) || value < 1 || value > 65_535) {
-    throw new Error(`${name} must be a valid TCP port (1-65535), got: ${String(rawValue)}`);
-  }
-
+  requirePortRange(name, value, rawValue);
   return value;
 }
 
@@ -68,4 +82,3 @@ export function createServiceSmokeFixtures(env = process.env) {
     }),
   });
 }
-
