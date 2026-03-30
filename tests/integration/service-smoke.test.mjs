@@ -2,30 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import net from "node:net";
 
-const postgresHost = process.env.POSTGRES_HOST ?? "127.0.0.1";
-const postgresPort = Number.parseInt(process.env.POSTGRES_PORT ?? "5432", 10);
-const redisHost = process.env.REDIS_HOST ?? "127.0.0.1";
-const redisPort = Number.parseInt(process.env.REDIS_PORT ?? "6379", 10);
-const retryDelayMs = 1000;
-const maxAttempts = 20;
-const attemptTimeoutMs = 2000;
+import { createServiceSmokeFixtures } from "./fixtures/index.mjs";
 
-function validatePort(name, value) {
-  if (!Number.isInteger(value)) {
-    throw new Error(`${name} must be a valid TCP port (1-65535), got: ${String(value)}`);
-  }
-
-  if (value < 1) {
-    throw new Error(`${name} must be a valid TCP port (1-65535), got: ${String(value)}`);
-  }
-
-  if (value > 65_535) {
-    throw new Error(`${name} must be a valid TCP port (1-65535), got: ${String(value)}`);
-  }
-}
-
-validatePort("POSTGRES_PORT", postgresPort);
-validatePort("REDIS_PORT", redisPort);
+const fixtures = createServiceSmokeFixtures();
+const {
+  metadata,
+  services: { postgres, redis },
+  timing: { retryDelayMs, maxAttempts, attemptTimeoutMs },
+} = fixtures;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -164,19 +148,16 @@ async function withRetries(label, action) {
 }
 
 test("postgres accepts startup handshakes", { timeout: 30_000 }, async () => {
-  await withRetries(`postgres at ${postgresHost}:${postgresPort}`, async () => {
-    const socket = await openSocket(postgresHost, postgresPort);
+  await withRetries(`${metadata.suiteId}:${postgres.id}:${postgres.label}`, async () => {
+    const socket = await openSocket(postgres.host, postgres.port);
 
     try {
-      const sslRequest = Buffer.alloc(8);
-      sslRequest.writeInt32BE(8, 0);
-      sslRequest.writeInt32BE(80877103, 4);
-      socket.write(sslRequest);
+      socket.write(postgres.sslRequest);
 
       const response = await readOnce(socket);
       assert.ok(response.length > 0, "postgres returned an empty response");
       assert.ok(
-        response[0] === "S".charCodeAt(0) || response[0] === "N".charCodeAt(0),
+        postgres.acceptedResponses.includes(response[0]),
         `postgres returned unexpected SSL negotiation response: ${response.toString("utf8")}`,
       );
     } finally {
@@ -186,16 +167,16 @@ test("postgres accepts startup handshakes", { timeout: 30_000 }, async () => {
 });
 
 test("redis accepts ping commands", { timeout: 30_000 }, async () => {
-  await withRetries(`redis at ${redisHost}:${redisPort}`, async () => {
-    const socket = await openSocket(redisHost, redisPort);
+  await withRetries(`${metadata.suiteId}:${redis.id}:${redis.label}`, async () => {
+    const socket = await openSocket(redis.host, redis.port);
 
     try {
-      socket.write("*1\r\n$4\r\nPING\r\n");
+      socket.write(redis.pingCommand);
 
       const response = await readOnce(socket);
       assert.match(
         response.toString("utf8"),
-        /^\+PONG\r\n/,
+        redis.expectedResponse,
         `redis returned unexpected PING response: ${response.toString("utf8")}`,
       );
     } finally {
