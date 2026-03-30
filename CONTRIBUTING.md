@@ -261,7 +261,7 @@ For docs-only changes, validate by checking the expected files and key sections 
 
 ## CI and Required Checks
 
-`main` is now branch-protected against the repo-owned merge gate checks. GitHub currently enforces the raw check identities emitted by the workflows, so ordinary delivery PRs must pass these exact required checks before merge:
+`main` is branch-protected with required CI job checks and repo-owned merge gate checks. GitHub currently enforces the raw check identities emitted by the workflows, so ordinary delivery PRs must pass these exact required checks before merge:
 
 - `lint`
 - `typecheck`
