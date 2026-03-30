@@ -43,7 +43,7 @@ Enable and require these exact current check names on `main`:
 
 Do not mark these as universal required checks in branch protection:
 
-- `Queue Manifest Validate / validate`, because it is path-scoped to `.github/queue/**` changes and will not run on ordinary delivery PRs
+- `Queue Manifest Validate / validate`, because it is path-scoped to queue-manifest surfaces (`.github/queue/**`, `.github/scripts/validate_queue_manifest.rb`, and `.github/workflows/queue-manifest-validate.yml`) and will not run on ordinary delivery PRs
 - third-party review integrations such as `CodeRabbit`, `DeepScan`, or `CodeScene Code Health Review (main)` unless repo policy explicitly promotes them to required status checks later
 
 ### Require branches to be up to date before merging
