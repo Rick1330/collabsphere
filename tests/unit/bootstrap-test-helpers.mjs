@@ -24,6 +24,9 @@ export const waitForChildExit = (child) => {
   return once(child, "exit");
 };
 
+const childExitTimeoutMs = 5000;
+const requestTimeoutMs = 5000;
+
 export const stopChild = async (child) => {
   if (child.exitCode === null && child.signalCode === null) {
     child.kill("SIGTERM");
@@ -42,7 +45,26 @@ export const assertBootstrapValidationFailure = async ({
   const child = spawnFn(envOverrides);
   const stdoutText = collectStream(child.stdout);
   const stderrText = collectStream(child.stderr);
-  const [code, signal] = await waitForChildExit(child);
+  const [code, signal] = await new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      if (child.exitCode === null && child.signalCode === null) {
+        child.kill("SIGTERM");
+      }
+
+      reject(new Error(`Timed out waiting for [${service}] bootstrap to exit.`));
+    }, childExitTimeoutMs);
+
+    waitForChildExit(child).then(
+      (result) => {
+        clearTimeout(timeout);
+        resolve(result);
+      },
+      (error) => {
+        clearTimeout(timeout);
+        reject(error);
+      },
+    );
+  });
 
   assert.equal(code, 1);
   assert.equal(signal, null);
@@ -97,6 +119,17 @@ export const waitForStdoutMatch = (child, stdoutText, pattern, description) =>
 
 export const getJson = (port, pathName = "/") =>
   new Promise((resolve, reject) => {
+    let settled = false;
+    const settle = (callback) => (value) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      callback(value);
+    };
+    const resolveOnce = settle(resolve);
+    const rejectOnce = settle(reject);
     const request = http.get(
       {
         host: "127.0.0.1",
@@ -109,16 +142,29 @@ export const getJson = (port, pathName = "/") =>
         response.on("data", (chunk) => {
           body += chunk;
         });
+        response.once("error", rejectOnce);
         response.on("end", () => {
-          resolve({
-            statusCode: response.statusCode,
-            body: JSON.parse(body),
-          });
+          try {
+            resolveOnce({
+              statusCode: response.statusCode,
+              body: JSON.parse(body),
+            });
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            rejectOnce(
+              new Error(
+                `Failed to parse JSON from ${pathName} (port ${port}, status ${response.statusCode}): ${message}\nbody:\n${body}`,
+              ),
+            );
+          }
         });
       },
     );
 
-    request.once("error", reject);
+    request.once("error", rejectOnce);
+    request.setTimeout(requestTimeoutMs, () => {
+      request.destroy(new Error(`Timed out fetching http://127.0.0.1:${port}${pathName}`));
+    });
   });
 
 export const spawnBootstrap = ({ entryPath, cwd, envOverrides }) =>
