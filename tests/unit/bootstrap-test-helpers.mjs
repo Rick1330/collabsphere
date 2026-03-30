@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import http from "node:http";
 import path from "node:path";
 import { once } from "node:events";
@@ -29,6 +30,32 @@ export const stopChild = async (child) => {
   }
 
   await waitForChildExit(child);
+};
+
+export const assertBootstrapValidationFailure = async ({
+  spawnFn,
+  envOverrides,
+  service,
+  expectedMessages,
+  forbiddenPatterns = [],
+}) => {
+  const child = spawnFn(envOverrides);
+  const stdoutText = collectStream(child.stdout);
+  const stderrText = collectStream(child.stderr);
+  const [code, signal] = await waitForChildExit(child);
+
+  assert.equal(code, 1);
+  assert.equal(signal, null);
+  assert.equal(stdoutText(), "");
+  assert.match(stderrText(), new RegExp(`\\[${service}\\] Environment validation failed`));
+
+  for (const message of expectedMessages) {
+    assert.match(stderrText(), message);
+  }
+
+  for (const pattern of forbiddenPatterns) {
+    assert.doesNotMatch(stderrText(), pattern);
+  }
 };
 
 export const waitForStdoutMatch = (child, stdoutText, pattern, description) =>

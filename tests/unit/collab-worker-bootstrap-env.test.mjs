@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
-import { once } from "node:events";
 import { execFileSync } from "node:child_process";
 import test from "node:test";
 import path from "node:path";
 import {
+  assertBootstrapValidationFailure,
   collectStream,
   getJson,
   repoRoot,
@@ -112,21 +112,16 @@ test("collab bootstrap listens when shared env is valid", async () => {
 });
 
 test("collab bootstrap fails fast with descriptive env validation errors", async () => {
-  const child = spawnCollab({
-    ...validRuntimeEnv,
-    COLLAB_JWT_SECRET: undefined,
+  await assertBootstrapValidationFailure({
+    spawnFn: spawnCollab,
+    envOverrides: {
+      ...validRuntimeEnv,
+      COLLAB_JWT_SECRET: undefined,
+    },
+    service: "collab",
+    expectedMessages: [/COLLAB_JWT_SECRET: COLLAB_JWT_SECRET is required\./],
+    forbiddenPatterns: [/replace-with-local-collab-secret/],
   });
-  const stdoutText = collectStream(child.stdout);
-  const stderrText = collectStream(child.stderr);
-
-  const [code, signal] = await once(child, "exit");
-
-  assert.equal(code, 1);
-  assert.equal(signal, null);
-  assert.equal(stdoutText(), "");
-  assert.match(stderrText(), /\[collab\] Environment validation failed/);
-  assert.match(stderrText(), /COLLAB_JWT_SECRET: COLLAB_JWT_SECRET is required\./);
-  assert.doesNotMatch(stderrText(), /replace-with-local-collab-secret/);
 });
 
 test("built collab bootstrap artifact stays runnable without monorepo source imports", async () => {
@@ -143,21 +138,16 @@ test("worker bootstrap starts when shared env is valid", async () => {
 });
 
 test("worker bootstrap fails fast with descriptive env validation errors", async () => {
-  const child = spawnWorker({
-    ...validRuntimeEnv,
-    S3_BUCKET: undefined,
+  await assertBootstrapValidationFailure({
+    spawnFn: spawnWorker,
+    envOverrides: {
+      ...validRuntimeEnv,
+      S3_BUCKET: undefined,
+    },
+    service: "worker",
+    expectedMessages: [/S3_BUCKET: S3_BUCKET is required\./],
+    forbiddenPatterns: [/minioadmin/],
   });
-  const stdoutText = collectStream(child.stdout);
-  const stderrText = collectStream(child.stderr);
-
-  const [code, signal] = await once(child, "exit");
-
-  assert.equal(code, 1);
-  assert.equal(signal, null);
-  assert.equal(stdoutText(), "");
-  assert.match(stderrText(), /\[worker\] Environment validation failed/);
-  assert.match(stderrText(), /S3_BUCKET: S3_BUCKET is required\./);
-  assert.doesNotMatch(stderrText(), /minioadmin/);
 });
 
 test("built worker bootstrap artifact stays runnable without monorepo source imports", async () => {
