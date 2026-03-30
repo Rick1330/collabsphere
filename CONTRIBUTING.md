@@ -252,27 +252,51 @@ Use the task or story issue as the primary validation source. Common commands in
 pnpm lint
 pnpm typecheck
 pnpm test
-pnpm -w test:unit
-pnpm -w test:integration
-pnpm -w build
+pnpm test:unit
+pnpm test:integration
+pnpm build
 ```
 
 For docs-only changes, validate by checking the expected files and key sections exist and match the referenced workflows.
 
 ## CI and Required Checks
 
-Minimum required PR checks:
+`main` is now branch-protected against the repo-owned merge gate checks. Ordinary delivery PRs must pass these exact required checks before merge:
 
-- lint
-- typecheck
-- unit tests
-- integration tests
-- build for `web`, `api`, `collab`, and `worker`
+- `CI / lint`
+- `CI / typecheck`
+- `CI / unit-tests`
+- `CI / integration-tests`
+- `CI / build-web`
+- `CI / build-api`
+- `CI / build-collab`
+- `CI / build-worker`
+- `Handoff Check / validate`
+- `PR Status Sync / sync`
+- `Review Router / route`
 
-Integration tests require the necessary backing services.
+Current CI workflow surface:
+
+- `.github/workflows/ci.yml` runs lint, typecheck, unit tests, integration tests, and per-app build jobs
+- `.github/workflows/handoff-check.yml`, `.github/workflows/pr-status-sync.yml`, and `.github/workflows/review-router.yml` enforce the repo-owned PR gate behavior around handoff, issue state, and review policy
+- `.github/workflows/queue-manifest-validate.yml` is path-scoped to queue-manifest surfaces and is not a universal required check for ordinary delivery PRs
+
+Local parity commands for the main CI jobs:
+
+```bash
+pnpm lint
+pnpm typecheck
+pnpm test:unit
+pnpm build
+docker compose up -d --wait postgres redis
+pnpm test:integration
+```
+
+Integration tests require PostgreSQL and Redis. In GitHub Actions, `CI / integration-tests` brings those services up through workflow services. Locally, start them before running `pnpm test:integration`.
 
 Workflow files to check when CI fails:
 
+- `.github/workflows/ci.yml`
 - `.github/workflows/queue-manifest-validate.yml`
 - `.github/workflows/handoff-check.yml`
 - `.github/workflows/pr-status-sync.yml`
@@ -290,6 +314,8 @@ If CI fails:
 - inspect the failing job first
 - reproduce locally where feasible
 - fix the root cause rather than retrying blindly
+- for integration-test failures, confirm PostgreSQL and Redis are healthy before rerunning locally
+- for required-check failures on GitHub, compare the failing check name to `docs/agent-ref/ops/branch-protection.md` before assuming branch protection is misconfigured
 
 ## Turborepo Cache Guidance
 
