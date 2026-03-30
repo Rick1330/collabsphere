@@ -2,6 +2,7 @@ import {
   EnvValidationError,
   sharedEnvSchema,
 } from "./runtime-env.js";
+import { formatEnvValidationIssues } from "./env-core.js";
 export { EnvValidationError } from "./runtime-env.js";
 
 export const apiEnvKeys = Object.freeze([
@@ -37,12 +38,7 @@ export const parseApiRuntimeEnv = (input) => {
   const parsed = apiEnvSchema.safeParse(selectApiEnv(input));
 
   if (!parsed.success) {
-    throw new EnvValidationError(
-      parsed.error.issues.map((issue) => ({
-        key: String(issue.path[0] ?? "env"),
-        message: issue.message || "is invalid.",
-      })),
-    );
+    throw new EnvValidationError(formatEnvValidationIssues(parsed.error));
   }
 
   return parsed.data;

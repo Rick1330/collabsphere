@@ -27,12 +27,41 @@ export const waitForChildExit = (child) => {
 const childExitTimeoutMs = 5000;
 const requestTimeoutMs = 5000;
 
+const waitForChildExitWithTimeout = (child, timeoutMs, label) =>
+  new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error(`Timed out waiting for child to exit after ${label}.`));
+    }, timeoutMs);
+
+    waitForChildExit(child).then(
+      (result) => {
+        clearTimeout(timeout);
+        resolve(result);
+      },
+      (error) => {
+        clearTimeout(timeout);
+        reject(error);
+      },
+    );
+  });
+
 export const stopChild = async (child) => {
-  if (child.exitCode === null && child.signalCode === null) {
-    child.kill("SIGTERM");
+  if (child.exitCode !== null || child.signalCode !== null) {
+    return;
   }
 
-  await waitForChildExit(child);
+  child.kill("SIGTERM");
+
+  try {
+    await waitForChildExitWithTimeout(child, childExitTimeoutMs, "SIGTERM");
+  } catch {
+    if (child.exitCode !== null || child.signalCode !== null) {
+      return;
+    }
+
+    child.kill("SIGKILL");
+    await waitForChildExitWithTimeout(child, childExitTimeoutMs, "SIGKILL");
+  }
 };
 
 export const assertBootstrapValidationFailure = async ({
@@ -115,6 +144,7 @@ export const waitForStdoutMatch = (child, stdoutText, pattern, description) =>
 
     child.stdout.on("data", onData);
     child.on("exit", onExit);
+    onData();
   });
 
 export const getJson = (port, pathName = "/") =>
