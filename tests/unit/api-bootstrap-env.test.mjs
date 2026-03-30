@@ -124,8 +124,8 @@ const getJson = (port) =>
     request.once("error", reject);
   });
 
-test("API bootstrap listens when required env is valid", async () => {
-  const child = spawnApi(validApiEnv);
+const assertBootstrapHealthy = async (spawnBootstrap) => {
+  const child = spawnBootstrap(validApiEnv);
   const stdoutText = collectStream(child.stdout);
   const stderrText = collectStream(child.stderr);
 
@@ -142,6 +142,10 @@ test("API bootstrap listens when required env is valid", async () => {
     }
     await waitForChildExit(child);
   }
+};
+
+test("API bootstrap listens when required env is valid", async () => {
+  await assertBootstrapHealthy(spawnApi);
 });
 
 test("API bootstrap fails fast with descriptive env validation errors", async () => {
@@ -170,21 +174,5 @@ test("built API bootstrap artifact stays runnable without monorepo source import
     stdio: "inherit",
   });
 
-  const child = spawnBuiltApi(validApiEnv);
-  const stdoutText = collectStream(child.stdout);
-  const stderrText = collectStream(child.stderr);
-
-  try {
-    const port = await waitForListening(child, stdoutText);
-    const response = await getJson(port);
-
-    assert.equal(response.statusCode, 200);
-    assert.equal(response.body?.data?.resource?.service, "api");
-    assert.equal(stderrText(), "");
-  } finally {
-    if (child.exitCode === null && child.signalCode === null) {
-      child.kill("SIGTERM");
-    }
-    await waitForChildExit(child);
-  }
+  await assertBootstrapHealthy(spawnBuiltApi);
 });

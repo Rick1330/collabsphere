@@ -1,21 +1,14 @@
 import { ZodError } from "zod";
 import {
-  apiEnvKeys,
-  apiEnvSchema,
-  parseApiRuntimeEnv,
-} from "./api-env.js";
-
-import {
   declaredEnvKeys,
   envRedaction,
-  type ApiRuntimeEnv,
   sharedEnvSchema,
   type SanitizedSharedEnv,
   type SharedEnv,
 } from "./env.schema.js";
 import { EnvValidationError, formatEnvValidationIssues } from "./env-core.js";
 
-export type { ApiRuntimeEnv, SanitizedSharedEnv, SharedEnv } from "./env.schema.js";
+export type { SanitizedSharedEnv, SharedEnv } from "./env.schema.js";
 export {
   declaredEnvKeys,
   envRedaction,
@@ -23,6 +16,7 @@ export {
   requiredEnvKeys,
   sharedEnvSchema,
 } from "./env.schema.js";
+export type { ApiRuntimeEnv } from "./api-env.js";
 export { apiEnvKeys, apiEnvSchema, parseApiRuntimeEnv } from "./api-env.js";
 export { EnvValidationError, formatEnvValidationIssues } from "./env-core.js";
 
