@@ -18,8 +18,12 @@ const tempBuildDir = path.join(
 );
 const tscPath = require.resolve("typescript/bin/tsc");
 
-const compileSharedEnvModule = () => {
+const cleanupTempBuildDir = () => {
   rmSync(tempBuildDir, { force: true, recursive: true });
+};
+
+const compileSharedEnvModule = () => {
+  cleanupTempBuildDir();
   mkdirSync(tempBuildDir, { recursive: true });
 
   execFileSync(
@@ -54,10 +58,21 @@ const compileSharedEnvModule = () => {
   return pathToFileURL(path.join(tempBuildDir, "env.js")).href;
 };
 
-const buildUrl = compileSharedEnvModule();
-const sharedEnvModule = await import(`${buildUrl}?t=${Date.now()}`);
+let sharedEnvModule;
 
-const { EnvValidationError, parseEnv, sanitizeEnv } = sharedEnvModule;
+try {
+  const buildUrl = compileSharedEnvModule();
+  sharedEnvModule = await import(`${buildUrl}?t=${Date.now()}`);
+} catch (error) {
+  cleanupTempBuildDir();
+  throw error;
+}
+
+test.after(() => {
+  cleanupTempBuildDir();
+});
+
+const { EnvValidationError, parseEnv, parseRuntimeEnv, sanitizeEnv } = sharedEnvModule;
 
 const validEnv = Object.freeze({
   DATABASE_URL: "postgresql://collab:collab@localhost:5432/collabsphere",
@@ -81,7 +96,7 @@ const validEnv = Object.freeze({
 });
 
 test("shared env parser accepts valid input and normalizes typed values", () => {
-  const parsed = parseEnv(validEnv);
+  const parsed = parseRuntimeEnv(validEnv);
 
   assert.equal(parsed.JWT_ACCESS_TTL_MINUTES, 15);
   assert.equal(parsed.REFRESH_TOKEN_TTL_DAYS, 7);
@@ -93,9 +108,20 @@ test("shared env parser accepts valid input and normalizes typed values", () => 
   assert.equal(parsed.S3_ENDPOINT, "http://localhost:9000");
 });
 
+test("shared env parser ignores unrelated env keys when validating runtime input", () => {
+  const parsed = parseRuntimeEnv({
+    ...validEnv,
+    POSTGRES_DB: "collabsphere",
+    MINIO_ROOT_PASSWORD: "minioadmin",
+  });
+
+  assert.equal(parsed.DATABASE_URL, validEnv.DATABASE_URL);
+  assert.equal(parsed.S3_BUCKET, validEnv.S3_BUCKET);
+});
+
 test("shared env parser fails clearly for missing required keys", () => {
   assert.throws(
-    () => parseEnv({ ...validEnv, JWT_ACCESS_SECRET: undefined }),
+    () => parseRuntimeEnv({ ...validEnv, JWT_ACCESS_SECRET: undefined }),
     (error) => {
       assert.ok(error instanceof EnvValidationError);
       assert.match(error.message, /Review \.env\.example/);
@@ -113,7 +139,7 @@ test("shared env parser fails clearly for missing required keys", () => {
 test("shared env parser fails clearly for invalid values", () => {
   assert.throws(
     () =>
-      parseEnv({
+      parseRuntimeEnv({
         ...validEnv,
         JWT_ACCESS_TTL_MINUTES: "15m",
         CORS_ORIGINS: "not-a-url",
@@ -132,7 +158,8 @@ test("shared env parser fails clearly for invalid values", () => {
 });
 
 test("sanitizeEnv redacts secrets and URL credentials without losing safe fields", () => {
-  const sanitized = sanitizeEnv(parseEnv(validEnv));
+  const rawEnv = parseRuntimeEnv(validEnv);
+  const sanitized = sanitizeEnv(rawEnv);
 
   assert.equal(
     sanitized.DATABASE_URL,
@@ -147,4 +174,27 @@ test("sanitizeEnv redacts secrets and URL credentials without losing safe fields
     "http://localhost:3000",
     "http://localhost:3002",
   ]);
+});
+
+test("parseEnv returns the sanitized shared env surface by default", () => {
+  const parsed = parseEnv(validEnv);
+
+  assert.equal(parsed.JWT_ACCESS_SECRET, "[redacted]");
+  assert.equal(parsed.EMAIL_PROVIDER_API_KEY, "[redacted]");
+  assert.equal(parsed.S3_SECRET_ACCESS_KEY, "[redacted]");
+  assert.equal(
+    parsed.COLLAB_DATABASE_URL,
+    "postgresql://[redacted]@localhost:5432/collabsphere",
+  );
+});
+
+test("sanitizeEnv handles undefined optional URLs", () => {
+  const envWithoutOptionalRedis = { ...validEnv };
+  delete envWithoutOptionalRedis.COLLAB_REDIS_URL;
+  delete envWithoutOptionalRedis.S3_ENDPOINT;
+
+  const sanitized = parseEnv(envWithoutOptionalRedis);
+
+  assert.equal(sanitized.COLLAB_REDIS_URL, undefined);
+  assert.equal(sanitized.S3_ENDPOINT, undefined);
 });

@@ -1,6 +1,7 @@
-import { ZodError, type ZodIssue } from "zod";
+import { ZodError } from "zod";
 
 import {
+  declaredEnvKeys,
   envRedaction,
   sharedEnvSchema,
   type SanitizedSharedEnv,
@@ -9,6 +10,7 @@ import {
 
 export type { SanitizedSharedEnv, SharedEnv } from "./env.schema.js";
 export {
+  declaredEnvKeys,
   envRedaction,
   optionalEnvKeys,
   requiredEnvKeys,
@@ -20,9 +22,14 @@ export interface EnvValidationIssue {
   message: string;
 }
 
-const issueMessageByCode = (issue: ZodIssue) => issue.message || "is invalid.";
+interface ValidationIssueLike {
+  message?: string;
+  path: readonly PropertyKey[];
+}
 
-const toValidationIssue = (issue: ZodIssue): EnvValidationIssue => ({
+const issueMessageByCode = (issue: ValidationIssueLike) => issue.message || "is invalid.";
+
+const toValidationIssue = (issue: ValidationIssueLike): EnvValidationIssue => ({
   key: String(issue.path[0] ?? "env"),
   message: issueMessageByCode(issue),
 });
@@ -67,8 +74,13 @@ export const formatEnvValidationIssues = (error: ZodError | EnvValidationError) 
   return error.issues.map(toValidationIssue);
 };
 
-export const parseEnv = (input: Record<string, string | undefined>): SharedEnv => {
-  const parsed = sharedEnvSchema.safeParse(input);
+const selectDeclaredEnv = (input: Record<string, string | undefined>) =>
+  Object.fromEntries(
+    declaredEnvKeys.map((key) => [key, input[key]]),
+  ) as Record<(typeof declaredEnvKeys)[number], string | undefined>;
+
+export const parseRuntimeEnv = (input: Record<string, string | undefined>): SharedEnv => {
+  const parsed = sharedEnvSchema.safeParse(selectDeclaredEnv(input));
 
   if (!parsed.success) {
     throw new EnvValidationError(formatEnvValidationIssues(parsed.error));
@@ -76,6 +88,9 @@ export const parseEnv = (input: Record<string, string | undefined>): SharedEnv =
 
   return parsed.data;
 };
+
+export const parseEnv = (input: Record<string, string | undefined>): SanitizedSharedEnv =>
+  sanitizeEnv(parseRuntimeEnv(input));
 
 export const sanitizeEnv = (config: SharedEnv): SanitizedSharedEnv => ({
   ...config,

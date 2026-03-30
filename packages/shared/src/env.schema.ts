@@ -42,6 +42,8 @@ export const optionalEnvKeys = [
   "S3_ENDPOINT",
 ] as const;
 
+export const declaredEnvKeys = [...requiredEnvKeys, ...optionalEnvKeys] as const;
+
 export type SecretEnvKey = (typeof secretEnvKeys)[number];
 export type CredentialUrlEnvKey = (typeof credentialUrlEnvKeys)[number];
 export type RequiredEnvKey = (typeof requiredEnvKeys)[number];
