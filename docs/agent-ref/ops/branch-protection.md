@@ -27,22 +27,24 @@ Enable:
 
 ### Require status checks to pass before merging
 
-Enable and require these exact current check names for the repo-operations foundation:
+Enable and require these exact current check names on `main`:
 
-- `Queue Manifest Validate / validate`
+- `CI / lint`
+- `CI / typecheck`
+- `CI / unit-tests`
+- `CI / integration-tests`
+- `CI / build-web`
+- `CI / build-api`
+- `CI / build-collab`
+- `CI / build-worker`
 - `Handoff Check / validate`
+- `PR Status Sync / sync`
 - `Review Router / route`
 
-When the application CI workflows are added, require their exact job names too. The intended minimum application gate remains:
+Do not mark these as universal required checks in branch protection:
 
-- lint
-- typecheck
-- unit tests
-- integration tests
-- build `web`
-- build `api`
-- build `collab`
-- build `worker`
+- `Queue Manifest Validate / validate`, because it is path-scoped to queue-manifest surfaces (`.github/queue/**`, `.github/scripts/validate_queue_manifest.rb`, and `.github/workflows/queue-manifest-validate.yml`) and will not run on ordinary delivery PRs
+- third-party review integrations such as `CodeRabbit`, `DeepScan`, or `CodeScene Code Health Review (main)` unless repo policy explicitly promotes them to required status checks later
 
 ### Require branches to be up to date before merging
 
@@ -63,8 +65,9 @@ Recommended if the team wants a cleaner history. If enabled, use merge methods t
 ## Operational Notes
 
 - branch protection is a GitHub settings step; this file documents the intended configuration
-- keep the required-check list aligned with exact workflow and job names as shown in GitHub Checks
+- keep the required-check list aligned with the exact `workflow name / job name` strings shown in GitHub Checks
 - if a new CI gate is promoted to required, update this file and the workflow in the same change
+- after applying the branch rule in the GitHub UI, verify the selected required checks exactly match the current list above instead of older foundation-era names
 - `review:critical` work should pair branch protection approvals with the review-router check and the repo variable `REQUIRE_HUMAN_APPROVAL_FOR_CRITICAL=true`
 
 ## Manual Verification
@@ -72,8 +75,10 @@ Recommended if the team wants a cleaner history. If enabled, use merge methods t
 Verify in GitHub:
 
 - Settings -> Branches -> Branch protection rules
-- `main` has the documented protections
-- required checks match the workflow job names shown on current PRs
+- add or edit the `main` rule so it enables the documented protections
+- under `Require status checks to pass before merging`, select only the exact current checks listed above
+- confirm `Queue Manifest Validate / validate` is not selected as a universal required check
+- `main` has the documented protections and the selected checks match the current PR checks surface
 
 ## Related Files
 
