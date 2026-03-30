@@ -33,7 +33,10 @@ test("ci workflow defines the required pull request jobs and services", async ()
   assert.equal(jobs["integration-tests"].services.redis.image, "redis:7-alpine");
 
   for (const jobName of jobNames) {
-    const setupNode = jobs[jobName].steps.find((step) => step.uses === "actions/setup-node@v4");
+    const steps = jobs[jobName]?.steps;
+    assert.ok(Array.isArray(steps), `${jobName} must define a steps array`);
+
+    const setupNode = steps.find((step) => step.uses === "actions/setup-node@v4");
     assert.ok(setupNode, `${jobName} must configure actions/setup-node`);
     assert.equal(setupNode.with?.cache, "pnpm", `${jobName} must cache the pnpm store`);
     assert.equal(
