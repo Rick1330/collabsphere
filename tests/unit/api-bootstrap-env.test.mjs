@@ -1,12 +1,17 @@
 import assert from "node:assert/strict";
 import { once } from "node:events";
-import { execFileSync, spawn } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import test from "node:test";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-import http from "node:http";
+import {
+  collectStream,
+  getJson,
+  repoRoot,
+  spawnBootstrap,
+  stopChild,
+  waitForStdoutMatch,
+} from "./bootstrap-test-helpers.mjs";
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const apiEntryPath = path.join(repoRoot, "apps", "api", "src", "dev.js");
 const builtApiEntryPath = path.join(repoRoot, "apps", "api", "dist", "dev.js");
 
@@ -25,103 +30,13 @@ const validApiEnv = Object.freeze({
 });
 
 const spawnApi = (envOverrides) =>
-  spawn(process.execPath, [apiEntryPath], {
-    cwd: repoRoot,
-    env: {
-      ...process.env,
-      ...envOverrides,
-    },
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  spawnBootstrap({ entryPath: apiEntryPath, cwd: repoRoot, envOverrides });
 
 const spawnBuiltApi = (envOverrides) =>
-  spawn(process.execPath, [builtApiEntryPath], {
+  spawnBootstrap({
+    entryPath: builtApiEntryPath,
     cwd: path.join(repoRoot, "apps", "api", "dist"),
-    env: {
-      ...process.env,
-      ...envOverrides,
-    },
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-
-const collectStream = (stream) => {
-  let value = "";
-  stream.setEncoding("utf8");
-  stream.on("data", (chunk) => {
-    value += chunk;
-  });
-  return () => value;
-};
-
-const waitForChildExit = (child) => {
-  if (child.exitCode !== null || child.signalCode !== null) {
-    return Promise.resolve([child.exitCode, child.signalCode]);
-  }
-
-  return once(child, "exit");
-};
-
-const waitForListening = (child, stdoutText) =>
-  new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      cleanup();
-      reject(new Error(`Timed out waiting for API bootstrap readiness.\nstdout:\n${stdoutText()}`));
-    }, 5000);
-
-    const onData = () => {
-      const match = stdoutText().match(/bootstrap listening on http:\/\/[^:]+:(\d+)\/api\/v1\/health/);
-      if (!match) {
-        return;
-      }
-
-      cleanup();
-      clearTimeout(timeout);
-      resolve(Number.parseInt(match[1], 10));
-    };
-
-    const onExit = (code, signal) => {
-      cleanup();
-      clearTimeout(timeout);
-      reject(
-        new Error(
-          `API bootstrap exited before listening (code=${code}, signal=${signal}).\nstdout:\n${stdoutText()}`,
-        ),
-      );
-    };
-
-    const cleanup = () => {
-      child.stdout.off("data", onData);
-      child.off("exit", onExit);
-    };
-
-    child.stdout.on("data", onData);
-    child.on("exit", onExit);
-  });
-
-const getJson = (port) =>
-  new Promise((resolve, reject) => {
-    const request = http.get(
-      {
-        host: "127.0.0.1",
-        port,
-        path: "/api/v1/health",
-      },
-      (response) => {
-        let body = "";
-        response.setEncoding("utf8");
-        response.on("data", (chunk) => {
-          body += chunk;
-        });
-        response.on("end", () => {
-          resolve({
-            statusCode: response.statusCode,
-            body: JSON.parse(body),
-          });
-        });
-      },
-    );
-
-    request.once("error", reject);
+    envOverrides,
   });
 
 const assertBootstrapHealthy = async (spawnBootstrap) => {
@@ -130,17 +45,19 @@ const assertBootstrapHealthy = async (spawnBootstrap) => {
   const stderrText = collectStream(child.stderr);
 
   try {
-    const port = await waitForListening(child, stdoutText);
-    const response = await getJson(port);
+    const match = await waitForStdoutMatch(
+      child,
+      stdoutText,
+      /bootstrap listening on http:\/\/[^:]+:(\d+)\/api\/v1\/health/,
+      "API bootstrap readiness",
+    );
+    const response = await getJson(Number.parseInt(match[1], 10), "/api/v1/health");
 
     assert.equal(response.statusCode, 200);
     assert.equal(response.body?.data?.resource?.service, "api");
     assert.equal(stderrText(), "");
   } finally {
-    if (child.exitCode === null && child.signalCode === null) {
-      child.kill("SIGTERM");
-    }
-    await waitForChildExit(child);
+    await stopChild(child);
   }
 };
 
