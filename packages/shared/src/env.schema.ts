@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { ApiRuntimeEnv } from "./api-env.js";
 import {
   createAbsoluteUrl,
   createCorsOrigins,
@@ -49,23 +50,10 @@ export const optionalEnvKeys = [
 
 export const declaredEnvKeys = [...requiredEnvKeys, ...optionalEnvKeys] as const;
 
-export const apiEnvKeys = [
-  "DATABASE_URL",
-  "REDIS_URL",
-  "JWT_ACCESS_SECRET",
-  "JWT_ACCESS_TTL_MINUTES",
-  "REFRESH_TOKEN_TTL_DAYS",
-  "CORS_ORIGINS",
-  "EMAIL_PROVIDER_API_KEY",
-  "API_BASE_URL",
-  "BASE_URL",
-] as const;
-
 export type SecretEnvKey = (typeof secretEnvKeys)[number];
 export type CredentialUrlEnvKey = (typeof credentialUrlEnvKeys)[number];
 export type RequiredEnvKey = (typeof requiredEnvKeys)[number];
 export type OptionalEnvKey = (typeof optionalEnvKeys)[number];
-export type ApiEnvKey = (typeof apiEnvKeys)[number];
 
 export const sharedEnvSchema = z
   .object({
@@ -91,20 +79,7 @@ export const sharedEnvSchema = z
   .strict();
 
 export type SharedEnv = z.infer<typeof sharedEnvSchema>;
-
-export const apiEnvSchema = sharedEnvSchema.pick({
-  DATABASE_URL: true,
-  REDIS_URL: true,
-  JWT_ACCESS_SECRET: true,
-  JWT_ACCESS_TTL_MINUTES: true,
-  REFRESH_TOKEN_TTL_DAYS: true,
-  CORS_ORIGINS: true,
-  EMAIL_PROVIDER_API_KEY: true,
-  API_BASE_URL: true,
-  BASE_URL: true,
-});
-
-export type ApiRuntimeEnv = z.infer<typeof apiEnvSchema>;
+export type { ApiRuntimeEnv };
 
 export type SanitizedSharedEnv = Omit<SharedEnv, SecretEnvKey | CredentialUrlEnvKey> &
   Record<SecretEnvKey, typeof redactedValue> &

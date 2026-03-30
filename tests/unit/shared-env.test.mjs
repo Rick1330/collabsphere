@@ -56,7 +56,12 @@ const compileSharedEnvModule = () => {
   );
 
   copyFileSync(
-    path.join("packages", "shared", "src", "env-core.js"),
+    path.join(repoRoot, "packages", "shared", "src", "api-env.js"),
+    path.join(tempBuildDir, "api-env.js"),
+  );
+
+  copyFileSync(
+    path.join(repoRoot, "packages", "shared", "src", "env-core.js"),
     path.join(tempBuildDir, "env-core.js"),
   );
 

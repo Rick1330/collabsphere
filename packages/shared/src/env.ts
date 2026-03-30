@@ -1,8 +1,11 @@
 import { ZodError } from "zod";
-
 import {
   apiEnvKeys,
   apiEnvSchema,
+  parseApiRuntimeEnv,
+} from "./api-env.js";
+
+import {
   declaredEnvKeys,
   envRedaction,
   type ApiRuntimeEnv,
@@ -14,14 +17,13 @@ import { EnvValidationError, formatEnvValidationIssues } from "./env-core.js";
 
 export type { ApiRuntimeEnv, SanitizedSharedEnv, SharedEnv } from "./env.schema.js";
 export {
-  apiEnvKeys,
-  apiEnvSchema,
   declaredEnvKeys,
   envRedaction,
   optionalEnvKeys,
   requiredEnvKeys,
   sharedEnvSchema,
 } from "./env.schema.js";
+export { apiEnvKeys, apiEnvSchema, parseApiRuntimeEnv } from "./api-env.js";
 export { EnvValidationError, formatEnvValidationIssues } from "./env-core.js";
 
 export interface EnvValidationIssue {
@@ -76,10 +78,6 @@ const parseScopedRuntimeEnv = <TEnv>(
 export const parseRuntimeEnv = (input: Record<string, string | undefined>): SharedEnv => {
   return parseScopedRuntimeEnv(input, declaredEnvKeys, sharedEnvSchema);
 };
-
-export const parseApiRuntimeEnv = (
-  input: Record<string, string | undefined>,
-): ApiRuntimeEnv => parseScopedRuntimeEnv(input, apiEnvKeys, apiEnvSchema);
 
 export const parseEnv = (input: Record<string, string | undefined>): SanitizedSharedEnv =>
   sanitizeEnv(parseRuntimeEnv(input));

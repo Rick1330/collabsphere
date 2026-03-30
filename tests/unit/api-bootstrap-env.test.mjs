@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { once } from "node:events";
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import test from "node:test";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,6 +8,7 @@ import http from "node:http";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const apiEntryPath = path.join(repoRoot, "apps", "api", "src", "dev.js");
+const builtApiEntryPath = path.join(repoRoot, "apps", "api", "dist", "dev.js");
 
 const validApiEnv = Object.freeze({
   HOST: "127.0.0.1",
@@ -26,6 +27,16 @@ const validApiEnv = Object.freeze({
 const spawnApi = (envOverrides) =>
   spawn(process.execPath, [apiEntryPath], {
     cwd: repoRoot,
+    env: {
+      ...process.env,
+      ...envOverrides,
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+
+const spawnBuiltApi = (envOverrides) =>
+  spawn(process.execPath, [builtApiEntryPath], {
+    cwd: path.join(repoRoot, "apps", "api", "dist"),
     env: {
       ...process.env,
       ...envOverrides,
@@ -130,4 +141,27 @@ test("API bootstrap fails fast with descriptive env validation errors", async ()
   assert.match(stderrText(), /JWT_ACCESS_SECRET: JWT_ACCESS_SECRET is required\./);
   assert.match(stderrText(), /CORS_ORIGINS: CORS_ORIGINS entries must be valid absolute URLs/);
   assert.doesNotMatch(stderrText(), /replace-with-local-jwt-secret/);
+});
+
+test("built API bootstrap artifact stays runnable without monorepo source imports", async () => {
+  execFileSync(process.execPath, ["scripts/build-bootstrap-app.mjs", "apps/api"], {
+    cwd: repoRoot,
+    stdio: "inherit",
+  });
+
+  const child = spawnBuiltApi(validApiEnv);
+  const stdoutText = collectStream(child.stdout);
+  const stderrText = collectStream(child.stderr);
+
+  try {
+    const port = await waitForListening(child, stdoutText);
+    const response = await getJson(port);
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body?.data?.resource?.service, "api");
+    assert.equal(stderrText(), "");
+  } finally {
+    child.kill("SIGTERM");
+    await once(child, "exit");
+  }
 });

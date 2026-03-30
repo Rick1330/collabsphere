@@ -17,8 +17,16 @@ const sourcePath = path.join(packageDir, "src", "dev.js");
 const distDir = path.join(packageDir, "dist");
 const distEntryPath = path.join(distDir, "dev.js");
 const distPackageJsonPath = path.join(distDir, "package.json");
+const sharedApiEnvPath = path.join(repoRoot, "packages", "shared", "src", "api-env.js");
+const sharedEnvCorePath = path.join(repoRoot, "packages", "shared", "src", "env-core.js");
+const sharedZodPackagePath = path.join(repoRoot, "packages", "shared", "node_modules", "zod");
+const sharedPackageJsonPath = path.join(repoRoot, "packages", "shared", "package.json");
+const sharedSourceImport = "../../../packages/shared/src/api-env.js";
+const sharedDistImport = "./_shared/api-env.js";
 
 const packageJson = JSON.parse(await readFile(packageJsonPath, "utf8"));
+const sharedPackageJson = JSON.parse(await readFile(sharedPackageJsonPath, "utf8"));
+const sourceCode = await readFile(sourcePath, "utf8");
 
 execFileSync(process.execPath, ["--check", sourcePath], {
   cwd: repoRoot,
@@ -27,7 +35,30 @@ execFileSync(process.execPath, ["--check", sourcePath], {
 
 await rm(distDir, { recursive: true, force: true });
 await mkdir(distDir, { recursive: true });
-await cp(sourcePath, distEntryPath);
+let distSourceCode = sourceCode;
+const distPackageDependencies = { ...(packageJson.dependencies ?? {}) };
+
+if (sourceCode.includes(sharedSourceImport)) {
+  const sharedDistDir = path.join(distDir, "_shared");
+  const distNodeModulesDir = path.join(distDir, "node_modules");
+  await mkdir(sharedDistDir, { recursive: true });
+  await mkdir(distNodeModulesDir, { recursive: true });
+  await cp(sharedApiEnvPath, path.join(sharedDistDir, "api-env.js"));
+  await cp(sharedEnvCorePath, path.join(sharedDistDir, "env-core.js"));
+  await cp(sharedZodPackagePath, path.join(distNodeModulesDir, "zod"), {
+    recursive: true,
+  });
+  distSourceCode = sourceCode.split(sharedSourceImport).join(sharedDistImport);
+  if (sharedPackageJson.dependencies?.zod) {
+    distPackageDependencies.zod = sharedPackageJson.dependencies.zod;
+  }
+}
+
+if (distSourceCode.includes(sharedSourceImport)) {
+  throw new Error(`Bootstrap artifact still references monorepo source path ${sharedSourceImport}.`);
+}
+
+await writeFile(distEntryPath, distSourceCode, "utf8");
 await writeFile(
   distPackageJsonPath,
   JSON.stringify(
@@ -36,6 +67,8 @@ await writeFile(
       private: true,
       type: packageJson.type ?? "module",
       main: "./dev.js",
+      dependencies:
+        Object.keys(distPackageDependencies).length > 0 ? distPackageDependencies : undefined,
       scripts: {
         start: "node dev.js",
       },
