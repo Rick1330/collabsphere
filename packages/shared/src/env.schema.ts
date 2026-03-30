@@ -1,6 +1,11 @@
 import { z } from "zod";
-
-const positiveIntegerPattern = /^\d+$/;
+import {
+  createAbsoluteUrl,
+  createCorsOrigins,
+  createOptionalAbsoluteUrl,
+  createPositiveInteger,
+  createRequiredString,
+} from "./env-core.js";
 const redactedValue = "[redacted]" as const;
 
 const secretEnvKeys = [
@@ -61,108 +66,6 @@ export type CredentialUrlEnvKey = (typeof credentialUrlEnvKeys)[number];
 export type RequiredEnvKey = (typeof requiredEnvKeys)[number];
 export type OptionalEnvKey = (typeof optionalEnvKeys)[number];
 export type ApiEnvKey = (typeof apiEnvKeys)[number];
-
-const createRequiredString = (key: string) =>
-  z
-    .string({
-      error: `${key} is required.`,
-    })
-    .trim()
-    .min(1, `${key} is required.`);
-
-const createAbsoluteUrl = (key: string, protocols?: readonly string[]) =>
-  createRequiredString(key).superRefine((value, context) => {
-    let parsedUrl: URL;
-
-    try {
-      parsedUrl = new URL(value);
-    } catch {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `${key} must be a valid absolute URL.`,
-      });
-      return;
-    }
-
-    if (protocols && !protocols.includes(parsedUrl.protocol)) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `${key} must use one of: ${protocols.join(", ")}.`,
-      });
-    }
-  });
-
-const createOptionalAbsoluteUrl = (key: string, protocols?: readonly string[]) =>
-  z
-    .string()
-    .trim()
-    .min(1, `${key} must not be empty when provided.`)
-    .superRefine((value, context) => {
-      let parsedUrl: URL;
-
-      try {
-        parsedUrl = new URL(value);
-      } catch {
-        context.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `${key} must be a valid absolute URL.`,
-        });
-        return;
-      }
-
-      if (protocols && !protocols.includes(parsedUrl.protocol)) {
-        context.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `${key} must use one of: ${protocols.join(", ")}.`,
-        });
-      }
-    })
-    .optional();
-
-const createPositiveInteger = (key: string) =>
-  createRequiredString(key)
-    .refine((value) => positiveIntegerPattern.test(value), {
-      message: `${key} must be a positive integer.`,
-    })
-    .transform((value) => Number.parseInt(value, 10))
-    .refine((value) => Number.isInteger(value) && value > 0, {
-      message: `${key} must be a positive integer.`,
-    });
-
-const createCorsOrigins = () =>
-  createRequiredString("CORS_ORIGINS")
-    .transform((value) =>
-      value
-        .split(",")
-        .map((origin) => origin.trim())
-        .filter(Boolean),
-    )
-    .superRefine((origins, context) => {
-      if (origins.length === 0) {
-        context.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "CORS_ORIGINS must include at least one absolute URL.",
-        });
-        return;
-      }
-
-      for (const origin of origins) {
-        try {
-          const parsedUrl = new URL(origin);
-          if (!["http:", "https:"].includes(parsedUrl.protocol)) {
-            context.addIssue({
-              code: z.ZodIssueCode.custom,
-              message: `CORS_ORIGINS entries must use http: or https: (${origin}).`,
-            });
-          }
-        } catch {
-          context.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: `CORS_ORIGINS entries must be valid absolute URLs (${origin}).`,
-          });
-        }
-      }
-    });
 
 export const sharedEnvSchema = z
   .object({

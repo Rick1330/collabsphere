@@ -10,6 +10,7 @@ import {
   type SanitizedSharedEnv,
   type SharedEnv,
 } from "./env.schema.js";
+import { EnvValidationError, formatEnvValidationIssues } from "./env-core.js";
 
 export type { ApiRuntimeEnv, SanitizedSharedEnv, SharedEnv } from "./env.schema.js";
 export {
@@ -21,28 +22,12 @@ export {
   requiredEnvKeys,
   sharedEnvSchema,
 } from "./env.schema.js";
+export { EnvValidationError, formatEnvValidationIssues } from "./env-core.js";
 
 export interface EnvValidationIssue {
   key: string;
   message: string;
 }
-
-interface ValidationIssueLike {
-  message?: string;
-  path: readonly PropertyKey[];
-}
-
-const issueMessageByCode = (issue: ValidationIssueLike) => issue.message || "is invalid.";
-
-const toValidationIssue = (issue: ValidationIssueLike): EnvValidationIssue => ({
-  key: String(issue.path[0] ?? "env"),
-  message: issueMessageByCode(issue),
-});
-
-const formatValidationMessage = (issues: readonly EnvValidationIssue[]) => {
-  const detail = issues.map((issue) => `${issue.key}: ${issue.message}`).join("; ");
-  return `Environment validation failed. Review .env.example and fix: ${detail}`;
-};
 
 const redactUrlCredentials = (value: string) => {
   let parsedUrl: URL;
@@ -56,24 +41,6 @@ const redactUrlCredentials = (value: string) => {
   const hasCredentials = Boolean(parsedUrl.username || parsedUrl.password);
   const authority = hasCredentials ? `[redacted]@${parsedUrl.host}` : parsedUrl.host;
   return `${parsedUrl.protocol}//${authority}${parsedUrl.pathname}`;
-};
-
-export class EnvValidationError extends Error {
-  readonly issues: readonly EnvValidationIssue[];
-
-  constructor(issues: readonly EnvValidationIssue[]) {
-    super(formatValidationMessage(issues));
-    this.name = "EnvValidationError";
-    this.issues = issues;
-  }
-}
-
-export const formatEnvValidationIssues = (error: ZodError | EnvValidationError) => {
-  if (error instanceof EnvValidationError) {
-    return [...error.issues];
-  }
-
-  return error.issues.map(toValidationIssue);
 };
 
 const selectEnvSubset = <TKey extends string>(
@@ -92,13 +59,15 @@ const parseScopedRuntimeEnv = <TEnv>(
       value: Record<string, string | undefined>,
     ) =>
       | { success: true; data: TEnv }
-      | { success: false; error: ZodError };
+      | { success: false; error: unknown };
   },
 ): TEnv => {
   const parsed = schema.safeParse(selectEnvSubset(input, keys));
 
   if (!parsed.success) {
-    throw new EnvValidationError(formatEnvValidationIssues(parsed.error));
+    throw new EnvValidationError(
+      formatEnvValidationIssues(parsed.error as InstanceType<typeof ZodError>),
+    );
   }
 
   return parsed.data;
@@ -115,17 +84,21 @@ export const parseApiRuntimeEnv = (
 export const parseEnv = (input: Record<string, string | undefined>): SanitizedSharedEnv =>
   sanitizeEnv(parseRuntimeEnv(input));
 
-export const sanitizeEnv = (config: SharedEnv): SanitizedSharedEnv => ({
+export const sanitizeEnv = (config: SharedEnv): SanitizedSharedEnv => {
+  const values = config as Record<string, unknown>;
+
+  return {
   ...config,
-  DATABASE_URL: redactUrlCredentials(config.DATABASE_URL),
-  REDIS_URL: redactUrlCredentials(config.REDIS_URL),
+  DATABASE_URL: redactUrlCredentials(String(values.DATABASE_URL)),
+  REDIS_URL: redactUrlCredentials(String(values.REDIS_URL)),
   JWT_ACCESS_SECRET: envRedaction.redactedValue,
   EMAIL_PROVIDER_API_KEY: envRedaction.redactedValue,
-  COLLAB_DATABASE_URL: redactUrlCredentials(config.COLLAB_DATABASE_URL),
-  COLLAB_REDIS_URL: config.COLLAB_REDIS_URL
-    ? redactUrlCredentials(config.COLLAB_REDIS_URL)
+  COLLAB_DATABASE_URL: redactUrlCredentials(String(values.COLLAB_DATABASE_URL)),
+  COLLAB_REDIS_URL: values.COLLAB_REDIS_URL
+    ? redactUrlCredentials(String(values.COLLAB_REDIS_URL))
     : undefined,
   COLLAB_JWT_SECRET: envRedaction.redactedValue,
   S3_ACCESS_KEY_ID: envRedaction.redactedValue,
   S3_SECRET_ACCESS_KEY: envRedaction.redactedValue,
-});
+  };
+};

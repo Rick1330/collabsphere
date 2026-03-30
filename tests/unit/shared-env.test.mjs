@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, rmSync } from "node:fs";
+import { copyFileSync, mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { createRequire } from "node:module";
@@ -53,6 +53,11 @@ const compileSharedEnvModule = () => {
       cwd: repoRoot,
       stdio: "inherit",
     },
+  );
+
+  copyFileSync(
+    path.join("packages", "shared", "src", "env-core.js"),
+    path.join(tempBuildDir, "env-core.js"),
   );
 
   return pathToFileURL(path.join(tempBuildDir, "env.js")).href;
