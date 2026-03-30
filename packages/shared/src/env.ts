@@ -48,11 +48,8 @@ const redactUrlCredentials = (value: string) => {
     return value;
   }
 
-  if (!parsedUrl.username && !parsedUrl.password) {
-    return value;
-  }
-
-  const authority = `[redacted]@${parsedUrl.host}`;
+  const hasCredentials = Boolean(parsedUrl.username || parsedUrl.password);
+  const authority = hasCredentials ? `[redacted]@${parsedUrl.host}` : parsedUrl.host;
   return `${parsedUrl.protocol}//${authority}${parsedUrl.pathname}`;
 };
 
