@@ -1,15 +1,20 @@
 import { ZodError } from "zod";
 
 import {
+  apiEnvKeys,
+  apiEnvSchema,
   declaredEnvKeys,
   envRedaction,
+  type ApiRuntimeEnv,
   sharedEnvSchema,
   type SanitizedSharedEnv,
   type SharedEnv,
 } from "./env.schema.js";
 
-export type { SanitizedSharedEnv, SharedEnv } from "./env.schema.js";
+export type { ApiRuntimeEnv, SanitizedSharedEnv, SharedEnv } from "./env.schema.js";
 export {
+  apiEnvKeys,
+  apiEnvSchema,
   declaredEnvKeys,
   envRedaction,
   optionalEnvKeys,
@@ -71,13 +76,26 @@ export const formatEnvValidationIssues = (error: ZodError | EnvValidationError) 
   return error.issues.map(toValidationIssue);
 };
 
-const selectDeclaredEnv = (input: Record<string, string | undefined>) =>
+const selectEnvSubset = <TKey extends string>(
+  input: Record<string, string | undefined>,
+  keys: readonly TKey[],
+) =>
   Object.fromEntries(
-    declaredEnvKeys.map((key) => [key, input[key]]),
-  ) as Record<(typeof declaredEnvKeys)[number], string | undefined>;
+    keys.map((key) => [key, input[key]]),
+  ) as Record<TKey, string | undefined>;
 
-export const parseRuntimeEnv = (input: Record<string, string | undefined>): SharedEnv => {
-  const parsed = sharedEnvSchema.safeParse(selectDeclaredEnv(input));
+const parseScopedRuntimeEnv = <TEnv>(
+  input: Record<string, string | undefined>,
+  keys: readonly string[],
+  schema: {
+    safeParse: (
+      value: Record<string, string | undefined>,
+    ) =>
+      | { success: true; data: TEnv }
+      | { success: false; error: ZodError };
+  },
+): TEnv => {
+  const parsed = schema.safeParse(selectEnvSubset(input, keys));
 
   if (!parsed.success) {
     throw new EnvValidationError(formatEnvValidationIssues(parsed.error));
@@ -85,6 +103,14 @@ export const parseRuntimeEnv = (input: Record<string, string | undefined>): Shar
 
   return parsed.data;
 };
+
+export const parseRuntimeEnv = (input: Record<string, string | undefined>): SharedEnv => {
+  return parseScopedRuntimeEnv(input, declaredEnvKeys, sharedEnvSchema);
+};
+
+export const parseApiRuntimeEnv = (
+  input: Record<string, string | undefined>,
+): ApiRuntimeEnv => parseScopedRuntimeEnv(input, apiEnvKeys, apiEnvSchema);
 
 export const parseEnv = (input: Record<string, string | undefined>): SanitizedSharedEnv =>
   sanitizeEnv(parseRuntimeEnv(input));

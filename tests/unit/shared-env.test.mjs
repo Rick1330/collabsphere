@@ -72,7 +72,13 @@ test.after(() => {
   cleanupTempBuildDir();
 });
 
-const { EnvValidationError, parseEnv, parseRuntimeEnv, sanitizeEnv } = sharedEnvModule;
+const {
+  EnvValidationError,
+  parseApiRuntimeEnv,
+  parseEnv,
+  parseRuntimeEnv,
+  sanitizeEnv,
+} = sharedEnvModule;
 
 const validEnv = Object.freeze({
   DATABASE_URL: "postgresql://collab:collab@localhost:5432/collabsphere",
@@ -117,6 +123,27 @@ test("shared env parser ignores unrelated env keys when validating runtime input
 
   assert.equal(parsed.DATABASE_URL, validEnv.DATABASE_URL);
   assert.equal(parsed.S3_BUCKET, validEnv.S3_BUCKET);
+});
+
+test("API runtime parser accepts the API bootstrap subset without collab or storage keys", () => {
+  const parsed = parseApiRuntimeEnv({
+    DATABASE_URL: validEnv.DATABASE_URL,
+    REDIS_URL: validEnv.REDIS_URL,
+    JWT_ACCESS_SECRET: validEnv.JWT_ACCESS_SECRET,
+    JWT_ACCESS_TTL_MINUTES: validEnv.JWT_ACCESS_TTL_MINUTES,
+    REFRESH_TOKEN_TTL_DAYS: validEnv.REFRESH_TOKEN_TTL_DAYS,
+    CORS_ORIGINS: validEnv.CORS_ORIGINS,
+    EMAIL_PROVIDER_API_KEY: validEnv.EMAIL_PROVIDER_API_KEY,
+    API_BASE_URL: validEnv.API_BASE_URL,
+    BASE_URL: validEnv.BASE_URL,
+  });
+
+  assert.equal(parsed.DATABASE_URL, validEnv.DATABASE_URL);
+  assert.equal(parsed.API_BASE_URL, validEnv.API_BASE_URL);
+  assert.deepEqual(parsed.CORS_ORIGINS, [
+    "http://localhost:3000",
+    "http://localhost:3002",
+  ]);
 });
 
 test("shared env parser fails clearly for missing required keys", () => {
