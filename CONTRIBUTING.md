@@ -261,24 +261,24 @@ For docs-only changes, validate by checking the expected files and key sections 
 
 ## CI and Required Checks
 
-`main` is now branch-protected against the repo-owned merge gate checks. Ordinary delivery PRs must pass these exact required checks before merge:
+`main` is now branch-protected against the repo-owned merge gate checks. GitHub currently enforces the raw check identities emitted by the workflows, so ordinary delivery PRs must pass these exact required checks before merge:
 
-- `CI / lint`
-- `CI / typecheck`
-- `CI / unit-tests`
-- `CI / integration-tests`
-- `CI / build-web`
-- `CI / build-api`
-- `CI / build-collab`
-- `CI / build-worker`
-- `Handoff Check / validate`
-- `PR Status Sync / sync`
-- `Review Router / route`
+- `lint`
+- `typecheck`
+- `unit-tests`
+- `integration-tests`
+- `build-web`
+- `build-api`
+- `build-collab`
+- `build-worker`
+- `validate`
+- `sync`
+- `route`
 
 Current CI workflow surface:
 
-- `.github/workflows/ci.yml` runs lint, typecheck, unit tests, integration tests, and per-app build jobs
-- `.github/workflows/handoff-check.yml`, `.github/workflows/pr-status-sync.yml`, and `.github/workflows/review-router.yml` enforce the repo-owned PR gate behavior around handoff, issue state, and review policy
+- `.github/workflows/ci.yml` emits the `lint`, `typecheck`, `unit-tests`, `integration-tests`, `build-web`, `build-api`, `build-collab`, and `build-worker` checks
+- `.github/workflows/handoff-check.yml`, `.github/workflows/pr-status-sync.yml`, and `.github/workflows/review-router.yml` emit the repo-owned gate checks `validate`, `sync`, and `route`
 - `.github/workflows/queue-manifest-validate.yml` is path-scoped to queue-manifest surfaces and is not a universal required check for ordinary delivery PRs
 
 Local parity commands for the main CI jobs:
@@ -293,7 +293,7 @@ docker compose ps
 pnpm test:integration
 ```
 
-Integration tests require PostgreSQL and Redis. In GitHub Actions, `CI / integration-tests` brings those services up through workflow services. Locally, start them before running `pnpm test:integration`, then verify with `docker compose ps` that both services are healthy or running.
+Integration tests require PostgreSQL and Redis. In GitHub Actions, the `integration-tests` job brings those services up through workflow services. Locally, start them before running `pnpm test:integration`, then verify with `docker compose ps` that both services are healthy or running.
 
 Workflow files to check when CI fails:
 
@@ -316,7 +316,7 @@ If CI fails:
 - reproduce locally where feasible
 - fix the root cause rather than retrying blindly
 - for integration-test failures, confirm PostgreSQL and Redis are healthy before rerunning locally
-- for required-check failures on GitHub, compare the failing check name to `docs/agent-ref/ops/branch-protection.md` before assuming branch protection is misconfigured
+- for required-check failures on GitHub, compare the failing check name to the current required-check list above and to the live branch-protection settings before assuming GitHub is misconfigured
 
 ## Turborepo Cache Guidance
 
