@@ -61,8 +61,23 @@ const createMissingProviderError = () => createApiEnvError("EMAIL_PROVIDER_API_K
 const selectApiEnv = (input) =>
   Object.fromEntries(apiEnvKeys.map((key) => [key, input[key]]));
 
+const normalizeOptionalEmailValue = (value) => {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  return value.trim().length > 0 ? value : undefined;
+};
+
+const normalizeOptionalEmailFields = (selected) => ({
+  ...selected,
+  EMAIL_PROVIDER_API_KEY: normalizeOptionalEmailValue(selected.EMAIL_PROVIDER_API_KEY),
+  EMAIL_SMTP_HOST: normalizeOptionalEmailValue(selected.EMAIL_SMTP_HOST),
+  EMAIL_SMTP_PORT: normalizeOptionalEmailValue(selected.EMAIL_SMTP_PORT),
+});
+
 export const parseApiRuntimeEnv = (input) => {
-  const selected = selectApiEnv(input);
+  const selected = normalizeOptionalEmailFields(selectApiEnv(input));
   const hasSmtpHost = hasConfiguredValue(selected.EMAIL_SMTP_HOST);
   const hasSmtpPort = hasConfiguredValue(selected.EMAIL_SMTP_PORT);
   const hasProvider = hasConfiguredValue(selected.EMAIL_PROVIDER_API_KEY);

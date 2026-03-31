@@ -66,7 +66,13 @@ const normalizeSmtpPort = (value: unknown) => {
   }
 
   if (typeof value === "string") {
-    return parseSmtpPort(value.trim());
+    const trimmed = value.trim();
+
+    if (trimmed.length === 0) {
+      return undefined;
+    }
+
+    return parseSmtpPort(trimmed);
   }
 
   return undefined;

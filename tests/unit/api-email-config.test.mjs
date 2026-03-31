@@ -77,6 +77,20 @@ test("resolveEmailConfig rejects invalid local SMTP ports", async () => {
   );
 });
 
+test("resolveEmailConfig treats blank SMTP port as missing for pair validation", async () => {
+  const { resolveEmailConfig } = await importEmailConfigModule();
+
+  assert.throws(
+    () =>
+      resolveEmailConfig({
+        EMAIL_SMTP_HOST: "127.0.0.1",
+        EMAIL_SMTP_PORT: "   ",
+        EMAIL_PROVIDER_API_KEY: "replace-with-provider-key",
+      }),
+    /EMAIL_SMTP_HOST and EMAIL_SMTP_PORT/,
+  );
+});
+
 test("resolveEmailConfig accepts normalized SMTP port values from runtime parsing", async () => {
   const { resolveEmailConfig } = await importEmailConfigModule();
 
