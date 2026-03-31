@@ -92,6 +92,10 @@ test("built API bootstrap artifact stays runnable without monorepo source import
     cwd: repoRoot,
     stdio: "inherit",
   });
+  execFileSync(process.execPath, ["scripts/build-bootstrap-app.mjs", "apps/api"], {
+    cwd: repoRoot,
+    stdio: "inherit",
+  });
 
   await assertBootstrapHealthy(spawnBuiltApi);
 });

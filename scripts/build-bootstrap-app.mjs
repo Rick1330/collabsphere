@@ -57,10 +57,12 @@ if (hasTsSource && !(await fileExists(distEntryPath))) {
   throw new Error(`Missing compiled bootstrap output at ${distEntryPath}. Run tsc before staging.`);
 }
 
-const sourcePath = hasTsSource ? distEntryPath : sourceJsPath;
-const sourceCode = await readFile(sourcePath, "utf8");
+const detectionPath = hasTsSource ? sourceTsPath : sourceJsPath;
+const compiledPath = hasTsSource ? distEntryPath : sourceJsPath;
+const sourceCode = await readFile(detectionPath, "utf8");
+const compiledSourceCode = await readFile(compiledPath, "utf8");
 
-execFileSync(process.execPath, ["--check", sourcePath], {
+execFileSync(process.execPath, ["--check", compiledPath], {
   cwd: repoRoot,
   stdio: "pipe",
 });
@@ -73,7 +75,7 @@ if (hasTsSource) {
   await rm(distDir, { recursive: true, force: true });
   await mkdir(distDir, { recursive: true });
 }
-let distSourceCode = sourceCode;
+let distSourceCode = compiledSourceCode;
 const distPackageDependencies = { ...(packageJson.dependencies ?? {}) };
 const needsSharedEnv =
   sourceCode.includes(sharedSourceImport) || sourceCode.includes(sharedRuntimeSourceImport);
@@ -98,7 +100,7 @@ if (needsSharedEnv || needsSharedBootstrap) {
     });
   }
 
-  distSourceCode = sourceCode
+  distSourceCode = distSourceCode
     .split(sharedSourceImport)
     .join(sharedDistImport)
     .split(sharedRuntimeSourceImport)
