@@ -116,6 +116,23 @@ const validEnv = Object.freeze({
   S3_REGION: "us-east-1",
 });
 
+const validApiEnv = Object.freeze({
+  DATABASE_URL: validEnv.DATABASE_URL,
+  REDIS_URL: validEnv.REDIS_URL,
+  JWT_ACCESS_SECRET: validEnv.JWT_ACCESS_SECRET,
+  JWT_ACCESS_TTL_MINUTES: validEnv.JWT_ACCESS_TTL_MINUTES,
+  REFRESH_TOKEN_TTL_DAYS: validEnv.REFRESH_TOKEN_TTL_DAYS,
+  CORS_ORIGINS: validEnv.CORS_ORIGINS,
+  EMAIL_PROVIDER_API_KEY: validEnv.EMAIL_PROVIDER_API_KEY,
+  API_BASE_URL: validEnv.API_BASE_URL,
+  BASE_URL: validEnv.BASE_URL,
+});
+
+const createApiEnvInput = (overrides = {}) => ({
+  ...validApiEnv,
+  ...overrides,
+});
+
 test("shared env parser accepts valid input and normalizes typed values", () => {
   const parsed = parseRuntimeEnv(validEnv);
 
@@ -141,17 +158,7 @@ test("shared env parser ignores unrelated env keys when validating runtime input
 });
 
 test("API runtime parser accepts the API bootstrap subset without collab or storage keys", () => {
-  const parsed = parseApiRuntimeEnv({
-    DATABASE_URL: validEnv.DATABASE_URL,
-    REDIS_URL: validEnv.REDIS_URL,
-    JWT_ACCESS_SECRET: validEnv.JWT_ACCESS_SECRET,
-    JWT_ACCESS_TTL_MINUTES: validEnv.JWT_ACCESS_TTL_MINUTES,
-    REFRESH_TOKEN_TTL_DAYS: validEnv.REFRESH_TOKEN_TTL_DAYS,
-    CORS_ORIGINS: validEnv.CORS_ORIGINS,
-    EMAIL_PROVIDER_API_KEY: validEnv.EMAIL_PROVIDER_API_KEY,
-    API_BASE_URL: validEnv.API_BASE_URL,
-    BASE_URL: validEnv.BASE_URL,
-  });
+  const parsed = parseApiRuntimeEnv(createApiEnvInput());
 
   assert.equal(parsed.DATABASE_URL, validEnv.DATABASE_URL);
   assert.equal(parsed.API_BASE_URL, validEnv.API_BASE_URL);
@@ -162,22 +169,96 @@ test("API runtime parser accepts the API bootstrap subset without collab or stor
 });
 
 test("API runtime parser normalizes CORS origins to bare origins", () => {
-  const parsed = parseApiRuntimeEnv({
-    DATABASE_URL: validEnv.DATABASE_URL,
-    REDIS_URL: validEnv.REDIS_URL,
-    JWT_ACCESS_SECRET: validEnv.JWT_ACCESS_SECRET,
-    JWT_ACCESS_TTL_MINUTES: validEnv.JWT_ACCESS_TTL_MINUTES,
-    REFRESH_TOKEN_TTL_DAYS: validEnv.REFRESH_TOKEN_TTL_DAYS,
-    CORS_ORIGINS: "http://localhost:3000/, https://example.com",
-    EMAIL_PROVIDER_API_KEY: validEnv.EMAIL_PROVIDER_API_KEY,
-    API_BASE_URL: validEnv.API_BASE_URL,
-    BASE_URL: validEnv.BASE_URL,
-  });
+  const parsed = parseApiRuntimeEnv(
+    createApiEnvInput({
+      CORS_ORIGINS: "http://localhost:3000/, https://example.com",
+    }),
+  );
 
   assert.deepEqual(parsed.CORS_ORIGINS, [
     "http://localhost:3000",
     "https://example.com",
   ]);
+});
+
+test("API runtime parser accepts SMTP-only local email config without provider key", () => {
+  const parsed = parseApiRuntimeEnv(
+    createApiEnvInput({
+      EMAIL_PROVIDER_API_KEY: undefined,
+      EMAIL_SMTP_HOST: "127.0.0.1",
+      EMAIL_SMTP_PORT: "1025",
+    }),
+  );
+
+  assert.equal(parsed.EMAIL_PROVIDER_API_KEY, undefined);
+  assert.equal(parsed.EMAIL_SMTP_HOST, "127.0.0.1");
+  assert.equal(parsed.EMAIL_SMTP_PORT, 1025);
+});
+
+test("API runtime parser accepts SMTP-only config when provider key is blank", () => {
+  const parsed = parseApiRuntimeEnv(
+    createApiEnvInput({
+      EMAIL_PROVIDER_API_KEY: "   ",
+      EMAIL_SMTP_HOST: "127.0.0.1",
+      EMAIL_SMTP_PORT: "1025",
+    }),
+  );
+
+  assert.equal(parsed.EMAIL_PROVIDER_API_KEY, undefined);
+  assert.equal(parsed.EMAIL_SMTP_HOST, "127.0.0.1");
+  assert.equal(parsed.EMAIL_SMTP_PORT, 1025);
+});
+
+test("API runtime parser treats blank SMTP values as not configured", () => {
+  const parsed = parseApiRuntimeEnv(
+    createApiEnvInput({
+      EMAIL_SMTP_HOST: "   ",
+      EMAIL_SMTP_PORT: "   ",
+    }),
+  );
+
+  assert.equal(parsed.EMAIL_PROVIDER_API_KEY, validEnv.EMAIL_PROVIDER_API_KEY);
+  assert.equal(parsed.EMAIL_SMTP_HOST, undefined);
+  assert.equal(parsed.EMAIL_SMTP_PORT, undefined);
+});
+
+test("API runtime parser still rejects incomplete local SMTP pair with blanks", () => {
+  assert.throws(
+    () =>
+      parseApiRuntimeEnv(
+        createApiEnvInput({
+        EMAIL_SMTP_HOST: "127.0.0.1",
+        EMAIL_SMTP_PORT: "   ",
+        }),
+      ),
+    (error) => {
+      assert.ok(error instanceof EnvValidationError);
+      assert.deepEqual(error.issues, [
+        {
+          key: "EMAIL_SMTP_PORT",
+          message: "EMAIL_SMTP_HOST and EMAIL_SMTP_PORT must be set together for local SMTP.",
+        },
+      ]);
+      return true;
+    },
+  );
+});
+
+test("API runtime parser rejects missing provider key when local SMTP is absent", () => {
+  assert.throws(
+    () =>
+      parseApiRuntimeEnv(createApiEnvInput({ EMAIL_PROVIDER_API_KEY: undefined })),
+    (error) => {
+      assert.ok(error instanceof EnvValidationError);
+      assert.deepEqual(error.issues, [
+        {
+          key: "EMAIL_PROVIDER_API_KEY",
+          message: "EMAIL_PROVIDER_API_KEY is required when local SMTP is not configured.",
+        },
+      ]);
+      return true;
+    },
+  );
 });
 
 test("shared env parser fails clearly for missing required keys", () => {

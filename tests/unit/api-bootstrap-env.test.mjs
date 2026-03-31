@@ -40,8 +40,11 @@ const spawnBuiltApi = (envOverrides) =>
     envOverrides,
   });
 
-const assertBootstrapHealthy = async (spawnBootstrap) => {
-  const child = spawnBootstrap(validApiEnv);
+const assertBootstrapHealthy = async ({
+  spawn = spawnApi,
+  envOverrides = validApiEnv,
+} = {}) => {
+  const child = spawn(envOverrides);
   const stdoutText = collectStream(child.stdout);
   const stderrText = collectStream(child.stderr);
 
@@ -63,7 +66,7 @@ const assertBootstrapHealthy = async (spawnBootstrap) => {
 };
 
 test("API bootstrap listens when required env is valid", async () => {
-  await assertBootstrapHealthy(spawnApi);
+  await assertBootstrapHealthy();
 });
 
 test("API bootstrap fails fast with descriptive env validation errors", async () => {
@@ -86,6 +89,17 @@ test("API bootstrap fails fast with descriptive env validation errors", async ()
   assert.doesNotMatch(stderrText(), /replace-with-local-jwt-secret/);
 });
 
+test("API bootstrap accepts SMTP-only local email configuration", async () => {
+  await assertBootstrapHealthy({
+    envOverrides: {
+      ...validApiEnv,
+      EMAIL_PROVIDER_API_KEY: undefined,
+      EMAIL_SMTP_HOST: "127.0.0.1",
+      EMAIL_SMTP_PORT: "1025",
+    },
+  });
+});
+
 test("built API bootstrap artifact stays runnable without monorepo source imports", async () => {
   runTsc(path.join(repoRoot, "apps", "api", "tsconfig.json"));
   execFileSync(process.execPath, ["scripts/build-bootstrap-app.mjs", "apps/api"], {
@@ -93,5 +107,5 @@ test("built API bootstrap artifact stays runnable without monorepo source import
     stdio: "inherit",
   });
 
-  await assertBootstrapHealthy(spawnBuiltApi);
+  await assertBootstrapHealthy({ spawn: spawnBuiltApi });
 });
