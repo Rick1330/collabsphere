@@ -1,0 +1,116 @@
+# Health Checks (agent-ref)
+
+## Purpose
+Provide an execution-focused reference for API health probe behavior, response shape, and load balancer probe configuration.
+
+## Canonical Sources
+- `docs/spec/13-observability/13.2-request-correlation.md`
+- `docs/spec/14-devops/14.5-ci-pipeline.md`
+- `docs/agent-ref/ops/ci-cd.md`
+
+## Scope
+- Public `GET /api/v1/health` behavior
+- Response schema and status codes (`200` / `503`)
+- Dependency check timeout behavior
+- Load balancer probe examples
+
+## Required Rules / Contract
+
+### Endpoint behavior
+- Method/path: `GET /api/v1/health`
+- Auth: not required (public probe endpoint)
+- Service: `api`
+- Dependencies checked:
+  - Postgres handshake probe
+  - Redis `PING` probe
+
+### Response envelope
+- Probe responses use the standard data/meta envelope:
+  - `data.resource.service`
+  - `data.resource.status`
+  - `data.resource.checks.database`
+  - `data.resource.checks.redis`
+  - `meta.requestId`
+- `x-request-id` header is included and matches `meta.requestId`.
+
+### Status codes
+- `200` when all dependency checks are healthy.
+- `503` when any dependency check is unhealthy (including timeout).
+
+### Example response shape
+```json
+{
+  "data": {
+    "resource": {
+      "service": "api",
+      "status": "healthy",
+      "checks": {
+        "database": { "status": "healthy", "latencyMs": 12 },
+        "redis": { "status": "healthy", "latencyMs": 4 }
+      }
+    }
+  },
+  "meta": {
+    "requestId": "req_<uuid>"
+  }
+}
+```
+
+### Unhealthy detail behavior
+- On unhealthy checks, each failing dependency returns:
+  - `status: "unhealthy"`
+  - `latencyMs`
+  - `detail` code, for example:
+    - `POSTGRES_TIMEOUT`
+    - `REDIS_TIMEOUT`
+    - other probe error detail codes (`*_ECONNREFUSED`, `*_UNEXPECTED_*`, etc.)
+
+### Timeout behavior
+- Probe timeout is configurable via `HEALTH_CHECK_TIMEOUT_MS`.
+- Default timeout budget is `2000ms` when env var is unset/invalid.
+- A single deadline budget is shared across connect + read phases per dependency probe.
+
+## Load Balancer Probe Examples
+
+### cURL probe
+```bash
+API_BASE_URL="${API_BASE_URL:-http://localhost:3001}"
+curl -fsS "$API_BASE_URL/api/v1/health"
+```
+
+### Kubernetes probe (HTTP)
+```yaml
+livenessProbe:
+  httpGet:
+    path: /api/v1/health
+    port: 3001
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 2
+  failureThreshold: 3
+```
+
+### NGINX upstream health endpoint example
+```nginx
+location = /healthz {
+  proxy_pass http://api_upstream/api/v1/health;
+}
+```
+
+## Edge Cases / Failure Modes
+- If Redis/Postgres is unavailable, endpoint returns `503` with unhealthy check detail.
+- If a dependency accepts a connection but does not respond, timeout returns deterministic unhealthy detail (`*_TIMEOUT`), not a hanging request.
+- During local startup or dependency warmup, temporary `503` is expected until dependencies are healthy.
+
+## Validation or Testing Notes
+- Validate endpoint availability:
+  - `curl -fsS "$API_BASE_URL/api/v1/health"`
+- Validate timeout-path behavior using the timeout unit/integration test:
+  - `node --test --test-name-pattern "health endpoint returns 503 quickly when redis probe times out" tests/unit/api-bootstrap-env.test.mjs`
+
+## Related Files / Domains
+- `apps/api/src/health/health.controller.ts`
+- `apps/api/src/health/health.service.ts`
+- `apps/api/src/dev.ts`
+- `docs/agent-ref/ops/local-dev.md`
+- `docs/agent-ref/ops/ci-cd.md`
