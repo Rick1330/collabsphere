@@ -1,4 +1,3 @@
-import { z } from "zod";
 import {
   EnvValidationError,
   sharedEnvSchema,
@@ -24,64 +23,64 @@ export const apiEnvKeys = Object.freeze([
   "BASE_URL",
 ]);
 
+const apiBaseShape = {
+  DATABASE_URL: true,
+  REDIS_URL: true,
+  JWT_ACCESS_SECRET: true,
+  JWT_ACCESS_TTL_MINUTES: true,
+  REFRESH_TOKEN_TTL_DAYS: true,
+  CORS_ORIGINS: true,
+  API_BASE_URL: true,
+  BASE_URL: true,
+};
+
 const baseApiEnvSchema = sharedEnvSchema
-  .pick({
-    DATABASE_URL: true,
-    REDIS_URL: true,
-    JWT_ACCESS_SECRET: true,
-    JWT_ACCESS_TTL_MINUTES: true,
-    REFRESH_TOKEN_TTL_DAYS: true,
-    CORS_ORIGINS: true,
-    EMAIL_PROVIDER_API_KEY: true,
-    API_BASE_URL: true,
-    BASE_URL: true,
-  })
-  .partial({
-    EMAIL_PROVIDER_API_KEY: true,
-  })
+  .pick(apiBaseShape)
   .extend({
+    EMAIL_PROVIDER_API_KEY: createRequiredString("EMAIL_PROVIDER_API_KEY").optional(),
     EMAIL_SMTP_HOST: createRequiredString("EMAIL_SMTP_HOST").optional(),
     EMAIL_SMTP_PORT: createPositiveInteger("EMAIL_SMTP_PORT").optional(),
   })
   .strict();
 
-const addMissingSmtpPairIssue = (context, hasSmtpHost) => {
-  context.addIssue({
-    code: z.ZodIssueCode.custom,
-    path: [hasSmtpHost ? "EMAIL_SMTP_PORT" : "EMAIL_SMTP_HOST"],
-    message: "EMAIL_SMTP_HOST and EMAIL_SMTP_PORT must be set together for local SMTP.",
-  });
-};
+export const apiEnvSchema = baseApiEnvSchema;
 
-const addMissingProviderIssue = (context) => {
-  context.addIssue({
-    code: z.ZodIssueCode.custom,
-    path: ["EMAIL_PROVIDER_API_KEY"],
-    message: "EMAIL_PROVIDER_API_KEY is required when local SMTP is not configured.",
-  });
-};
+const hasConfiguredValue = (value) => typeof value === "string" && value.trim().length > 0;
 
-const validateApiEmailConfig = (value, context) => {
-  const hasSmtpHost = typeof value.EMAIL_SMTP_HOST === "string";
-  const hasSmtpPort = typeof value.EMAIL_SMTP_PORT === "number";
-  const hasProvider = typeof value.EMAIL_PROVIDER_API_KEY === "string";
+const createMissingPairError = (hasSmtpHost) =>
+  new EnvValidationError([
+    {
+      key: hasSmtpHost ? "EMAIL_SMTP_PORT" : "EMAIL_SMTP_HOST",
+      message: "EMAIL_SMTP_HOST and EMAIL_SMTP_PORT must be set together for local SMTP.",
+    },
+  ]);
 
-  if (hasSmtpHost !== hasSmtpPort) {
-    addMissingSmtpPairIssue(context, hasSmtpHost);
-  }
-
-  if (!hasSmtpHost && !hasSmtpPort && !hasProvider) {
-    addMissingProviderIssue(context);
-  }
-};
-
-export const apiEnvSchema = baseApiEnvSchema.superRefine(validateApiEmailConfig);
+const createMissingProviderError = () =>
+  new EnvValidationError([
+    {
+      key: "EMAIL_PROVIDER_API_KEY",
+      message: "EMAIL_PROVIDER_API_KEY is required when local SMTP is not configured.",
+    },
+  ]);
 
 const selectApiEnv = (input) =>
   Object.fromEntries(apiEnvKeys.map((key) => [key, input[key]]));
 
 export const parseApiRuntimeEnv = (input) => {
-  const parsed = apiEnvSchema.safeParse(selectApiEnv(input));
+  const selected = selectApiEnv(input);
+  const hasSmtpHost = hasConfiguredValue(selected.EMAIL_SMTP_HOST);
+  const hasSmtpPort = hasConfiguredValue(selected.EMAIL_SMTP_PORT);
+  const hasProvider = hasConfiguredValue(selected.EMAIL_PROVIDER_API_KEY);
+
+  if (hasSmtpHost !== hasSmtpPort) {
+    throw createMissingPairError(hasSmtpHost);
+  }
+
+  if (!hasSmtpHost && !hasProvider) {
+    throw createMissingProviderError();
+  }
+
+  const parsed = apiEnvSchema.safeParse(selected);
 
   if (!parsed.success) {
     throw new EnvValidationError(formatEnvValidationIssues(parsed.error));
