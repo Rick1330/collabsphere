@@ -45,27 +45,37 @@ const baseApiEnvSchema = sharedEnvSchema
   })
   .strict();
 
-export const apiEnvSchema = baseApiEnvSchema.superRefine((value, context) => {
+const addMissingSmtpPairIssue = (context, hasSmtpHost) => {
+  context.addIssue({
+    code: z.ZodIssueCode.custom,
+    path: [hasSmtpHost ? "EMAIL_SMTP_PORT" : "EMAIL_SMTP_HOST"],
+    message: "EMAIL_SMTP_HOST and EMAIL_SMTP_PORT must be set together for local SMTP.",
+  });
+};
+
+const addMissingProviderIssue = (context) => {
+  context.addIssue({
+    code: z.ZodIssueCode.custom,
+    path: ["EMAIL_PROVIDER_API_KEY"],
+    message: "EMAIL_PROVIDER_API_KEY is required when local SMTP is not configured.",
+  });
+};
+
+const validateApiEmailConfig = (value, context) => {
   const hasSmtpHost = typeof value.EMAIL_SMTP_HOST === "string";
   const hasSmtpPort = typeof value.EMAIL_SMTP_PORT === "number";
   const hasProvider = typeof value.EMAIL_PROVIDER_API_KEY === "string";
 
   if (hasSmtpHost !== hasSmtpPort) {
-    context.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: [hasSmtpHost ? "EMAIL_SMTP_PORT" : "EMAIL_SMTP_HOST"],
-      message: "EMAIL_SMTP_HOST and EMAIL_SMTP_PORT must be set together for local SMTP.",
-    });
+    addMissingSmtpPairIssue(context, hasSmtpHost);
   }
 
   if (!hasSmtpHost && !hasSmtpPort && !hasProvider) {
-    context.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["EMAIL_PROVIDER_API_KEY"],
-      message: "EMAIL_PROVIDER_API_KEY is required when local SMTP is not configured.",
-    });
+    addMissingProviderIssue(context);
   }
-});
+};
+
+export const apiEnvSchema = baseApiEnvSchema.superRefine(validateApiEmailConfig);
 
 const selectApiEnv = (input) =>
   Object.fromEntries(apiEnvKeys.map((key) => [key, input[key]]));
