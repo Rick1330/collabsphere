@@ -118,7 +118,7 @@ Use these steps when you need to verify outbound email behavior locally without 
 3. If you need explicit SMTP overrides, set local-only `EMAIL_SMTP_HOST` and `EMAIL_SMTP_PORT` in `.env` or `.env.local` (for example `127.0.0.1` and `1025`).
 4. Trigger an app flow that sends email, then verify the message appears in MailHog.
 
-`EMAIL_SMTP_HOST` and `EMAIL_SMTP_PORT` are local-development-only overrides and are not part of the canonical required env list in `docs/spec/07-architecture/07.5-*`.
+`EMAIL_SMTP_HOST` and `EMAIL_SMTP_PORT` are local-development-only overrides and are not part of the canonical required env list in `docs/spec/07-architecture/07.5-config-environments.md`.
 
 ### Common troubleshooting
 
