@@ -265,18 +265,20 @@ const validateKnownEnvValues = (values) => {
 
 const createLocalEmailEnv = (values) => {
   const env = {};
-
-  env.EMAIL_SMTP_HOST = hasValue(values.EMAIL_SMTP_HOST) ? values.EMAIL_SMTP_HOST : "127.0.0.1";
+  const host = hasValue(values.EMAIL_SMTP_HOST) ? values.EMAIL_SMTP_HOST : "127.0.0.1";
 
   if (hasValue(values.EMAIL_SMTP_PORT)) {
     validatePortValue("EMAIL_SMTP_PORT", values.EMAIL_SMTP_PORT);
+    env.EMAIL_SMTP_HOST = host;
     env.EMAIL_SMTP_PORT = values.EMAIL_SMTP_PORT;
     return env;
   }
 
   if (hasValue(values.MAILHOG_SMTP_PORT)) {
     validatePortValue("MAILHOG_SMTP_PORT", values.MAILHOG_SMTP_PORT);
+    env.EMAIL_SMTP_HOST = host;
     env.EMAIL_SMTP_PORT = values.MAILHOG_SMTP_PORT;
+    return env;
   }
 
   return env;

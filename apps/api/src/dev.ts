@@ -7,14 +7,14 @@ import {
   validateServiceEnv,
 } from "../../../packages/shared/src/bootstrap-runtime.js";
 
-validateServiceEnv({
+const apiEnv = validateServiceEnv({
   service: "api",
   parser: parseApiRuntimeEnv,
   validationErrorClass: EnvValidationError,
 });
 
 try {
-  resolveEmailConfig(process.env);
+  resolveEmailConfig(apiEnv);
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
   console.error(`[api] Email configuration failed: ${message}`);

@@ -1,8 +1,13 @@
+import { z } from "zod";
 import {
   EnvValidationError,
   sharedEnvSchema,
 } from "./runtime-env.js";
-import { formatEnvValidationIssues } from "./env-core.js";
+import {
+  createPositiveInteger,
+  createRequiredString,
+  formatEnvValidationIssues,
+} from "./env-core.js";
 export { EnvValidationError } from "./runtime-env.js";
 
 export const apiEnvKeys = Object.freeze([
@@ -13,11 +18,13 @@ export const apiEnvKeys = Object.freeze([
   "REFRESH_TOKEN_TTL_DAYS",
   "CORS_ORIGINS",
   "EMAIL_PROVIDER_API_KEY",
+  "EMAIL_SMTP_HOST",
+  "EMAIL_SMTP_PORT",
   "API_BASE_URL",
   "BASE_URL",
 ]);
 
-export const apiEnvSchema = sharedEnvSchema
+const baseApiEnvSchema = sharedEnvSchema
   .pick({
     DATABASE_URL: true,
     REDIS_URL: true,
@@ -29,7 +36,36 @@ export const apiEnvSchema = sharedEnvSchema
     API_BASE_URL: true,
     BASE_URL: true,
   })
+  .partial({
+    EMAIL_PROVIDER_API_KEY: true,
+  })
+  .extend({
+    EMAIL_SMTP_HOST: createRequiredString("EMAIL_SMTP_HOST").optional(),
+    EMAIL_SMTP_PORT: createPositiveInteger("EMAIL_SMTP_PORT").optional(),
+  })
   .strict();
+
+export const apiEnvSchema = baseApiEnvSchema.superRefine((value, context) => {
+  const hasSmtpHost = typeof value.EMAIL_SMTP_HOST === "string";
+  const hasSmtpPort = typeof value.EMAIL_SMTP_PORT === "number";
+  const hasProvider = typeof value.EMAIL_PROVIDER_API_KEY === "string";
+
+  if (hasSmtpHost !== hasSmtpPort) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: [hasSmtpHost ? "EMAIL_SMTP_PORT" : "EMAIL_SMTP_HOST"],
+      message: "EMAIL_SMTP_HOST and EMAIL_SMTP_PORT must be set together for local SMTP.",
+    });
+  }
+
+  if (!hasSmtpHost && !hasSmtpPort && !hasProvider) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["EMAIL_PROVIDER_API_KEY"],
+      message: "EMAIL_PROVIDER_API_KEY is required when local SMTP is not configured.",
+    });
+  }
+});
 
 const selectApiEnv = (input) =>
   Object.fromEntries(apiEnvKeys.map((key) => [key, input[key]]));

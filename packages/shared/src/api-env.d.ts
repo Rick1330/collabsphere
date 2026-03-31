@@ -9,6 +9,8 @@ export const apiEnvKeys: readonly [
   "REFRESH_TOKEN_TTL_DAYS",
   "CORS_ORIGINS",
   "EMAIL_PROVIDER_API_KEY",
+  "EMAIL_SMTP_HOST",
+  "EMAIL_SMTP_PORT",
   "API_BASE_URL",
   "BASE_URL",
 ];
@@ -20,7 +22,9 @@ export interface ApiRuntimeEnv {
   JWT_ACCESS_TTL_MINUTES: number;
   REFRESH_TOKEN_TTL_DAYS: number;
   CORS_ORIGINS: string[];
-  EMAIL_PROVIDER_API_KEY: string;
+  EMAIL_PROVIDER_API_KEY?: string;
+  EMAIL_SMTP_HOST?: string;
+  EMAIL_SMTP_PORT?: number;
   API_BASE_URL: string;
   BASE_URL: string;
 }

@@ -5,13 +5,20 @@ import { pathToFileURL } from "node:url";
 
 import { repoRoot, runTsc } from "./bootstrap-test-helpers.mjs";
 
+let emailConfigModulePromise;
+
 const importEmailConfigModule = async () => {
+  if (emailConfigModulePromise) {
+    return emailConfigModulePromise;
+  }
+
   runTsc(path.join(repoRoot, "apps", "api", "tsconfig.json"));
   const moduleUrl = pathToFileURL(
     path.join(repoRoot, "apps", "api", "dist", "config", "email.js"),
   ).href;
 
-  return import(`${moduleUrl}?t=${Date.now()}`);
+  emailConfigModulePromise = import(`${moduleUrl}?t=${Date.now()}`);
+  return emailConfigModulePromise;
 };
 
 test("resolveEmailConfig prefers local SMTP settings when both local vars are present", async () => {
@@ -68,4 +75,19 @@ test("resolveEmailConfig rejects invalid local SMTP ports", async () => {
       }),
     /EMAIL_SMTP_PORT must be a positive integer/,
   );
+});
+
+test("resolveEmailConfig accepts normalized SMTP port values from runtime parsing", async () => {
+  const { resolveEmailConfig } = await importEmailConfigModule();
+
+  const config = resolveEmailConfig({
+    EMAIL_SMTP_HOST: "127.0.0.1",
+    EMAIL_SMTP_PORT: 1025,
+  });
+
+  assert.deepEqual(config, {
+    mode: "smtp",
+    host: "127.0.0.1",
+    port: 1025,
+  });
 });
