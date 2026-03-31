@@ -144,11 +144,12 @@ jobs:
         env:
           DATABASE_URL: postgresql://collab:collab@127.0.0.1:5432/collabsphere
           REDIS_URL: redis://127.0.0.1:6379
-          JWT_ACCESS_SECRET: ci-jwt-secret
+          JWT_ACCESS_SECRET: ${{ github.sha }}
           JWT_ACCESS_TTL_MINUTES: "15"
           REFRESH_TOKEN_TTL_DAYS: "30"
           CORS_ORIGINS: http://localhost:3000
-          EMAIL_PROVIDER_API_KEY: ci-email-provider-key
+          EMAIL_SMTP_HOST: 127.0.0.1
+          EMAIL_SMTP_PORT: "1025"
           API_BASE_URL: http://127.0.0.1:3001
           BASE_URL: http://127.0.0.1:3001
         run: |
