@@ -150,15 +150,28 @@ const getBootstrapHealthResponse = async ({
   }
 };
 
+const getHealthEnvelope = (response) => {
+  assert.ok(response.body, "health response body should be present");
+  assert.ok(response.body.data, "health response data should be present");
+  assert.ok(response.body.data.resource, "health response resource should be present");
+  assert.ok(response.body.meta, "health response meta should be present");
+
+  return {
+    resource: response.body.data.resource,
+    meta: response.body.meta,
+  };
+};
+
 const assertHealthyBootstrap = async (options = {}) => {
   const { response, stderr } = await getBootstrapHealthResponse(options);
+  const envelope = getHealthEnvelope(response);
 
   assert.equal(response.statusCode, 200);
-  assert.equal(response.body?.data?.resource?.service, "api");
-  assert.equal(response.body?.data?.resource?.status, "healthy");
-  assert.equal(response.body?.data?.resource?.checks?.database?.status, "healthy");
-  assert.equal(response.body?.data?.resource?.checks?.redis?.status, "healthy");
-  assert.match(response.body?.meta?.requestId ?? "", /^req_/);
+  assert.equal(envelope.resource.service, "api");
+  assert.equal(envelope.resource.status, "healthy");
+  assert.equal(envelope.resource.checks.database.status, "healthy");
+  assert.equal(envelope.resource.checks.redis.status, "healthy");
+  assert.match(envelope.meta.requestId, /^req_/);
   assert.equal(stderr, "");
 };
 
@@ -235,13 +248,14 @@ test("health endpoint returns 503 when redis dependency check fails", async () =
           REDIS_URL: `redis://127.0.0.1:${occupiedPort}`,
         },
       });
+      const envelope = getHealthEnvelope(response);
 
       assert.equal(response.statusCode, 503);
-      assert.equal(response.body?.data?.resource?.service, "api");
-      assert.equal(response.body?.data?.resource?.status, "unhealthy");
-      assert.equal(response.body?.data?.resource?.checks?.database?.status, "healthy");
-      assert.equal(response.body?.data?.resource?.checks?.redis?.status, "unhealthy");
-      assert.match(response.body?.meta?.requestId ?? "", /^req_/);
+      assert.equal(envelope.resource.service, "api");
+      assert.equal(envelope.resource.status, "unhealthy");
+      assert.equal(envelope.resource.checks.database.status, "healthy");
+      assert.equal(envelope.resource.checks.redis.status, "unhealthy");
+      assert.match(envelope.meta.requestId, /^req_/);
     });
   });
 });
