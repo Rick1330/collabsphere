@@ -103,6 +103,7 @@ jobs:
           POSTGRES_USER: collab
           POSTGRES_PASSWORD: collab
           POSTGRES_DB: collabsphere
+          POSTGRES_HOST_AUTH_METHOD: trust
         ports:
           - 5432:5432
         options: >-
@@ -142,9 +143,8 @@ jobs:
 
       - name: Verify API health endpoint
         env:
-          DATABASE_URL: postgresql://collab:collab@127.0.0.1:5432/collabsphere
+          DATABASE_URL: postgresql://collab@127.0.0.1:5432/collabsphere
           REDIS_URL: redis://127.0.0.1:6379
-          JWT_ACCESS_SECRET: ${{ github.sha }}
           JWT_ACCESS_TTL_MINUTES: "15"
           REFRESH_TOKEN_TTL_DAYS: "30"
           CORS_ORIGINS: http://localhost:3000
@@ -154,6 +154,7 @@ jobs:
           BASE_URL: http://127.0.0.1:3001
         run: |
           set -euo pipefail
+          export JWT_ACCESS_SECRET="$(date +%s%N)"
           pnpm --filter @collabsphere/api exec tsx src/dev.ts > /tmp/api-health.log 2>&1 &
           api_pid=$!
 
