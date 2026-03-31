@@ -51,7 +51,7 @@ const parseProbeTimeoutMs = (value: string | undefined) => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : defaultProbeTimeoutMs;
 };
 
-const getRemainingTimeoutMs = (deadlineMs: number) => Math.max(1, deadlineMs - Date.now());
+const getRemainingTimeoutMs = (deadlineMs: number) => Math.max(0, deadlineMs - Date.now());
 
 const getErrorCode = (error: unknown) => {
   if (!error || typeof error !== "object") {
@@ -180,14 +180,24 @@ export class HealthService {
     const deadlineMs = startedAt + this.probeTimeoutMs;
 
     try {
+      const connectTimeoutMs = getRemainingTimeoutMs(deadlineMs);
+      if (connectTimeoutMs === 0) {
+        throw createProbeTimeoutError("connect", this.probeTimeoutMs);
+      }
+
       const socket = await connectSocket(
         parseHostAndPort(config.targetUrl, config.defaultPort),
-        getRemainingTimeoutMs(deadlineMs),
+        connectTimeoutMs,
       );
 
       try {
         socket.write(config.requestBuffer);
-        const chunk = await readOnce(socket, getRemainingTimeoutMs(deadlineMs));
+        const readTimeoutMs = getRemainingTimeoutMs(deadlineMs);
+        if (readTimeoutMs === 0) {
+          throw createProbeTimeoutError("response", this.probeTimeoutMs);
+        }
+
+        const chunk = await readOnce(socket, readTimeoutMs);
 
         if (!config.isValidResponse(chunk)) {
           return createUnhealthyResult(startedAt, config.invalidResponseCode);
