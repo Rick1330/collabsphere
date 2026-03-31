@@ -21,13 +21,22 @@ const importEmailConfigModule = async () => {
   return emailConfigModulePromise;
 };
 
+const validProviderEmailInput = Object.freeze({
+  EMAIL_PROVIDER_API_KEY: "replace-with-provider-key",
+});
+
+const createEmailInput = (overrides = {}) => ({
+  ...validProviderEmailInput,
+  ...overrides,
+});
+
 test("resolveEmailConfig prefers local SMTP settings when both local vars are present", async () => {
   const { resolveEmailConfig } = await importEmailConfigModule();
 
   const config = resolveEmailConfig({
+    ...createEmailInput(),
     EMAIL_SMTP_HOST: "127.0.0.1",
     EMAIL_SMTP_PORT: "1025",
-    EMAIL_PROVIDER_API_KEY: "replace-with-provider-key",
   });
 
   assert.deepEqual(config, {
@@ -41,7 +50,7 @@ test("resolveEmailConfig falls back to provider configuration when local SMTP is
   const { resolveEmailConfig } = await importEmailConfigModule();
 
   const config = resolveEmailConfig({
-    EMAIL_PROVIDER_API_KEY: "replace-with-provider-key",
+    ...createEmailInput(),
   });
 
   assert.deepEqual(config, {
@@ -56,8 +65,8 @@ test("resolveEmailConfig rejects partial local SMTP settings", async () => {
   assert.throws(
     () =>
       resolveEmailConfig({
+        ...createEmailInput(),
         EMAIL_SMTP_HOST: "127.0.0.1",
-        EMAIL_PROVIDER_API_KEY: "replace-with-provider-key",
       }),
     /EMAIL_SMTP_HOST and EMAIL_SMTP_PORT/,
   );
@@ -69,9 +78,9 @@ test("resolveEmailConfig rejects invalid local SMTP ports", async () => {
   assert.throws(
     () =>
       resolveEmailConfig({
+        ...createEmailInput(),
         EMAIL_SMTP_HOST: "127.0.0.1",
         EMAIL_SMTP_PORT: "1025abc",
-        EMAIL_PROVIDER_API_KEY: "replace-with-provider-key",
       }),
     /EMAIL_SMTP_PORT must be a positive integer/,
   );
@@ -83,9 +92,9 @@ test("resolveEmailConfig treats blank SMTP port as missing for pair validation",
   assert.throws(
     () =>
       resolveEmailConfig({
+        ...createEmailInput(),
         EMAIL_SMTP_HOST: "127.0.0.1",
         EMAIL_SMTP_PORT: "   ",
-        EMAIL_PROVIDER_API_KEY: "replace-with-provider-key",
       }),
     /EMAIL_SMTP_HOST and EMAIL_SMTP_PORT/,
   );
