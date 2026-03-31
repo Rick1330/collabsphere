@@ -3,6 +3,8 @@ import net from "node:net";
 const postgresSslRequestBuffer = Buffer.from([0, 0, 0, 8, 4, 210, 22, 47]);
 const postgresAcceptedResponses = new Set([83, 78]); // "S" or "N"
 const redisPingBuffer = Buffer.from("*1\r\n$4\r\nPING\r\n", "utf8");
+const defaultProbeTimeoutMs = 2000;
+const timeoutErrorCode = "TIMEOUT";
 
 type DependencyStatus = "healthy" | "unhealthy";
 
@@ -34,6 +36,23 @@ type ProbeConfig = {
   invalidResponseCode: string;
 };
 
+const createProbeTimeoutError = (phase: "connect" | "response", timeoutMs: number) => {
+  const timeoutError = new Error(`Dependency probe ${phase} timed out after ${timeoutMs}ms.`);
+  (timeoutError as NodeJS.ErrnoException).code = timeoutErrorCode;
+  return timeoutError;
+};
+
+const parseProbeTimeoutMs = (value: string | undefined) => {
+  if (!value) {
+    return defaultProbeTimeoutMs;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : defaultProbeTimeoutMs;
+};
+
+const getRemainingTimeoutMs = (deadlineMs: number) => Math.max(0, deadlineMs - Date.now());
+
 const getErrorCode = (error: unknown) => {
   if (!error || typeof error !== "object") {
     return "CHECK_FAILED";
@@ -52,8 +71,14 @@ const parseHostAndPort = (value: string, defaultPort: number): HostAndPort => {
   };
 };
 
-const readOnce = (socket: net.Socket) =>
+const readOnce = (socket: net.Socket, timeoutMs: number) =>
   new Promise<Buffer>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      cleanup();
+      socket.destroy();
+      reject(createProbeTimeoutError("response", timeoutMs));
+    }, timeoutMs);
+
     const onData = (chunk: Buffer) => {
       cleanup();
       resolve(chunk);
@@ -70,6 +95,7 @@ const readOnce = (socket: net.Socket) =>
     };
 
     const cleanup = () => {
+      clearTimeout(timeout);
       socket.off("data", onData);
       socket.off("error", onError);
       socket.off("close", onClose);
@@ -80,12 +106,17 @@ const readOnce = (socket: net.Socket) =>
     socket.once("close", onClose);
   });
 
-const connectSocket = (address: HostAndPort) =>
+const connectSocket = (address: HostAndPort, timeoutMs: number) =>
   new Promise<net.Socket>((resolve, reject) => {
     const socket = net.createConnection({
       ...address,
       autoSelectFamily: true,
     });
+    const timeout = setTimeout(() => {
+      cleanup();
+      socket.destroy();
+      reject(createProbeTimeoutError("connect", timeoutMs));
+    }, timeoutMs);
 
     const onConnect = () => {
       cleanup();
@@ -99,6 +130,7 @@ const connectSocket = (address: HostAndPort) =>
     };
 
     const cleanup = () => {
+      clearTimeout(timeout);
       socket.off("connect", onConnect);
       socket.off("error", onError);
     };
@@ -140,17 +172,32 @@ export class HealthService {
   constructor(
     private readonly databaseUrl: string,
     private readonly redisUrl: string,
+    private readonly probeTimeoutMs = parseProbeTimeoutMs(process.env.HEALTH_CHECK_TIMEOUT_MS),
   ) {}
 
   private async runProbe(config: ProbeConfig): Promise<DependencyCheckResult> {
     const startedAt = Date.now();
+    const deadlineMs = startedAt + this.probeTimeoutMs;
 
     try {
-      const socket = await connectSocket(parseHostAndPort(config.targetUrl, config.defaultPort));
+      const connectTimeoutMs = getRemainingTimeoutMs(deadlineMs);
+      if (connectTimeoutMs === 0) {
+        throw createProbeTimeoutError("connect", this.probeTimeoutMs);
+      }
+
+      const socket = await connectSocket(
+        parseHostAndPort(config.targetUrl, config.defaultPort),
+        connectTimeoutMs,
+      );
 
       try {
         socket.write(config.requestBuffer);
-        const chunk = await readOnce(socket);
+        const readTimeoutMs = getRemainingTimeoutMs(deadlineMs);
+        if (readTimeoutMs === 0) {
+          throw createProbeTimeoutError("response", this.probeTimeoutMs);
+        }
+
+        const chunk = await readOnce(socket, readTimeoutMs);
 
         if (!config.isValidResponse(chunk)) {
           return createUnhealthyResult(startedAt, config.invalidResponseCode);
@@ -161,7 +208,15 @@ export class HealthService {
         await closeSocket(socket);
       }
     } catch (error) {
-      return createUnhealthyResult(startedAt, `${config.prefix}_${getErrorCode(error)}`);
+      const errorCode = getErrorCode(error);
+
+      if (errorCode === timeoutErrorCode) {
+        console.warn(
+          `[api] health ${config.prefix.toLowerCase()} probe timed out after ${this.probeTimeoutMs}ms`,
+        );
+      }
+
+      return createUnhealthyResult(startedAt, `${config.prefix}_${errorCode}`);
     }
   }
 
