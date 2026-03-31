@@ -32,18 +32,20 @@ const createEmailInput = (overrides = {}) => ({
 
 test("resolveEmailConfig prefers local SMTP settings when both local vars are present", async () => {
   const { resolveEmailConfig } = await importEmailConfigModule();
+  const smtpCases = [
+    { EMAIL_SMTP_HOST: "127.0.0.1", EMAIL_SMTP_PORT: "1025" },
+    { EMAIL_SMTP_HOST: "127.0.0.1", EMAIL_SMTP_PORT: 1025 },
+  ];
 
-  const config = resolveEmailConfig({
-    ...createEmailInput(),
-    EMAIL_SMTP_HOST: "127.0.0.1",
-    EMAIL_SMTP_PORT: "1025",
-  });
+  for (const input of smtpCases) {
+    const config = resolveEmailConfig(createEmailInput(input));
 
-  assert.deepEqual(config, {
-    mode: "smtp",
-    host: "127.0.0.1",
-    port: 1025,
-  });
+    assert.deepEqual(config, {
+      mode: "smtp",
+      host: "127.0.0.1",
+      port: 1025,
+    });
+  }
 });
 
 test("resolveEmailConfig falls back to provider configuration when local SMTP is absent", async () => {
@@ -59,58 +61,27 @@ test("resolveEmailConfig falls back to provider configuration when local SMTP is
   });
 });
 
-test("resolveEmailConfig rejects partial local SMTP settings", async () => {
+test("resolveEmailConfig rejects invalid or incomplete local SMTP settings", async () => {
   const { resolveEmailConfig } = await importEmailConfigModule();
+  const errorCases = [
+    {
+      input: { EMAIL_SMTP_HOST: "127.0.0.1" },
+      pattern: /EMAIL_SMTP_HOST and EMAIL_SMTP_PORT/,
+    },
+    {
+      input: { EMAIL_SMTP_HOST: "127.0.0.1", EMAIL_SMTP_PORT: "1025abc" },
+      pattern: /EMAIL_SMTP_PORT must be a positive integer/,
+    },
+    {
+      input: { EMAIL_SMTP_HOST: "127.0.0.1", EMAIL_SMTP_PORT: "   " },
+      pattern: /EMAIL_SMTP_HOST and EMAIL_SMTP_PORT/,
+    },
+  ];
 
-  assert.throws(
-    () =>
-      resolveEmailConfig({
-        ...createEmailInput(),
-        EMAIL_SMTP_HOST: "127.0.0.1",
-      }),
-    /EMAIL_SMTP_HOST and EMAIL_SMTP_PORT/,
-  );
-});
-
-test("resolveEmailConfig rejects invalid local SMTP ports", async () => {
-  const { resolveEmailConfig } = await importEmailConfigModule();
-
-  assert.throws(
-    () =>
-      resolveEmailConfig({
-        ...createEmailInput(),
-        EMAIL_SMTP_HOST: "127.0.0.1",
-        EMAIL_SMTP_PORT: "1025abc",
-      }),
-    /EMAIL_SMTP_PORT must be a positive integer/,
-  );
-});
-
-test("resolveEmailConfig treats blank SMTP port as missing for pair validation", async () => {
-  const { resolveEmailConfig } = await importEmailConfigModule();
-
-  assert.throws(
-    () =>
-      resolveEmailConfig({
-        ...createEmailInput(),
-        EMAIL_SMTP_HOST: "127.0.0.1",
-        EMAIL_SMTP_PORT: "   ",
-      }),
-    /EMAIL_SMTP_HOST and EMAIL_SMTP_PORT/,
-  );
-});
-
-test("resolveEmailConfig accepts normalized SMTP port values from runtime parsing", async () => {
-  const { resolveEmailConfig } = await importEmailConfigModule();
-
-  const config = resolveEmailConfig({
-    EMAIL_SMTP_HOST: "127.0.0.1",
-    EMAIL_SMTP_PORT: 1025,
-  });
-
-  assert.deepEqual(config, {
-    mode: "smtp",
-    host: "127.0.0.1",
-    port: 1025,
-  });
+  for (const errorCase of errorCases) {
+    assert.throws(
+      () => resolveEmailConfig(createEmailInput(errorCase.input)),
+      errorCase.pattern,
+    );
+  }
 });
