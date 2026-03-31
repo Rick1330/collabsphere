@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { execFileSync } from "node:child_process";
+import net from "node:net";
 import test from "node:test";
 import path from "node:path";
 import {
@@ -40,7 +41,90 @@ const spawnBuiltApi = (envOverrides) =>
     envOverrides,
   });
 
-const assertBootstrapHealthy = async ({
+const postgresSslResponseBuffer = Buffer.from("S");
+const redisExpectedPing = "*1\r\n$4\r\nPING\r\n";
+const redisPongBuffer = Buffer.from("+PONG\r\n");
+
+const closeServer = (server) =>
+  new Promise((resolve, reject) => {
+    server.close((error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+
+      resolve();
+    });
+  });
+
+const createMockDependencyServer = async (onData) => {
+  const server = net.createServer((socket) => {
+    socket.once("data", (chunk) => onData(chunk, socket));
+    socket.once("error", () => {});
+  });
+
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+
+  return {
+    server,
+    port: address.port,
+  };
+};
+
+const createMockPostgresServer = () =>
+  createMockDependencyServer((_, socket) => {
+    socket.write(postgresSslResponseBuffer);
+    socket.end();
+  });
+
+const createMockRedisServer = () =>
+  createMockDependencyServer((chunk, socket) => {
+    const payload = chunk.toString("utf8");
+
+    if (payload.startsWith(redisExpectedPing)) {
+      socket.write(redisPongBuffer);
+    }
+
+    socket.end();
+  });
+
+const withOccupiedPort = async (callback) => {
+  const blocker = net.createServer((socket) => {
+    socket.destroy();
+  });
+
+  blocker.listen(0, "127.0.0.1");
+  await once(blocker, "listening");
+
+  const address = blocker.address();
+  assert.ok(address && typeof address === "object");
+
+  try {
+    await callback(address.port);
+  } finally {
+    await closeServer(blocker);
+  }
+};
+
+const withMockDependencies = async (callback) => {
+  const postgres = await createMockPostgresServer();
+  const redis = await createMockRedisServer();
+
+  try {
+    await callback({
+      DATABASE_URL: `postgresql://collab:collab@127.0.0.1:${postgres.port}/collabsphere`,
+      REDIS_URL: `redis://127.0.0.1:${redis.port}`,
+    });
+  } finally {
+    await Promise.allSettled([closeServer(postgres.server), closeServer(redis.server)]);
+  }
+};
+
+const getBootstrapHealthResponse = async ({
   spawn = spawnApi,
   envOverrides = validApiEnv,
 } = {}) => {
@@ -57,16 +141,54 @@ const assertBootstrapHealthy = async ({
     );
     const response = await getJson(Number.parseInt(match[1], 10), "/api/v1/health");
 
-    assert.equal(response.statusCode, 200);
-    assert.equal(response.body?.data?.resource?.service, "api");
-    assert.equal(stderrText(), "");
+    return {
+      response,
+      stderr: stderrText(),
+    };
   } finally {
     await stopChild(child);
   }
 };
 
+const getHealthEnvelope = (response) => {
+  assert.ok(response.body, "health response body should be present");
+  assert.ok(response.body.data, "health response data should be present");
+  assert.ok(response.body.data.resource, "health response resource should be present");
+  assert.ok(response.body.meta, "health response meta should be present");
+
+  return {
+    resource: response.body.data.resource,
+    meta: response.body.meta,
+  };
+};
+
+const getRequestIdHeader = (response) =>
+  typeof response.headers?.["x-request-id"] === "string" ? response.headers["x-request-id"] : null;
+
+const assertHealthyBootstrap = async (options = {}) => {
+  const { response, stderr } = await getBootstrapHealthResponse(options);
+  const envelope = getHealthEnvelope(response);
+  const requestIdHeader = getRequestIdHeader(response);
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(envelope.resource.service, "api");
+  assert.equal(envelope.resource.status, "healthy");
+  assert.equal(envelope.resource.checks.database.status, "healthy");
+  assert.equal(envelope.resource.checks.redis.status, "healthy");
+  assert.match(envelope.meta.requestId, /^req_/);
+  assert.equal(requestIdHeader, envelope.meta.requestId);
+  assert.equal(stderr, "");
+};
+
 test("API bootstrap listens when required env is valid", async () => {
-  await assertBootstrapHealthy();
+  await withMockDependencies(async (dependencyEnv) => {
+    await assertHealthyBootstrap({
+      envOverrides: {
+        ...validApiEnv,
+        ...dependencyEnv,
+      },
+    });
+  });
 });
 
 test("API bootstrap fails fast with descriptive env validation errors", async () => {
@@ -90,13 +212,16 @@ test("API bootstrap fails fast with descriptive env validation errors", async ()
 });
 
 test("API bootstrap accepts SMTP-only local email configuration", async () => {
-  await assertBootstrapHealthy({
-    envOverrides: {
-      ...validApiEnv,
-      EMAIL_PROVIDER_API_KEY: undefined,
-      EMAIL_SMTP_HOST: "127.0.0.1",
-      EMAIL_SMTP_PORT: "1025",
-    },
+  await withMockDependencies(async (dependencyEnv) => {
+    await assertHealthyBootstrap({
+      envOverrides: {
+        ...validApiEnv,
+        ...dependencyEnv,
+        EMAIL_PROVIDER_API_KEY: undefined,
+        EMAIL_SMTP_HOST: "127.0.0.1",
+        EMAIL_SMTP_PORT: "1025",
+      },
+    });
   });
 });
 
@@ -107,5 +232,37 @@ test("built API bootstrap artifact stays runnable without monorepo source import
     stdio: "inherit",
   });
 
-  await assertBootstrapHealthy({ spawn: spawnBuiltApi });
+  await withMockDependencies(async (dependencyEnv) => {
+    await assertHealthyBootstrap({
+      spawn: spawnBuiltApi,
+      envOverrides: {
+        ...validApiEnv,
+        ...dependencyEnv,
+      },
+    });
+  });
+});
+
+test("health endpoint returns 503 when redis dependency check fails", async () => {
+  await withMockDependencies(async (dependencyEnv) => {
+    await withOccupiedPort(async (occupiedPort) => {
+      const { response } = await getBootstrapHealthResponse({
+        envOverrides: {
+          ...validApiEnv,
+          ...dependencyEnv,
+          REDIS_URL: `redis://127.0.0.1:${occupiedPort}`,
+        },
+      });
+      const envelope = getHealthEnvelope(response);
+      const requestIdHeader = getRequestIdHeader(response);
+
+      assert.equal(response.statusCode, 503);
+      assert.equal(envelope.resource.service, "api");
+      assert.equal(envelope.resource.status, "unhealthy");
+      assert.equal(envelope.resource.checks.database.status, "healthy");
+      assert.equal(envelope.resource.checks.redis.status, "unhealthy");
+      assert.match(envelope.meta.requestId, /^req_/);
+      assert.equal(requestIdHeader, envelope.meta.requestId);
+    });
+  });
 });
