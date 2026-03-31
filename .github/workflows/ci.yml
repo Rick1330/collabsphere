@@ -103,6 +103,7 @@ jobs:
           POSTGRES_USER: collab
           POSTGRES_PASSWORD: collab
           POSTGRES_DB: collabsphere
+          POSTGRES_HOST_AUTH_METHOD: trust
         ports:
           - 5432:5432
         options: >-
@@ -139,6 +140,41 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Verify API health endpoint
+        env:
+          DATABASE_URL: postgresql://collab@127.0.0.1:5432/collabsphere
+          REDIS_URL: redis://127.0.0.1:6379
+          JWT_ACCESS_TTL_MINUTES: "15"
+          REFRESH_TOKEN_TTL_DAYS: "30"
+          CORS_ORIGINS: http://localhost:3000
+          EMAIL_SMTP_HOST: 127.0.0.1
+          EMAIL_SMTP_PORT: "1025"
+          API_BASE_URL: http://127.0.0.1:3001
+          BASE_URL: http://127.0.0.1:3001
+        run: |
+          set -euo pipefail
+          export JWT_ACCESS_SECRET="$(date +%s%N)"
+          pnpm --filter @collabsphere/api exec tsx src/dev.ts > /tmp/api-health.log 2>&1 &
+          api_pid=$!
+
+          cleanup() {
+            kill "$api_pid" >/dev/null 2>&1 || true
+            wait "$api_pid" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          for _ in {1..30}; do
+            if curl -fsS "$API_BASE_URL/api/v1/health" > /tmp/api-health-response.json; then
+              cat /tmp/api-health-response.json
+              exit 0
+            fi
+            sleep 1
+          done
+
+          echo "Health check failed. API startup log:"
+          cat /tmp/api-health.log
+          exit 1
 
       - name: Run integration tests
         env:
