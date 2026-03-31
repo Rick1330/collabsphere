@@ -162,9 +162,13 @@ const getHealthEnvelope = (response) => {
   };
 };
 
+const getRequestIdHeader = (response) =>
+  typeof response.headers?.["x-request-id"] === "string" ? response.headers["x-request-id"] : null;
+
 const assertHealthyBootstrap = async (options = {}) => {
   const { response, stderr } = await getBootstrapHealthResponse(options);
   const envelope = getHealthEnvelope(response);
+  const requestIdHeader = getRequestIdHeader(response);
 
   assert.equal(response.statusCode, 200);
   assert.equal(envelope.resource.service, "api");
@@ -172,6 +176,7 @@ const assertHealthyBootstrap = async (options = {}) => {
   assert.equal(envelope.resource.checks.database.status, "healthy");
   assert.equal(envelope.resource.checks.redis.status, "healthy");
   assert.match(envelope.meta.requestId, /^req_/);
+  assert.equal(requestIdHeader, envelope.meta.requestId);
   assert.equal(stderr, "");
 };
 
@@ -249,6 +254,7 @@ test("health endpoint returns 503 when redis dependency check fails", async () =
         },
       });
       const envelope = getHealthEnvelope(response);
+      const requestIdHeader = getRequestIdHeader(response);
 
       assert.equal(response.statusCode, 503);
       assert.equal(envelope.resource.service, "api");
@@ -256,6 +262,7 @@ test("health endpoint returns 503 when redis dependency check fails", async () =
       assert.equal(envelope.resource.checks.database.status, "healthy");
       assert.equal(envelope.resource.checks.redis.status, "unhealthy");
       assert.match(envelope.meta.requestId, /^req_/);
+      assert.equal(requestIdHeader, envelope.meta.requestId);
     });
   });
 });

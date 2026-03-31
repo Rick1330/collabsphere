@@ -176,6 +176,7 @@ export const getJson = (port, pathName = "/") =>
           try {
             resolveOnce({
               statusCode: response.statusCode,
+              headers: response.headers,
               body: JSON.parse(body),
             });
           } catch (error) {
