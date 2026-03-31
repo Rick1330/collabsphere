@@ -7,12 +7,13 @@ import {
   collectStream,
   getJson,
   repoRoot,
+  runTsc,
   spawnBootstrap,
   stopChild,
   waitForStdoutMatch,
 } from "./bootstrap-test-helpers.mjs";
 
-const apiEntryPath = path.join(repoRoot, "apps", "api", "src", "dev.js");
+const apiEntryPath = path.join(repoRoot, "apps", "api", "src", "dev.ts");
 const builtApiEntryPath = path.join(repoRoot, "apps", "api", "dist", "dev.js");
 
 const validApiEnv = Object.freeze({
@@ -86,6 +87,7 @@ test("API bootstrap fails fast with descriptive env validation errors", async ()
 });
 
 test("built API bootstrap artifact stays runnable without monorepo source imports", async () => {
+  runTsc(path.join(repoRoot, "apps", "api", "tsconfig.json"));
   execFileSync(process.execPath, ["scripts/build-bootstrap-app.mjs", "apps/api"], {
     cwd: repoRoot,
     stdio: "inherit",

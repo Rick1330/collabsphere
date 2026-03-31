@@ -3,9 +3,11 @@ import http from "node:http";
 import path from "node:path";
 import { once } from "node:events";
 import { fileURLToPath } from "node:url";
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 
 export const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+const tsxCli = path.join(repoRoot, "node_modules", "tsx", "dist", "cli.mjs");
+const tscCli = path.join(repoRoot, "node_modules", "typescript", "bin", "tsc");
 
 export const collectStream = (stream) => {
   let value = "";
@@ -194,8 +196,12 @@ export const getJson = (port, pathName = "/") =>
     });
   });
 
-export const spawnBootstrap = ({ entryPath, cwd, envOverrides }) =>
-  spawn(process.execPath, [entryPath], {
+export const spawnBootstrap = ({ entryPath, cwd, envOverrides }) => {
+  const useTsx = entryPath.endsWith(".ts");
+  const command = process.execPath;
+  const args = useTsx ? [tsxCli, entryPath] : [entryPath];
+
+  return spawn(command, args, {
     cwd,
     env: {
       ...process.env,
@@ -203,3 +209,11 @@ export const spawnBootstrap = ({ entryPath, cwd, envOverrides }) =>
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
+};
+
+export const runTsc = (projectPath) => {
+  execFileSync(process.execPath, [tscCli, "-p", projectPath], {
+    cwd: repoRoot,
+    stdio: "inherit",
+  });
+};
