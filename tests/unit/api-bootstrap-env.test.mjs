@@ -92,6 +92,11 @@ const createMockRedisServer = () =>
     socket.end();
   });
 
+const createHangingRedisServer = () =>
+  createMockDependencyServer(() => {
+    // Intentionally keep the socket open to exercise timeout behavior.
+  });
+
 const withOccupiedPort = async (callback) => {
   const blocker = net.createServer((socket) => {
     socket.destroy();
@@ -113,6 +118,20 @@ const withOccupiedPort = async (callback) => {
 const withMockDependencies = async (callback) => {
   const postgres = await createMockPostgresServer();
   const redis = await createMockRedisServer();
+
+  try {
+    await callback({
+      DATABASE_URL: `postgresql://collab:collab@127.0.0.1:${postgres.port}/collabsphere`,
+      REDIS_URL: `redis://127.0.0.1:${redis.port}`,
+    });
+  } finally {
+    await Promise.allSettled([closeServer(postgres.server), closeServer(redis.server)]);
+  }
+};
+
+const withCustomRedisDependency = async (createRedisServer, callback) => {
+  const postgres = await createMockPostgresServer();
+  const redis = await createRedisServer();
 
   try {
     await callback({
@@ -264,5 +283,29 @@ test("health endpoint returns 503 when redis dependency check fails", async () =
       assert.match(envelope.meta.requestId, /^req_/);
       assert.equal(requestIdHeader, envelope.meta.requestId);
     });
+  });
+});
+
+test("health endpoint returns 503 quickly when redis probe times out", async () => {
+  await withCustomRedisDependency(createHangingRedisServer, async (dependencyEnv) => {
+    const startedAt = Date.now();
+    const { response, stderr } = await getBootstrapHealthResponse({
+      envOverrides: {
+        ...validApiEnv,
+        ...dependencyEnv,
+        HEALTH_CHECK_TIMEOUT_MS: "200",
+      },
+    });
+    const elapsedMs = Date.now() - startedAt;
+    const envelope = getHealthEnvelope(response);
+
+    assert.equal(response.statusCode, 503);
+    assert.equal(envelope.resource.service, "api");
+    assert.equal(envelope.resource.status, "unhealthy");
+    assert.equal(envelope.resource.checks.database.status, "healthy");
+    assert.equal(envelope.resource.checks.redis.status, "unhealthy");
+    assert.equal(envelope.resource.checks.redis.detail, "REDIS_TIMEOUT");
+    assert.match(stderr, /\[api\] health redis probe timed out after 200ms/);
+    assert.ok(elapsedMs < 2000, `expected timeout response under 2s, got ${elapsedMs}ms`);
   });
 });
