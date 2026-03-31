@@ -5,6 +5,7 @@ Provide an execution-focused reference for API health probe behavior, response s
 
 ## Canonical Sources
 - `docs/spec/13-observability/13.2-request-correlation.md`
+- `docs/spec/09-api-standards/09.4-error-standards.md`
 - `docs/spec/14-devops/14.5-ci-pipeline.md`
 - `docs/agent-ref/ops/ci-cd.md`
 
@@ -25,17 +26,20 @@ Provide an execution-focused reference for API health probe behavior, response s
   - Redis `PING` probe
 
 ### Response envelope
-- Probe responses use the standard data/meta envelope:
+- Probe responses currently use a dependency-state data/meta envelope:
   - `data.resource.service`
   - `data.resource.status`
   - `data.resource.checks.database`
   - `data.resource.checks.redis`
   - `meta.requestId`
 - `x-request-id` header is included and matches `meta.requestId`.
+- API-wide standard remains error-envelope for `4xx/5xx` (`docs/spec/09-api-standards/09.4-error-standards.md`).
+- `/api/v1/health` is a documented operator-probe exception in current runtime behavior because unhealthy (`503`) responses must still expose check-state details (see story `#26` AC2 and `tests/unit/api-bootstrap-env.test.mjs` assertions).
 
 ### Status codes
 - `200` when all dependency checks are healthy.
 - `503` when any dependency check is unhealthy (including timeout).
+- For this endpoint, `503` still returns check-state `data/meta` payload (not generic `error` envelope) so load balancers and operators can read dependency status directly.
 
 ### Example response shape
 ```json
@@ -78,9 +82,9 @@ API_BASE_URL="${API_BASE_URL:-http://localhost:3001}"
 curl -fsS "$API_BASE_URL/api/v1/health"
 ```
 
-### Kubernetes probe (HTTP)
+### Kubernetes readiness probe (HTTP)
 ```yaml
-livenessProbe:
+readinessProbe:
   httpGet:
     path: /api/v1/health
     port: 3001
@@ -89,6 +93,10 @@ livenessProbe:
   timeoutSeconds: 2
   failureThreshold: 3
 ```
+
+### Kubernetes liveness probe guidance
+- Do **not** use dependency-aware `/api/v1/health` as `livenessProbe`, because dependency outages can trigger restart loops.
+- Prefer a process-only liveness check (for example `tcpSocket` on the API port) until a dedicated lightweight liveness endpoint is available.
 
 ### NGINX upstream health endpoint example
 ```nginx
