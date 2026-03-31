@@ -21,12 +21,15 @@ const distPackageJsonPath = path.join(distDir, "package.json");
 const sharedApiEnvPath = path.join(repoRoot, "packages", "shared", "src", "api-env.js");
 const sharedRuntimeEnvPath = path.join(repoRoot, "packages", "shared", "src", "runtime-env.js");
 const sharedEnvCorePath = path.join(repoRoot, "packages", "shared", "src", "env-core.js");
+const sharedBootstrapRuntimePath = path.join(repoRoot, "packages", "shared", "src", "bootstrap-runtime.js");
 const sharedZodPackagePath = path.join(repoRoot, "packages", "shared", "node_modules", "zod");
 const sharedPackageJsonPath = path.join(repoRoot, "packages", "shared", "package.json");
 const sharedSourceImport = "../../../packages/shared/src/api-env.js";
 const sharedRuntimeSourceImport = "../../../packages/shared/src/runtime-env.js";
+const sharedBootstrapRuntimeImport = "../../../packages/shared/src/bootstrap-runtime.js";
 const sharedDistImport = "./_shared/api-env.js";
 const sharedRuntimeDistImport = "./_shared/runtime-env.js";
+const sharedBootstrapRuntimeDistImport = "./_shared/bootstrap-runtime.js";
 
 const fileExists = async (filePath) => {
   try {
@@ -72,29 +75,47 @@ if (hasTsSource) {
 }
 let distSourceCode = sourceCode;
 const distPackageDependencies = { ...(packageJson.dependencies ?? {}) };
+const needsSharedEnv =
+  sourceCode.includes(sharedSourceImport) || sourceCode.includes(sharedRuntimeSourceImport);
+const needsSharedBootstrap = sourceCode.includes(sharedBootstrapRuntimeImport);
 
-if (sourceCode.includes(sharedSourceImport) || sourceCode.includes(sharedRuntimeSourceImport)) {
+if (needsSharedEnv || needsSharedBootstrap) {
   const sharedDistDir = path.join(distDir, "_shared");
   const distNodeModulesDir = path.join(distDir, "node_modules");
   await mkdir(sharedDistDir, { recursive: true });
-  await mkdir(distNodeModulesDir, { recursive: true });
-  await cp(sharedApiEnvPath, path.join(sharedDistDir, "api-env.js"));
-  await cp(sharedRuntimeEnvPath, path.join(sharedDistDir, "runtime-env.js"));
-  await cp(sharedEnvCorePath, path.join(sharedDistDir, "env-core.js"));
-  await cp(sharedZodPackagePath, path.join(distNodeModulesDir, "zod"), {
-    recursive: true,
-  });
+
+  if (needsSharedBootstrap) {
+    await cp(sharedBootstrapRuntimePath, path.join(sharedDistDir, "bootstrap-runtime.js"));
+  }
+
+  if (needsSharedEnv) {
+    await mkdir(distNodeModulesDir, { recursive: true });
+    await cp(sharedApiEnvPath, path.join(sharedDistDir, "api-env.js"));
+    await cp(sharedRuntimeEnvPath, path.join(sharedDistDir, "runtime-env.js"));
+    await cp(sharedEnvCorePath, path.join(sharedDistDir, "env-core.js"));
+    await cp(sharedZodPackagePath, path.join(distNodeModulesDir, "zod"), {
+      recursive: true,
+    });
+  }
+
   distSourceCode = sourceCode
     .split(sharedSourceImport)
     .join(sharedDistImport)
     .split(sharedRuntimeSourceImport)
-    .join(sharedRuntimeDistImport);
-  if (sharedPackageJson.dependencies?.zod) {
+    .join(sharedRuntimeDistImport)
+    .split(sharedBootstrapRuntimeImport)
+    .join(sharedBootstrapRuntimeDistImport);
+
+  if (needsSharedEnv && sharedPackageJson.dependencies?.zod) {
     distPackageDependencies.zod = sharedPackageJson.dependencies.zod;
   }
 }
 
-if (distSourceCode.includes(sharedSourceImport) || distSourceCode.includes(sharedRuntimeSourceImport)) {
+if (
+  distSourceCode.includes(sharedSourceImport) ||
+  distSourceCode.includes(sharedRuntimeSourceImport) ||
+  distSourceCode.includes(sharedBootstrapRuntimeImport)
+) {
   throw new Error("Bootstrap artifact still references a monorepo shared source path.");
 }
 

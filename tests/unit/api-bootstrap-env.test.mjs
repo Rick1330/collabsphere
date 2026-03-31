@@ -7,6 +7,7 @@ import {
   collectStream,
   getJson,
   repoRoot,
+  runTsc,
   spawnBootstrap,
   stopChild,
   waitForStdoutMatch,
@@ -14,14 +15,6 @@ import {
 
 const apiEntryPath = path.join(repoRoot, "apps", "api", "src", "dev.ts");
 const builtApiEntryPath = path.join(repoRoot, "apps", "api", "dist", "dev.js");
-const tscBin = path.join(repoRoot, "node_modules", "typescript", "bin", "tsc");
-
-const runTsc = (projectPath) => {
-  execFileSync(process.execPath, [tscBin, "-p", projectPath], {
-    cwd: repoRoot,
-    stdio: "inherit",
-  });
-};
 
 const validApiEnv = Object.freeze({
   HOST: "127.0.0.1",

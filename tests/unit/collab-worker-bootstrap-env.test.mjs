@@ -7,6 +7,7 @@ import {
   collectStream,
   getJson,
   repoRoot,
+  runTsc,
   spawnBootstrap,
   stopChild,
   waitForStdoutMatch,
@@ -16,14 +17,6 @@ const collabEntryPath = path.join(repoRoot, "apps", "collab", "src", "dev.ts");
 const builtCollabEntryPath = path.join(repoRoot, "apps", "collab", "dist", "dev.js");
 const workerEntryPath = path.join(repoRoot, "apps", "worker", "src", "dev.ts");
 const builtWorkerEntryPath = path.join(repoRoot, "apps", "worker", "dist", "dev.js");
-const tscBin = path.join(repoRoot, "node_modules", "typescript", "bin", "tsc");
-
-const runTsc = (projectPath) => {
-  execFileSync(process.execPath, [tscBin, "-p", projectPath], {
-    cwd: repoRoot,
-    stdio: "inherit",
-  });
-};
 
 const validRuntimeEnv = Object.freeze({
   HOST: "127.0.0.1",

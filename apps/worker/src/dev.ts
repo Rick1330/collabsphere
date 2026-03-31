@@ -1,21 +1,9 @@
 import { EnvValidationError, parseRuntimeEnv } from "../../../packages/shared/src/runtime-env.js";
+import { validateServiceEnv } from "../../../packages/shared/src/bootstrap-runtime.js";
 
 const defaultHeartbeatMs = 5000;
 const minHeartbeatMs = 1000;
 const maxHeartbeatMs = 60000;
-
-const validateRuntimeEnv = () => {
-  try {
-    return parseRuntimeEnv(process.env);
-  } catch (error) {
-    if (error instanceof EnvValidationError) {
-      console.error(`[worker] ${error.message}`);
-      process.exit(1);
-    }
-
-    throw error;
-  }
-};
 
 const parseHeartbeatMs = (value: string | undefined) => {
   const trimmed = value?.trim();
@@ -49,7 +37,11 @@ const parseHeartbeatMs = (value: string | undefined) => {
   return parsed;
 };
 
-validateRuntimeEnv();
+validateServiceEnv({
+  service: "worker",
+  parser: parseRuntimeEnv,
+  validationErrorClass: EnvValidationError,
+});
 
 const heartbeatMs = parseHeartbeatMs(process.env.WORKER_HEARTBEAT_MS);
 
