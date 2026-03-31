@@ -92,17 +92,22 @@ const createMockRedisServer = () =>
     socket.end();
   });
 
-const getUnusedPort = async () => {
-  const server = net.createServer();
-  server.listen(0, "127.0.0.1");
-  await once(server, "listening");
+const withOccupiedPort = async (callback) => {
+  const blocker = net.createServer((socket) => {
+    socket.destroy();
+  });
 
-  const address = server.address();
+  blocker.listen(0, "127.0.0.1");
+  await once(blocker, "listening");
+
+  const address = blocker.address();
   assert.ok(address && typeof address === "object");
-  const { port } = address;
 
-  await closeServer(server);
-  return port;
+  try {
+    await callback(address.port);
+  } finally {
+    await closeServer(blocker);
+  }
 };
 
 const withMockDependencies = async (callback) => {
@@ -119,7 +124,7 @@ const withMockDependencies = async (callback) => {
   }
 };
 
-const assertBootstrapHealthy = async ({
+const getBootstrapHealthResponse = async ({
   spawn = spawnApi,
   envOverrides = validApiEnv,
 } = {}) => {
@@ -136,21 +141,30 @@ const assertBootstrapHealthy = async ({
     );
     const response = await getJson(Number.parseInt(match[1], 10), "/api/v1/health");
 
-    assert.equal(response.statusCode, 200);
-    assert.equal(response.body?.data?.resource?.service, "api");
-    assert.equal(response.body?.data?.resource?.status, "healthy");
-    assert.equal(response.body?.data?.resource?.checks?.database?.status, "healthy");
-    assert.equal(response.body?.data?.resource?.checks?.redis?.status, "healthy");
-    assert.match(response.body?.meta?.requestId ?? "", /^req_/);
-    assert.equal(stderrText(), "");
+    return {
+      response,
+      stderr: stderrText(),
+    };
   } finally {
     await stopChild(child);
   }
 };
 
+const assertHealthyBootstrap = async (options = {}) => {
+  const { response, stderr } = await getBootstrapHealthResponse(options);
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body?.data?.resource?.service, "api");
+  assert.equal(response.body?.data?.resource?.status, "healthy");
+  assert.equal(response.body?.data?.resource?.checks?.database?.status, "healthy");
+  assert.equal(response.body?.data?.resource?.checks?.redis?.status, "healthy");
+  assert.match(response.body?.meta?.requestId ?? "", /^req_/);
+  assert.equal(stderr, "");
+};
+
 test("API bootstrap listens when required env is valid", async () => {
   await withMockDependencies(async (dependencyEnv) => {
-    await assertBootstrapHealthy({
+    await assertHealthyBootstrap({
       envOverrides: {
         ...validApiEnv,
         ...dependencyEnv,
@@ -181,7 +195,7 @@ test("API bootstrap fails fast with descriptive env validation errors", async ()
 
 test("API bootstrap accepts SMTP-only local email configuration", async () => {
   await withMockDependencies(async (dependencyEnv) => {
-    await assertBootstrapHealthy({
+    await assertHealthyBootstrap({
       envOverrides: {
         ...validApiEnv,
         ...dependencyEnv,
@@ -201,7 +215,7 @@ test("built API bootstrap artifact stays runnable without monorepo source import
   });
 
   await withMockDependencies(async (dependencyEnv) => {
-    await assertBootstrapHealthy({
+    await assertHealthyBootstrap({
       spawn: spawnBuiltApi,
       envOverrides: {
         ...validApiEnv,
@@ -213,22 +227,14 @@ test("built API bootstrap artifact stays runnable without monorepo source import
 
 test("health endpoint returns 503 when redis dependency check fails", async () => {
   await withMockDependencies(async (dependencyEnv) => {
-    const unavailableRedisPort = await getUnusedPort();
-    const child = spawnApi({
-      ...validApiEnv,
-      ...dependencyEnv,
-      REDIS_URL: `redis://127.0.0.1:${unavailableRedisPort}`,
-    });
-    const stdoutText = collectStream(child.stdout);
-
-    try {
-      const match = await waitForStdoutMatch(
-        child,
-        stdoutText,
-        /bootstrap listening on http:\/\/[^:]+:(\d+)\/api\/v1\/health/,
-        "API bootstrap readiness",
-      );
-      const response = await getJson(Number.parseInt(match[1], 10), "/api/v1/health");
+    await withOccupiedPort(async (occupiedPort) => {
+      const { response } = await getBootstrapHealthResponse({
+        envOverrides: {
+          ...validApiEnv,
+          ...dependencyEnv,
+          REDIS_URL: `redis://127.0.0.1:${occupiedPort}`,
+        },
+      });
 
       assert.equal(response.statusCode, 503);
       assert.equal(response.body?.data?.resource?.service, "api");
@@ -236,8 +242,6 @@ test("health endpoint returns 503 when redis dependency check fails", async () =
       assert.equal(response.body?.data?.resource?.checks?.database?.status, "healthy");
       assert.equal(response.body?.data?.resource?.checks?.redis?.status, "unhealthy");
       assert.match(response.body?.meta?.requestId ?? "", /^req_/);
-    } finally {
-      await stopChild(child);
-    }
+    });
   });
 });

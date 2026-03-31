@@ -47,8 +47,9 @@ const { healthController } = createHealthModule({
 });
 
 const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+  const requestId = createRequestId();
+
   void (async () => {
-    const requestId = createRequestId();
     let url;
 
     try {
@@ -88,16 +89,16 @@ const server = createServer((request: IncomingMessage, response: ServerResponse)
       requestId,
     );
   })().catch((error: unknown) => {
-    const requestId = createRequestId();
     const message = error instanceof Error ? error.message : String(error);
+    console.error(`[api] bootstrap request failed (${requestId}): ${message}`);
 
     writeJson(
       response,
       500,
       {
         error: {
-          code: "INTERNAL_SERVER_ERROR",
-          message,
+          code: "INTERNAL_ERROR",
+          message: "Unexpected server error",
           requestId,
           timestamp: new Date().toISOString(),
         },

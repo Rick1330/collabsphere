@@ -25,6 +25,15 @@ type HostAndPort = {
   port: number;
 };
 
+type ProbeConfig = {
+  prefix: "POSTGRES" | "REDIS";
+  targetUrl: string;
+  defaultPort: number;
+  requestBuffer: Buffer;
+  isValidResponse: (chunk: Buffer) => boolean;
+  invalidResponseCode: string;
+};
+
 const getErrorCode = (error: unknown) => {
   if (!error || typeof error !== "object") {
     return "CHECK_FAILED";
@@ -100,7 +109,19 @@ const connectSocket = (address: HostAndPort) =>
 
 const closeSocket = (socket: net.Socket) =>
   new Promise<void>((resolve) => {
-    socket.once("close", () => resolve());
+    if (socket.destroyed) {
+      resolve();
+      return;
+    }
+
+    const onSettled = () => {
+      socket.off("close", onSettled);
+      socket.off("error", onSettled);
+      resolve();
+    };
+
+    socket.once("close", onSettled);
+    socket.once("error", onSettled);
     socket.end();
   });
 
@@ -121,18 +142,18 @@ export class HealthService {
     private readonly redisUrl: string,
   ) {}
 
-  private async checkDatabase(): Promise<DependencyCheckResult> {
+  private async runProbe(config: ProbeConfig): Promise<DependencyCheckResult> {
     const startedAt = Date.now();
 
     try {
-      const socket = await connectSocket(parseHostAndPort(this.databaseUrl, 5432));
+      const socket = await connectSocket(parseHostAndPort(config.targetUrl, config.defaultPort));
 
       try {
-        socket.write(postgresSslRequestBuffer);
+        socket.write(config.requestBuffer);
         const chunk = await readOnce(socket);
 
-        if (!chunk.length || !postgresAcceptedResponses.has(chunk[0])) {
-          return createUnhealthyResult(startedAt, "POSTGRES_UNEXPECTED_HANDSHAKE_RESPONSE");
+        if (!config.isValidResponse(chunk)) {
+          return createUnhealthyResult(startedAt, config.invalidResponseCode);
         }
 
         return createHealthyResult(startedAt);
@@ -140,31 +161,30 @@ export class HealthService {
         await closeSocket(socket);
       }
     } catch (error) {
-      return createUnhealthyResult(startedAt, `POSTGRES_${getErrorCode(error)}`);
+      return createUnhealthyResult(startedAt, `${config.prefix}_${getErrorCode(error)}`);
     }
   }
 
+  private checkDatabase(): Promise<DependencyCheckResult> {
+    return this.runProbe({
+      prefix: "POSTGRES",
+      targetUrl: this.databaseUrl,
+      defaultPort: 5432,
+      requestBuffer: postgresSslRequestBuffer,
+      isValidResponse: (chunk) => chunk.length > 0 && postgresAcceptedResponses.has(chunk[0]),
+      invalidResponseCode: "POSTGRES_UNEXPECTED_HANDSHAKE_RESPONSE",
+    });
+  }
+
   private async checkRedis(): Promise<DependencyCheckResult> {
-    const startedAt = Date.now();
-
-    try {
-      const socket = await connectSocket(parseHostAndPort(this.redisUrl, 6379));
-
-      try {
-        socket.write(redisPingBuffer);
-        const chunk = await readOnce(socket);
-
-        if (!chunk.toString("utf8").startsWith("+PONG")) {
-          return createUnhealthyResult(startedAt, "REDIS_UNEXPECTED_PING_RESPONSE");
-        }
-
-        return createHealthyResult(startedAt);
-      } finally {
-        await closeSocket(socket);
-      }
-    } catch (error) {
-      return createUnhealthyResult(startedAt, `REDIS_${getErrorCode(error)}`);
-    }
+    return this.runProbe({
+      prefix: "REDIS",
+      targetUrl: this.redisUrl,
+      defaultPort: 6379,
+      requestBuffer: redisPingBuffer,
+      isValidResponse: (chunk) => chunk.toString("utf8").startsWith("+PONG"),
+      invalidResponseCode: "REDIS_UNEXPECTED_PING_RESPONSE",
+    });
   }
 
   async runChecks(): Promise<HealthResult> {
