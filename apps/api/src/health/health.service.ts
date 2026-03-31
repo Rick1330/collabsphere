@@ -51,6 +51,8 @@ const parseProbeTimeoutMs = (value: string | undefined) => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : defaultProbeTimeoutMs;
 };
 
+const getRemainingTimeoutMs = (deadlineMs: number) => Math.max(1, deadlineMs - Date.now());
+
 const getErrorCode = (error: unknown) => {
   if (!error || typeof error !== "object") {
     return "CHECK_FAILED";
@@ -175,16 +177,17 @@ export class HealthService {
 
   private async runProbe(config: ProbeConfig): Promise<DependencyCheckResult> {
     const startedAt = Date.now();
+    const deadlineMs = startedAt + this.probeTimeoutMs;
 
     try {
       const socket = await connectSocket(
         parseHostAndPort(config.targetUrl, config.defaultPort),
-        this.probeTimeoutMs,
+        getRemainingTimeoutMs(deadlineMs),
       );
 
       try {
         socket.write(config.requestBuffer);
-        const chunk = await readOnce(socket, this.probeTimeoutMs);
+        const chunk = await readOnce(socket, getRemainingTimeoutMs(deadlineMs));
 
         if (!config.isValidResponse(chunk)) {
           return createUnhealthyResult(startedAt, config.invalidResponseCode);
