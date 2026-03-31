@@ -90,9 +90,10 @@ readinessProbe:
     port: 3001
   initialDelaySeconds: 5
   periodSeconds: 10
-  timeoutSeconds: 2
+  timeoutSeconds: 3
   failureThreshold: 3
 ```
+- Keep readiness `timeoutSeconds` higher than the app probe timeout budget so the process can return structured `503` payloads instead of transport timeouts.
 
 ### Kubernetes liveness probe guidance
 - Do **not** use dependency-aware `/api/v1/health` as `livenessProbe`, because dependency outages can trigger restart loops.
