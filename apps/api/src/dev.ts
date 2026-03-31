@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { randomUUID } from "node:crypto";
 import { EnvValidationError, parseApiRuntimeEnv } from "../../../packages/shared/src/api-env.js";
 import { resolveEmailConfig } from "./config/email.js";
+import { createHealthModule } from "./health/health.module.js";
 import {
   startHttpBootstrapServer,
   validateServiceEnv,
@@ -21,52 +22,88 @@ try {
   process.exit(1);
 }
 
-const writeJson = (response: ServerResponse, statusCode: number, payload: unknown) => {
-  response.writeHead(statusCode, { "content-type": "application/json; charset=utf-8" });
+const writeJson = (
+  response: ServerResponse,
+  statusCode: number,
+  payload: unknown,
+  requestId?: string,
+) => {
+  const headers = {
+    "content-type": "application/json; charset=utf-8",
+  } as Record<string, string>;
+
+  if (requestId) {
+    headers["x-request-id"] = requestId;
+  }
+
+  response.writeHead(statusCode, headers);
   response.end(JSON.stringify(payload, null, 2));
 };
 
 const createRequestId = () => `req_${randomUUID()}`;
+const { healthController } = createHealthModule({
+  databaseUrl: apiEnv.DATABASE_URL,
+  redisUrl: apiEnv.REDIS_URL,
+});
 
 const server = createServer((request: IncomingMessage, response: ServerResponse) => {
-  const requestId = createRequestId();
-  let url;
+  void (async () => {
+    const requestId = createRequestId();
+    let url;
 
-  try {
-    url = new URL(request.url ?? "/", "http://bootstrap");
-  } catch {
-    return writeJson(response, 400, {
-      error: {
-        code: "VALIDATION_ERROR",
-        message: "Invalid request URL",
+    try {
+      url = new URL(request.url ?? "/", "http://bootstrap");
+    } catch {
+      return writeJson(
+        response,
+        400,
+        {
+          error: {
+            code: "VALIDATION_ERROR",
+            message: "Invalid request URL",
+            requestId,
+            timestamp: new Date().toISOString()
+          }
+        },
         requestId,
-        timestamp: new Date().toISOString()
-      }
-    });
-  }
+      );
+    }
 
-  if (request.method === "GET" && url.pathname === "/api/v1/health") {
-    return writeJson(response, 200, {
-      data: {
-        resource: {
-          service: "api",
-          status: "ok",
-          mode: "bootstrap"
+    if (request.method === "GET" && url.pathname === "/api/v1/health") {
+      const healthResponse = await healthController.getHealth(requestId);
+      return writeJson(response, healthResponse.statusCode, healthResponse.payload, requestId);
+    }
+
+    return writeJson(
+      response,
+      404,
+      {
+        error: {
+          code: "NOT_FOUND",
+          message: `No bootstrap route for ${request.method} ${url.pathname}`,
+          requestId,
+          timestamp: new Date().toISOString()
         }
       },
-      meta: {
-        requestId
-      }
-    });
-  }
-
-  return writeJson(response, 404, {
-    error: {
-      code: "NOT_FOUND",
-      message: `No bootstrap route for ${request.method} ${url.pathname}`,
       requestId,
-      timestamp: new Date().toISOString()
-    }
+    );
+  })().catch((error: unknown) => {
+    const requestId = createRequestId();
+    const message = error instanceof Error ? error.message : String(error);
+
+    writeJson(
+      response,
+      500,
+      {
+        error: {
+          code: "INTERNAL_SERVER_ERROR",
+          message,
+          requestId,
+          timestamp: new Date().toISOString(),
+        },
+      },
+      requestId,
+    );
   });
 });
 
