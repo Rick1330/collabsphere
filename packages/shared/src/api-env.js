@@ -46,22 +46,17 @@ const baseApiEnvSchema = sharedEnvSchema
 export const apiEnvSchema = baseApiEnvSchema;
 
 const hasConfiguredValue = (value) => typeof value === "string" && value.trim().length > 0;
+const createApiEnvError = (key, message) => new EnvValidationError([{ key, message }]);
+const missingSmtpPairMessage = "EMAIL_SMTP_HOST and EMAIL_SMTP_PORT must be set together for local SMTP.";
+const missingProviderMessage = "EMAIL_PROVIDER_API_KEY is required when local SMTP is not configured.";
 
 const createMissingPairError = (hasSmtpHost) =>
-  new EnvValidationError([
-    {
-      key: hasSmtpHost ? "EMAIL_SMTP_PORT" : "EMAIL_SMTP_HOST",
-      message: "EMAIL_SMTP_HOST and EMAIL_SMTP_PORT must be set together for local SMTP.",
-    },
-  ]);
+  createApiEnvError(
+    hasSmtpHost ? "EMAIL_SMTP_PORT" : "EMAIL_SMTP_HOST",
+    missingSmtpPairMessage,
+  );
 
-const createMissingProviderError = () =>
-  new EnvValidationError([
-    {
-      key: "EMAIL_PROVIDER_API_KEY",
-      message: "EMAIL_PROVIDER_API_KEY is required when local SMTP is not configured.",
-    },
-  ]);
+const createMissingProviderError = () => createApiEnvError("EMAIL_PROVIDER_API_KEY", missingProviderMessage);
 
 const selectApiEnv = (input) =>
   Object.fromEntries(apiEnvKeys.map((key) => [key, input[key]]));

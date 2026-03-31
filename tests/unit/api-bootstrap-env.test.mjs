@@ -40,8 +40,11 @@ const spawnBuiltApi = (envOverrides) =>
     envOverrides,
   });
 
-const assertBootstrapHealthy = async (spawnBootstrap) => {
-  const child = spawnBootstrap(validApiEnv);
+const assertBootstrapHealthy = async ({
+  spawn = spawnApi,
+  envOverrides = validApiEnv,
+} = {}) => {
+  const child = spawn(envOverrides);
   const stdoutText = collectStream(child.stdout);
   const stderrText = collectStream(child.stderr);
 
@@ -63,7 +66,7 @@ const assertBootstrapHealthy = async (spawnBootstrap) => {
 };
 
 test("API bootstrap listens when required env is valid", async () => {
-  await assertBootstrapHealthy(spawnApi);
+  await assertBootstrapHealthy();
 });
 
 test("API bootstrap fails fast with descriptive env validation errors", async () => {
@@ -87,30 +90,14 @@ test("API bootstrap fails fast with descriptive env validation errors", async ()
 });
 
 test("API bootstrap accepts SMTP-only local email configuration", async () => {
-  const child = spawnApi({
-    ...validApiEnv,
-    EMAIL_PROVIDER_API_KEY: undefined,
-    EMAIL_SMTP_HOST: "127.0.0.1",
-    EMAIL_SMTP_PORT: "1025",
+  await assertBootstrapHealthy({
+    envOverrides: {
+      ...validApiEnv,
+      EMAIL_PROVIDER_API_KEY: undefined,
+      EMAIL_SMTP_HOST: "127.0.0.1",
+      EMAIL_SMTP_PORT: "1025",
+    },
   });
-  const stdoutText = collectStream(child.stdout);
-  const stderrText = collectStream(child.stderr);
-
-  try {
-    const match = await waitForStdoutMatch(
-      child,
-      stdoutText,
-      /bootstrap listening on http:\/\/[^:]+:(\d+)\/api\/v1\/health/,
-      "API bootstrap readiness",
-    );
-    const response = await getJson(Number.parseInt(match[1], 10), "/api/v1/health");
-
-    assert.equal(response.statusCode, 200);
-    assert.equal(response.body?.data?.resource?.service, "api");
-    assert.equal(stderrText(), "");
-  } finally {
-    await stopChild(child);
-  }
 });
 
 test("built API bootstrap artifact stays runnable without monorepo source imports", async () => {
@@ -120,5 +107,5 @@ test("built API bootstrap artifact stays runnable without monorepo source import
     stdio: "inherit",
   });
 
-  await assertBootstrapHealthy(spawnBuiltApi);
+  await assertBootstrapHealthy({ spawn: spawnBuiltApi });
 });
