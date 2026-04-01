@@ -42,6 +42,9 @@ jobs:
       - name: Resolve deploy target
         id: target
         shell: bash
+        env:
+          INPUT_ENVIRONMENT: ${{ github.event.inputs.environment }}
+          INPUT_IMAGE_TAG: ${{ github.event.inputs.image_tag }}
         run: |
           set -euo pipefail
 
@@ -56,13 +59,13 @@ jobs:
             image_tag="${GITHUB_REF_NAME}"
             vercel_environment="production"
           elif [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
-            deploy_environment="${{ github.event.inputs.environment }}"
+            deploy_environment="$INPUT_ENVIRONMENT"
             if [[ "$deploy_environment" == "production" ]]; then
               vercel_environment="production"
             fi
 
-            if [[ -n "${{ github.event.inputs.image_tag }}" ]]; then
-              image_tag="${{ github.event.inputs.image_tag }}"
+            if [[ -n "$INPUT_IMAGE_TAG" ]]; then
+              image_tag="$INPUT_IMAGE_TAG"
             fi
           fi
 
