@@ -25,7 +25,7 @@
 - The canonical deployment spec and agent-ref docs are the only repo docs still mentioning Railway directly.
 - Product constraints in `docs/spec/01-product-vision/01.9-constraints.md` still bias toward free-tier/VPS hosting, which conflicts with choosing Azure Container Apps as the preferred managed backend target unless cost control and portability are stated explicitly.
 - Current repo reality for `apps/web` is a static artifact deployed from `apps/web/dist`, not a Next.js-specific runtime surface.
-- `.github/queue/README.md` and `CONTRIBUTING.md` require queue manifests to be regenerated from `D:\coloe\github-import` via `npm run queue:sync`; manual queue edits are not the preferred path.
+- `.github/queue/README.md` and `CONTRIBUTING.md` require queue manifests to be regenerated from the sibling `github-import` workspace via `npm run queue:sync`; manual queue edits are not the preferred path.
 - The queue generator can legitimately carry unrelated manifest drift from the live issue graph; if such fallout appears, it must be identified as generator output instead of silently mixed into task scope.
 
 ## Decision Log
@@ -82,7 +82,7 @@
 
 ## Validation and Acceptance
 - Commands:
-  - `Select-String -Path docs/spec/14-devops/14.6-deployment-strategy.md,docs/agent-ref/ops/deployment.md,docs/spec/01-product-vision/01.9-constraints.md,docs/spec/07-architecture/07.6-adrs.md,docs/domains/architecture/adrs.md,.github/queue/projects/PRJ-01.yaml -Pattern "Railway|Azure Container Apps|DigitalOcean|Cloudflare R2|Vercel"`
+  - `git grep -n -E "Railway|Azure Container Apps|DigitalOcean|Cloudflare R2|Vercel" -- docs/spec/14-devops/14.6-deployment-strategy.md docs/agent-ref/ops/deployment.md docs/spec/01-product-vision/01.9-constraints.md docs/spec/07-architecture/07.6-adrs.md docs/domains/architecture/adrs.md .github/queue/projects/PRJ-01.yaml`
   - `gh issue view 28 --json title,body,labels,url`
   - `gh issue view 228 --json title,body,labels,url`
   - `gh issue view 599 --json title,body,labels,url`
@@ -92,7 +92,7 @@
 
 ## Idempotence and Recovery
 - Safe retry steps:
-  - Re-run the `Select-String` validation to confirm the same drift remains resolved after any interruption.
+  - Re-run the `git grep` validation to confirm the same drift remains resolved after any interruption.
   - Re-open the created architecture-correction issue and linked GitHub issue bodies to continue body sync.
 - Rollback steps (if applicable):
   - Revert only the specific doc/queue correction commit if the architecture direction changes again.
