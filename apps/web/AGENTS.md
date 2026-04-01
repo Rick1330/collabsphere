@@ -1,13 +1,13 @@
 # AGENTS.md
 
 ## Purpose
-Local rules for the Next.js web application.
+Local rules for the web client and static bootstrap surface.
 
 ## Scope
-`apps/web` App Router routes, pages, layouts, client state, and UI integration.
+`apps/web` static entrypoint assets, client-side behavior, and deployment-facing web output.
 
 ## Must Follow
-- Use Next.js App Router conventions for routes, layouts, and data fetching.
+- Keep `apps/web` deployable as a static artifact; do not introduce framework-specific server/runtime assumptions without an explicit spec/ADR change.
 - Every page must implement Loading, Empty, Error, and Loaded states.
 - Use TanStack Query for server state and mutations; follow optimistic update rules.
 - Respect auth/session boundaries; do not assume access outside API contracts.

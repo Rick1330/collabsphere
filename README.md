@@ -1,6 +1,6 @@
 # CollabSphere
 
-CollabSphere is a realtime collaboration workspace platform built with Next.js, NestJS, Hocuspocus, BullMQ, PostgreSQL, Redis, and local Docker-backed developer services.
+CollabSphere is a realtime collaboration workspace platform built with a static web bootstrap/client, NestJS, Hocuspocus, BullMQ, PostgreSQL, Redis, and local Docker-backed developer services.
 
 ## Local Development
 
