@@ -1,0 +1,66 @@
+location: __LOCATION__
+name: collabsphere-api
+type: Microsoft.App/containerApps
+properties:
+  managedEnvironmentId: __MANAGED_ENVIRONMENT_ID__
+  configuration:
+    activeRevisionsMode: Single
+    ingress:
+      allowInsecure: false
+      external: true
+      targetPort: 3001
+      transport: http
+      traffic:
+        - latestRevision: true
+          weight: 100
+  template:
+    containers:
+      - name: api
+        image: __REGISTRY_SERVER__/collabsphere-api:__IMAGE_TAG__
+        env:
+          - name: PORT
+            value: "3001"
+          - name: HOST
+            value: "0.0.0.0"
+          - name: DATABASE_URL
+            secretRef: database-url
+          - name: REDIS_URL
+            secretRef: redis-url
+          - name: JWT_ACCESS_SECRET
+            secretRef: jwt-access-secret
+          - name: JWT_ACCESS_TTL_MINUTES
+            value: "15"
+          - name: REFRESH_TOKEN_TTL_DAYS
+            value: "7"
+          - name: CORS_ORIGINS
+            secretRef: cors-origins
+          - name: EMAIL_PROVIDER_API_KEY
+            secretRef: email-provider-api-key
+          - name: API_BASE_URL
+            secretRef: api-base-url
+          - name: BASE_URL
+            secretRef: base-url
+        probes:
+          - type: Startup
+            httpGet:
+              path: /api/v1/health
+              port: 3001
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          - type: Liveness
+            tcpSocket:
+              port: 3001
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          - type: Readiness
+            httpGet:
+              path: /api/v1/health
+              port: 3001
+            initialDelaySeconds: 5
+            periodSeconds: 5
+        resources:
+          cpu: 0.5
+          memory: 1.0Gi
+    scale:
+      minReplicas: 1
+      maxReplicas: 1

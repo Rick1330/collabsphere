@@ -1,0 +1,52 @@
+location: __LOCATION__
+name: collabsphere-worker
+type: Microsoft.App/containerApps
+properties:
+  managedEnvironmentId: __MANAGED_ENVIRONMENT_ID__
+  configuration:
+    activeRevisionsMode: Single
+  template:
+    containers:
+      - name: worker
+        image: __REGISTRY_SERVER__/collabsphere-worker:__IMAGE_TAG__
+        env:
+          - name: DATABASE_URL
+            secretRef: database-url
+          - name: REDIS_URL
+            secretRef: redis-url
+          - name: JWT_ACCESS_SECRET
+            secretRef: jwt-access-secret
+          - name: JWT_ACCESS_TTL_MINUTES
+            value: "15"
+          - name: REFRESH_TOKEN_TTL_DAYS
+            value: "7"
+          - name: CORS_ORIGINS
+            secretRef: cors-origins
+          - name: EMAIL_PROVIDER_API_KEY
+            secretRef: email-provider-api-key
+          - name: API_BASE_URL
+            secretRef: api-base-url
+          - name: BASE_URL
+            secretRef: base-url
+          - name: COLLAB_DATABASE_URL
+            secretRef: collab-database-url
+          - name: COLLAB_JWT_SECRET
+            secretRef: collab-jwt-secret
+          - name: COLLAB_WS_URL
+            secretRef: collab-ws-url
+          - name: S3_BUCKET
+            secretRef: s3-bucket
+          - name: S3_ACCESS_KEY_ID
+            secretRef: __S3_AUTH_ID_REF__
+          - name: S3_SECRET_ACCESS_KEY
+            secretRef: __S3_AUTH_VALUE_REF__
+          - name: S3_REGION
+            secretRef: s3-region
+          - name: WORKER_HEARTBEAT_MS
+            value: "5000"
+        resources:
+          cpu: 0.5
+          memory: 1.0Gi
+    scale:
+      minReplicas: 1
+      maxReplicas: 1

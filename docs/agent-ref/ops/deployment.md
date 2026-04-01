@@ -34,6 +34,7 @@ Provide an execution-focused reference for CollabSphere deployment strategy, uni
 - Database: managed Postgres selected separately from the compute runtime.
 - Redis: managed Redis selected separately from the compute runtime.
 - Object storage: not part of the immediate CS-008 runtime migration; keep the storage interface S3-compatible and treat Cloudflare R2 as a deferred option.
+- Backend asset shape: see `infra/azure/container-apps/` for the current ACA service manifests and migration-job hook contract.
 
 ### Environment Rules
 - Separate configs for Local, Staging, Production.
@@ -44,6 +45,7 @@ Provide an execution-focused reference for CollabSphere deployment strategy, uni
 ### Zero-downtime (v1 scope)
 - Not required for v1.
 - Recommended: rolling revisions for containerized backend services.
+- Run the migration job before promoting a new backend service revision.
 - Collab server reconnect must be handled by clients.
 
 ## Edge Cases / Failure Modes
@@ -61,6 +63,7 @@ Provide an execution-focused reference for CollabSphere deployment strategy, uni
 - `docs/agent-ref/ops/ci-cd.md`
 - `docs/agent-ref/ops/release-readiness.md`
 - `docs/agent-ref/ops/local-dev.md`
+- `infra/azure/container-apps/README.md`
 - `docs/agent-ref/rules/security-rules.md`
 
 
