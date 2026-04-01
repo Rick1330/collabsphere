@@ -10,10 +10,18 @@
     "packages/shared/tsconfig.json"
   ],
   "tasks": {
-    "//#lint": {},
-    "//#typecheck": {},
-    "//#test:unit": {},
-    "//#test:integration": {},
+    "//#lint": {
+      "cache": false
+    },
+    "//#typecheck": {
+      "cache": false
+    },
+    "//#test:unit": {
+      "cache": false
+    },
+    "//#test:integration": {
+      "cache": false
+    },
     "build": {
       "dependsOn": [
         "^build"
