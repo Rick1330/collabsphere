@@ -28,6 +28,7 @@
 - The service images should come from the existing bootstrap build surface (`apps/<service>/dist`) so the same images remain portable to another OCI host later.
 - Secret values are not committed here; the manifests reference secret names that must exist in the target Container App or deployment pipeline context.
 - The S3 credential references intentionally stay as deployment-time placeholders (`__S3_AUTH_ID_REF__`, `__S3_AUTH_VALUE_REF__`) so source control does not hard-code environment-specific credential identifiers.
+- The deploy workflow supplies those S3 secret-name placeholders through GitHub environment variables `AZURE_S3_AUTH_ID_REF` and `AZURE_S3_AUTH_VALUE_REF`.
 
 ## Migration and revision-hook strategy
 - Run the Container Apps job in `migrations.job.yaml` before updating any backend service revision.
