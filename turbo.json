@@ -9,6 +9,10 @@
     "packages/shared/tsconfig.json"
   ],
   "tasks": {
+    "//#lint": {},
+    "//#typecheck": {},
+    "//#test:unit": {},
+    "//#test:integration": {},
     "build": {
       "dependsOn": [
         "^build"
