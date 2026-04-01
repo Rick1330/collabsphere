@@ -48,8 +48,7 @@ properties:
             initialDelaySeconds: 5
             periodSeconds: 5
           - type: Liveness
-            httpGet:
-              path: /api/v1/health
+            tcpSocket:
               port: 3001
             initialDelaySeconds: 15
             periodSeconds: 10

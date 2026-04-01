@@ -14,7 +14,8 @@
 ## Service shape
 - `api`
   - External ingress enabled on port `3001`.
-  - Readiness, liveness, and startup probes call `GET /api/v1/health`.
+  - Startup and readiness probes call `GET /api/v1/health`.
+  - Liveness uses a TCP probe on port `3001` so transient database or Redis failures do not cause restart loops.
 - `collab`
   - Internal ingress only on port `3002`.
   - Readiness, liveness, and startup probes call `GET /`.
