@@ -8,3 +8,6 @@ Architecture — Architecture Decision Records (ADRs)
 - Index of ADRs relevant to major domains and components
 - Links from ADRs to affected modules and services
 - Guidance for creating new ADRs consistent with existing practice
+
+## Current ADR Highlights
+- `ADR-011` formalizes the CS-008 deployment correction: `web` stays on Vercel, while `api`, `collab`, and `worker` target Azure Container Apps with OCI-portable containers.
