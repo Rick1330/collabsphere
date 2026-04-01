@@ -350,6 +350,9 @@ pnpm build
 pnpm test
 ```
 
+- `pnpm build` now runs the Turbo build graph from the repo root.
+- `pnpm test` now runs the root unit and integration validation tasks through Turbo and aggregates their output on the standard local workflow surface.
+
 ### Common cache troubleshooting
 
 If output looks stale or inconsistent:
@@ -381,7 +384,7 @@ pnpm test:unit
 pnpm test:integration
 ```
 
-After troubleshooting, return to the standard `pnpm build` / `pnpm test` flows.
+After troubleshooting, return to the standard Turbo-backed `pnpm build` / `pnpm test` flows.
 
 ## Handoff Expectations
 
