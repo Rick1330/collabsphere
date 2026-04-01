@@ -37,9 +37,9 @@ properties:
           - name: S3_BUCKET
             secretRef: s3-bucket
           - name: S3_ACCESS_KEY_ID
-            secretRef: s3-access-key-id
+            secretRef: __S3_ACCESS_KEY_ID_REF__
           - name: S3_SECRET_ACCESS_KEY
-            secretRef: s3-secret-access-key
+            secretRef: __S3_SECRET_ACCESS_KEY_REF__
           - name: S3_REGION
             secretRef: s3-region
           - name: WORKER_HEARTBEAT_MS

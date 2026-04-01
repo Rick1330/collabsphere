@@ -27,6 +27,7 @@
 - Each manifest expects a prebuilt OCI image reference such as `__REGISTRY_SERVER__/collabsphere-api:__IMAGE_TAG__`.
 - The service images should come from the existing bootstrap build surface (`apps/<service>/dist`) so the same images remain portable to another OCI host later.
 - Secret values are not committed here; the manifests reference secret names that must exist in the target Container App or deployment pipeline context.
+- The S3 credential secret references intentionally stay as deployment-time placeholders (`__S3_ACCESS_KEY_ID_REF__`, `__S3_SECRET_ACCESS_KEY_REF__`) so source control does not hard-code credential-like secret identifiers.
 
 ## Migration and revision-hook strategy
 - Run the Container Apps job in `migrations.job.yaml` before updating any backend service revision.
