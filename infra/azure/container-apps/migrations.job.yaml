@@ -12,9 +12,10 @@ properties:
       - name: migrations
         image: __REGISTRY_SERVER__/__MIGRATIONS_IMAGE__:__IMAGE_TAG__
         command:
-          - sh
-          - -c
-          - pnpm prisma migrate deploy
+          - pnpm
+          - prisma
+          - migrate
+          - deploy
         env:
           - name: DATABASE_URL
             secretRef: database-url
