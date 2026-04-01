@@ -13,4 +13,10 @@ RUN corepack enable \
 
 COPY ${APP_DIR}/dist/ ./
 
+RUN addgroup -S app \
+  && adduser -S -G app app \
+  && chown -R app:app /app
+
+USER app
+
 CMD ["node", "dev.js"]
