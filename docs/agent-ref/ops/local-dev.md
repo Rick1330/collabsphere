@@ -34,7 +34,7 @@ pnpm dev
 ```
 
 `pnpm dev` starts:
-- `apps/web` (Next.js)
+- `apps/web` (static web bootstrap served from `src/index.html`)
 - `apps/api` (NestJS REST + Socket.IO)
 - `apps/collab` (Hocuspocus)
 - `apps/worker` (BullMQ workers)

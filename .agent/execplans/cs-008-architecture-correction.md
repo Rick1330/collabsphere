@@ -10,6 +10,7 @@
   - Confirmed live GitHub backlog, validation issue, and `PRJ-01.yaml` still encode Railway.
   - Reviewed canonical deployment spec, agent-ref deployment guidance, product constraints, and ADR index.
   - Confirmed no existing open issue already tracks the CS-008 architecture correction.
+  - Confirmed queue manifests must be produced by `github-import` rather than hand-edited.
 - In progress:
   - Updating canonical repo docs and queue metadata to remove Railway as the active backend target.
   - Drafting an ADR that formalizes Azure Container Apps as the preferred managed backend runtime with container portability preserved.
@@ -24,6 +25,8 @@
 - The canonical deployment spec and agent-ref docs are the only repo docs still mentioning Railway directly.
 - Product constraints in `docs/spec/01-product-vision/01.9-constraints.md` still bias toward free-tier/VPS hosting, which conflicts with choosing Azure Container Apps as the preferred managed backend target unless cost control and portability are stated explicitly.
 - Current repo reality for `apps/web` is a static artifact deployed from `apps/web/dist`, not a Next.js-specific runtime surface.
+- `.github/queue/README.md` and `CONTRIBUTING.md` require queue manifests to be regenerated from `D:\coloe\github-import` via `npm run queue:sync`; manual queue edits are not the preferred path.
+- The queue generator can legitimately carry unrelated manifest drift from the live issue graph; if such fallout appears, it must be identified as generator output instead of silently mixed into task scope.
 
 ## Decision Log
 - Decision: Keep `web` on Vercel and formalize Azure Container Apps as the preferred managed runtime for `api`, `collab`, and `worker`.
@@ -42,6 +45,10 @@
   - Rationale: A "ready" Railway task would be a false next action.
   - Alternatives: Leave stale tasks ready; silently reinterpret `#228` during implementation without correcting the queue.
   - Source (spec/domain/agent-ref): `.agent/PLANS.md`, `.github/queue/projects/PRJ-01.yaml`
+- Decision: Regenerate queue manifests through `github-import` and keep only the generator-backed CS-008 changes in the PR narrative.
+  - Rationale: `CONTRIBUTING.md` explicitly forbids manual edits to generated queue files unless queue-generation tooling is being changed.
+  - Alternatives: Keep the hand-edited manifest without regeneration; widen scope to unrelated generated fallout without documenting it.
+  - Source (spec/domain/agent-ref): `CONTRIBUTING.md`, `.github/queue/README.md`
 
 ## Outcomes & Retrospective
 - This cycle delivers the planning and documentation correction required to unblock truthful CS-008 execution.
@@ -67,8 +74,8 @@
 ## Concrete Steps
 1. Update deployment spec and agent-ref guidance to formalize the new hosting direction.
 2. Add an ADR covering the compute/runtime decision and deferred storage decision.
-3. Update product constraints to reflect cost-controlled managed hosting plus container portability.
-4. Patch the CS-008 section of `PRJ-01.yaml`.
+3. Update product constraints and canonical web-runtime docs to reflect cost-controlled managed hosting plus the current static `apps/web` surface.
+4. Regenerate queue manifests through `github-import` and verify the CS-008 corrections remain intact.
 5. Create a dedicated architecture-correction issue if none exists.
 6. Sync affected GitHub issue titles, bodies, and statuses to a blocked/replanned state.
 7. Validate the changed docs/queue surfaces and open a PR.
