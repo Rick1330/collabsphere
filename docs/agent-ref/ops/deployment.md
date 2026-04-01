@@ -28,10 +28,12 @@ Provide an execution-focused reference for CollabSphere deployment strategy, uni
 - `api`, `collab`, `worker` deployed together on a shared network.
 
 ### Recommended v1 Hosting
-- Frontend (`web`): Vercel or similar.
-- Backend services (`api`, `collab`, `worker`): single VPS (Docker Compose) **or** Railway/Fly.io.
-- Database: managed Postgres (Supabase/Railway) **or** VPS Postgres.
-- Redis: managed Redis or VPS Redis.
+- Frontend (`web`): Vercel serving the deployable `apps/web/dist` artifact.
+- Backend services (`api`, `collab`, `worker`): Azure Container Apps as the preferred managed runtime.
+- Backend portability: keep backend services packaged as OCI-compatible containers so another host such as DigitalOcean remains viable without a runtime rewrite.
+- Database: managed Postgres selected separately from the compute runtime.
+- Redis: managed Redis selected separately from the compute runtime.
+- Object storage: not part of the immediate CS-008 runtime migration; keep the storage interface S3-compatible and treat Cloudflare R2 as a deferred option.
 
 ### Environment Rules
 - Separate configs for Local, Staging, Production.
@@ -41,7 +43,7 @@ Provide an execution-focused reference for CollabSphere deployment strategy, uni
 
 ### Zero-downtime (v1 scope)
 - Not required for v1.
-- Recommended: rolling restarts for API.
+- Recommended: rolling revisions for containerized backend services.
 - Collab server reconnect must be handled by clients.
 
 ## Edge Cases / Failure Modes
