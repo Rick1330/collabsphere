@@ -21,10 +21,6 @@ on:
         required: false
         type: string
 
-permissions:
-  contents: read
-  id-token: write
-
 env:
   NODE_VERSION: 20.19.4
   PNPM_VERSION: 9.15.9
@@ -83,6 +79,9 @@ jobs:
     needs: resolve-target
     runs-on: ubuntu-latest
     environment: ${{ needs.resolve-target.outputs.deploy_environment }}
+    permissions:
+      contents: read
+      id-token: write
     env:
       DEPLOY_ENVIRONMENT: ${{ needs.resolve-target.outputs.deploy_environment }}
       IMAGE_TAG: ${{ needs.resolve-target.outputs.image_tag }}
