@@ -25,11 +25,22 @@ const fileExists = async (filePath) => {
   }
 };
 
+if (!(await fileExists(packageJsonPath))) {
+  throw new Error(`Missing package.json at ${packageJsonPath}.`);
+}
+
 if (!(await fileExists(sourceHtmlPath))) {
   throw new Error(`Missing static web entrypoint at ${sourceHtmlPath}.`);
 }
 
-const packageJson = JSON.parse(await readFile(packageJsonPath, "utf8"));
+let packageJson;
+
+try {
+  packageJson = JSON.parse(await readFile(packageJsonPath, "utf8"));
+} catch (error) {
+  const message = error instanceof Error ? error.message : "Unknown error";
+  throw new Error(`Failed to read ${packageJsonPath}: ${message}`);
+}
 
 await rm(distDir, { recursive: true, force: true });
 await mkdir(distDir, { recursive: true });
