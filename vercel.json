@@ -1,9 +1,0 @@
-{
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": null,
-  "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm --filter @collabsphere/web run build",
-  "outputDirectory": "apps/web/dist",
-  "cleanUrls": true,
-  "trailingSlash": false
-}
