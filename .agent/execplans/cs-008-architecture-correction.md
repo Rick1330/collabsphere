@@ -11,14 +11,16 @@
   - Reviewed canonical deployment spec, agent-ref deployment guidance, product constraints, and ADR index.
   - Confirmed no existing open issue already tracks the CS-008 architecture correction.
   - Confirmed queue manifests must be produced by `github-import` rather than hand-edited.
+  - Updated canonical repo docs and queue metadata to remove Railway as the active backend target.
+  - Added ADR-011 to formalize Azure Container Apps as the preferred managed backend runtime with container portability preserved.
+  - Regenerated the queue through `github-import`, merged the architecture-correction PR (`#1480`), and closed `#1479`.
+  - Reactivated the downstream CS-008 implementation chain and completed `#228`.
 - In progress:
-  - Updating canonical repo docs and queue metadata to remove Railway as the active backend target.
-  - Drafting an ADR that formalizes Azure Container Apps as the preferred managed backend runtime with container portability preserved.
+  - None.
 - Blocked:
   - None inside this planning cycle.
 - Next:
-  - Sync GitHub issues `#28`, `#228`-`#233`, and `#599` to match the corrected architecture.
-  - Open the docs/queue correction PR and link it from the affected issues.
+  - None inside this ExecPlan; downstream delivery continues under the reactivated CS-008 task chain.
 
 ## Surprises & Discoveries
 - Story `#28`, task `#228`, validation `#599`, and `.github/queue/projects/PRJ-01.yaml` still describe a Vercel + Railway deployment even after the user-directed architecture change.
@@ -51,9 +53,9 @@
   - Source (spec/domain/agent-ref): `CONTRIBUTING.md`, `.github/queue/README.md`
 
 ## Outcomes & Retrospective
-- This cycle delivers the planning and documentation correction required to unblock truthful CS-008 execution.
-- It does not implement Azure deployment assets or restart downstream CS-008 implementation.
-- Follow-up execution should begin only after the corrected queue/ADR PR is merged and the next active task is reactivated against the new architecture.
+- This cycle delivered the planning and documentation correction required to unblock truthful CS-008 execution.
+- The correction landed via `#1479` / PR `#1480`, after which `#228` resumed against the corrected Azure Container Apps target and merged successfully.
+- Follow-up execution now continues in the downstream CS-008 task chain; this ExecPlan is complete and should only be reopened if the deployment architecture changes again.
 
 ## Context and Orientation
 - Canonical deployment spec: `docs/spec/14-devops/14.6-deployment-strategy.md`

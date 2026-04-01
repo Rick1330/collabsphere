@@ -1,0 +1,283 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Deployment target
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+        default: production
+      image_tag:
+        description: Optional backend image tag override
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  NODE_VERSION: 20.19.4
+  PNPM_VERSION: 9.15.9
+  TURBO_TELEMETRY_DISABLED: "1"
+
+concurrency:
+  group: deploy-${{ github.workflow }}-${{ github.ref_type == 'tag' && 'production' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment) || 'staging' }}
+  cancel-in-progress: false
+
+jobs:
+  resolve-target:
+    runs-on: ubuntu-latest
+    outputs:
+      deploy_environment: ${{ steps.target.outputs.deploy_environment }}
+      image_tag: ${{ steps.target.outputs.image_tag }}
+      vercel_environment: ${{ steps.target.outputs.vercel_environment }}
+
+    steps:
+      - name: Resolve deploy target
+        id: target
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          deploy_environment=""
+          image_tag="${GITHUB_SHA}"
+          vercel_environment="preview"
+
+          if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" == "refs/heads/main" ]]; then
+            deploy_environment="staging"
+          elif [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" == refs/tags/v* ]]; then
+            deploy_environment="production"
+            image_tag="${GITHUB_REF_NAME}"
+            vercel_environment="production"
+          elif [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            deploy_environment="${{ github.event.inputs.environment }}"
+            if [[ "$deploy_environment" == "production" ]]; then
+              vercel_environment="production"
+            fi
+
+            if [[ -n "${{ github.event.inputs.image_tag }}" ]]; then
+              image_tag="${{ github.event.inputs.image_tag }}"
+            fi
+          fi
+
+          if [[ -z "$deploy_environment" ]]; then
+            echo "Unsupported deploy trigger." >&2
+            exit 1
+          fi
+
+          echo "deploy_environment=$deploy_environment" >> "$GITHUB_OUTPUT"
+          echo "image_tag=$image_tag" >> "$GITHUB_OUTPUT"
+          echo "vercel_environment=$vercel_environment" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: resolve-target
+    runs-on: ubuntu-latest
+    environment: ${{ needs.resolve-target.outputs.deploy_environment }}
+    env:
+      DEPLOY_ENVIRONMENT: ${{ needs.resolve-target.outputs.deploy_environment }}
+      IMAGE_TAG: ${{ needs.resolve-target.outputs.image_tag }}
+      VERCEL_ENVIRONMENT: ${{ needs.resolve-target.outputs.vercel_environment }}
+      AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+      AZURE_MANAGED_ENVIRONMENT_ID: ${{ vars.AZURE_MANAGED_ENVIRONMENT_ID }}
+      AZURE_CONTAINER_REGISTRY_NAME: ${{ vars.AZURE_CONTAINER_REGISTRY_NAME }}
+      AZURE_CONTAINER_REGISTRY_LOGIN_SERVER: ${{ vars.AZURE_CONTAINER_REGISTRY_LOGIN_SERVER }}
+      AZURE_MIGRATIONS_JOB_NAME: ${{ vars.AZURE_MIGRATIONS_JOB_NAME }}
+      AZURE_API_CONTAINERAPP_NAME: ${{ vars.AZURE_API_CONTAINERAPP_NAME }}
+      AZURE_COLLAB_CONTAINERAPP_NAME: ${{ vars.AZURE_COLLAB_CONTAINERAPP_NAME }}
+      AZURE_WORKER_CONTAINERAPP_NAME: ${{ vars.AZURE_WORKER_CONTAINERAPP_NAME }}
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate required deployment contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          required_vars=(
+            AZURE_RESOURCE_GROUP
+            AZURE_LOCATION
+            AZURE_MANAGED_ENVIRONMENT_ID
+            AZURE_CONTAINER_REGISTRY_NAME
+            AZURE_CONTAINER_REGISTRY_LOGIN_SERVER
+            AZURE_MIGRATIONS_JOB_NAME
+            VERCEL_ORG_ID
+            VERCEL_PROJECT_ID
+          )
+
+          required_secrets=(
+            AZURE_CLIENT_ID
+            AZURE_TENANT_ID
+            AZURE_SUBSCRIPTION_ID
+            VERCEL_TOKEN
+          )
+
+          for name in "${required_vars[@]}"; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::$name is required for deploy.yml."
+              exit 1
+            fi
+          done
+
+          for name in "${required_secrets[@]}"; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::$name is required for deploy.yml."
+              exit 1
+            fi
+          done
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build deployable artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm --filter @collabsphere/web run build
+          pnpm --filter @collabsphere/api run build
+          pnpm --filter @collabsphere/collab run build
+          pnpm --filter @collabsphere/worker run build
+
+      - name: Authenticate to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Ensure Azure Container Apps extension
+        shell: bash
+        run: |
+          set -euo pipefail
+          az extension add --name containerapp --upgrade --yes
+
+      - name: Log in to Azure Container Registry
+        shell: bash
+        run: |
+          set -euo pipefail
+          az acr login --name "$AZURE_CONTAINER_REGISTRY_NAME"
+
+      - name: Build and push backend images
+        shell: bash
+        run: |
+          set -euo pipefail
+          for service in api collab worker; do
+            image_ref="${AZURE_CONTAINER_REGISTRY_LOGIN_SERVER}/collabsphere-${service}:${IMAGE_TAG}"
+            docker build \
+              --file infra/azure/container-apps/backend-service.Dockerfile \
+              --build-arg APP_DIR="apps/${service}" \
+              --tag "$image_ref" \
+              .
+            docker push "$image_ref"
+          done
+
+      - name: Render Container Apps manifests
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/containerapps"
+
+          node --input-type=module <<'EOF'
+          import fs from "node:fs";
+          import path from "node:path";
+
+          const runnerTemp = process.env.RUNNER_TEMP;
+          const outputDir = path.join(runnerTemp, "containerapps");
+          const registryServer = process.env.AZURE_CONTAINER_REGISTRY_LOGIN_SERVER;
+          const imageTag = process.env.IMAGE_TAG;
+          const substitutions = new Map([
+            ["__LOCATION__", process.env.AZURE_LOCATION],
+            ["__MANAGED_ENVIRONMENT_ID__", process.env.AZURE_MANAGED_ENVIRONMENT_ID],
+            ["__REGISTRY_SERVER__", registryServer],
+            ["__IMAGE_TAG__", imageTag],
+          ]);
+
+          for (const file of [
+            "api.containerapp.yaml",
+            "collab.containerapp.yaml",
+            "worker.containerapp.yaml",
+          ]) {
+            const sourcePath = path.join("infra", "azure", "container-apps", file);
+            let text = fs.readFileSync(sourcePath, "utf8");
+            for (const [needle, replacement] of substitutions) {
+              text = text.split(needle).join(replacement);
+            }
+            fs.writeFileSync(path.join(outputDir, file), text, "utf8");
+          }
+          EOF
+
+      - name: Run migration job before backend revision promotion
+        shell: bash
+        run: |
+          set -euo pipefail
+          az containerapp job start \
+            --name "${AZURE_MIGRATIONS_JOB_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}"
+
+      - name: Deploy backend services to Azure Container Apps
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          api_name="${AZURE_API_CONTAINERAPP_NAME:-collabsphere-api}"
+          collab_name="${AZURE_COLLAB_CONTAINERAPP_NAME:-collabsphere-collab}"
+          worker_name="${AZURE_WORKER_CONTAINERAPP_NAME:-collabsphere-worker}"
+
+          az containerapp update \
+            --name "$api_name" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --yaml "$RUNNER_TEMP/containerapps/api.containerapp.yaml"
+
+          az containerapp update \
+            --name "$collab_name" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --yaml "$RUNNER_TEMP/containerapps/collab.containerapp.yaml"
+
+          az containerapp update \
+            --name "$worker_name" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --yaml "$RUNNER_TEMP/containerapps/worker.containerapp.yaml"
+
+      - name: Deploy web to Vercel
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm dlx vercel pull --yes --environment="$VERCEL_ENVIRONMENT" --token "$VERCEL_TOKEN"
+          pnpm dlx vercel build --token "$VERCEL_TOKEN"
+
+          if [[ "$DEPLOY_ENVIRONMENT" == "production" ]]; then
+            pnpm dlx vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN"
+          else
+            pnpm dlx vercel deploy --prebuilt --token "$VERCEL_TOKEN"
+          fi
