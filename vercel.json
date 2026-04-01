@@ -1,0 +1,14 @@
+{
+  "framework": null,
+  "buildCommand": "pnpm --filter @collabsphere/web run build",
+  "outputDirectory": "apps/web/dist",
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "redirects": [
+    {
+      "source": "/index.html",
+      "destination": "/",
+      "permanent": true
+    }
+  ]
+}
