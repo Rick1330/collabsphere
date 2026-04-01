@@ -353,16 +353,16 @@ pnpm test
 
 If output looks stale or inconsistent:
 
-1. Reinstall dependencies and rerun the failing command:
+1. Reinstall dependencies, then rerun the command that failed (for example `pnpm build` or `pnpm test`):
    ```bash
    pnpm install
-   pnpm build
+   pnpm <failing-command>
    ```
 2. Confirm the expected shared inputs changed under `packages/shared/src` (or shared package config files) when investigating rebuild expectations.
 3. Check whether env changes (for example `.env` or CI env vars) are affecting runtime behavior outside build cache inputs.
 4. If needed, force a no-cache Turbo execution for comparison:
    ```bash
-   pnpm exec turbo run build --force
+   pnpm dlx turbo run build --force
    ```
 
 ### Low-memory guidance
@@ -370,13 +370,13 @@ If output looks stale or inconsistent:
 When local memory is constrained, reduce Turbo concurrency during troubleshooting runs:
 
 ```bash
-pnpm exec turbo run build --concurrency=50%
+pnpm dlx turbo run build --concurrency=50%
 ```
 
 If memory pressure is still high, run with single-task concurrency:
 
 ```bash
-pnpm exec turbo run build --concurrency=1
+pnpm dlx turbo run build --concurrency=1
 ```
 
 After troubleshooting, return to standard `pnpm build` / `pnpm test` flows.
