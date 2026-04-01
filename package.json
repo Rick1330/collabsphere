@@ -10,7 +10,7 @@
     "dev": "node scripts/dev.mjs",
     "lint": "pnpm exec eslint . --max-warnings=0",
     "typecheck": "pnpm exec tsc -p packages/shared/tsconfig.json --noEmit",
-    "test": "pnpm exec turbo run //#test:unit //#test:integration --env-mode=loose",
+    "test": "pnpm exec turbo run //#test:unit && pnpm exec turbo run //#test:integration --env-mode=loose",
     "test:unit": "node --test .github/scripts/story-project-gates.test.js tests/unit",
     "test:integration": "node --test tests/integration",
     "build": "pnpm exec turbo run build",
