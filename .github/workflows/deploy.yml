@@ -95,6 +95,8 @@ jobs:
       AZURE_API_CONTAINERAPP_NAME: ${{ vars.AZURE_API_CONTAINERAPP_NAME }}
       AZURE_COLLAB_CONTAINERAPP_NAME: ${{ vars.AZURE_COLLAB_CONTAINERAPP_NAME }}
       AZURE_WORKER_CONTAINERAPP_NAME: ${{ vars.AZURE_WORKER_CONTAINERAPP_NAME }}
+      AZURE_S3_AUTH_ID_REF: ${{ vars.AZURE_S3_AUTH_ID_REF }}
+      AZURE_S3_AUTH_VALUE_REF: ${{ vars.AZURE_S3_AUTH_VALUE_REF }}
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
@@ -118,6 +120,8 @@ jobs:
             AZURE_CONTAINER_REGISTRY_NAME
             AZURE_CONTAINER_REGISTRY_LOGIN_SERVER
             AZURE_MIGRATIONS_JOB_NAME
+            AZURE_S3_AUTH_ID_REF
+            AZURE_S3_AUTH_VALUE_REF
             VERCEL_ORG_ID
             VERCEL_PROJECT_ID
           )
@@ -220,6 +224,8 @@ jobs:
             ["__MANAGED_ENVIRONMENT_ID__", process.env.AZURE_MANAGED_ENVIRONMENT_ID],
             ["__REGISTRY_SERVER__", registryServer],
             ["__IMAGE_TAG__", imageTag],
+            ["__S3_AUTH_ID_REF__", process.env.AZURE_S3_AUTH_ID_REF],
+            ["__S3_AUTH_VALUE_REF__", process.env.AZURE_S3_AUTH_VALUE_REF],
           ]);
 
           for (const file of [
@@ -240,9 +246,48 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          az containerapp job start \
-            --name "${AZURE_MIGRATIONS_JOB_NAME}" \
-            --resource-group "${AZURE_RESOURCE_GROUP}"
+
+          execution_name="$(
+            az containerapp job start \
+              --name "${AZURE_MIGRATIONS_JOB_NAME}" \
+              --resource-group "${AZURE_RESOURCE_GROUP}" \
+              --query name \
+              --output tsv
+          )"
+
+          if [[ -z "$execution_name" ]]; then
+            echo "::error::Container Apps migration job did not return an execution name."
+            exit 1
+          fi
+
+          status=""
+          for _ in {1..60}; do
+            status="$(
+              az containerapp job execution show \
+                --name "${AZURE_MIGRATIONS_JOB_NAME}" \
+                --resource-group "${AZURE_RESOURCE_GROUP}" \
+                --job-execution-name "$execution_name" \
+                --query properties.status \
+                --output tsv
+            )"
+
+            case "$status" in
+              Succeeded)
+                break
+                ;;
+              Failed|Canceled)
+                echo "::error::Migration job execution ${execution_name} ended with ${status}."
+                exit 1
+                ;;
+            esac
+
+            sleep 10
+          done
+
+          if [[ "$status" != "Succeeded" ]]; then
+            echo "::error::Migration job execution ${execution_name} did not reach Succeeded."
+            exit 1
+          fi
 
       - name: Deploy backend services to Azure Container Apps
         shell: bash
