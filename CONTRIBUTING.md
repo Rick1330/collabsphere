@@ -133,7 +133,7 @@ Use these steps when you need to verify outbound email behavior locally without 
 - Service startup failure: inspect `docker compose ps` first, then check the failing service with `docker compose logs <service>`.
 - Stale Docker state: stop services, remove stale containers or volumes if appropriate, then restart.
 - Dependency drift: run `pnpm install` again after pulling new changes.
-- Cache confusion: if Turborepo or package state looks stale, run `pnpm turbo prune` only if you know why; otherwise start with a clean install and rerun the failing command.
+- Cache confusion: if Turborepo or package state looks stale, run `pnpm dlx turbo prune` only if you know why; otherwise start with a clean install and rerun the failing command.
 
 ## Branching Model
 
