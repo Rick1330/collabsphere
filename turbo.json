@@ -3,12 +3,25 @@
   "globalDependencies": [
     "pnpm-lock.yaml",
     "pnpm-workspace.yaml",
+    "scripts/build-bootstrap-app.mjs",
     "tsconfig.base.json",
     "packages/shared/src/**",
     "packages/shared/package.json",
     "packages/shared/tsconfig.json"
   ],
   "tasks": {
+    "//#lint": {
+      "cache": false
+    },
+    "//#typecheck": {
+      "cache": false
+    },
+    "//#test:unit": {
+      "cache": false
+    },
+    "//#test:integration": {
+      "cache": false
+    },
     "build": {
       "dependsOn": [
         "^build"
