@@ -331,22 +331,55 @@ If CI fails:
 
 ## Turborepo Cache Guidance
 
-CollabSphere uses Turborepo-style task orchestration. Cache-related issues are usually one of:
+CollabSphere keeps task graph and cache-input policy in `turbo.json`.
 
-- stale dependency install state
-- changed environment variables
-- build output drift after branch switches
-- low-memory or low-disk conditions on the local machine
+Current cache invalidation inputs include:
 
-Start with:
+- `pnpm-lock.yaml`
+- `pnpm-workspace.yaml`
+- `tsconfig.base.json`
+- `packages/shared/src/**`
+- `packages/shared/package.json`
+- `packages/shared/tsconfig.json`
+
+Use normal repo scripts first:
 
 ```bash
-pnpm install
-pnpm lint
-pnpm typecheck
+pnpm build
+pnpm test
 ```
 
-If cache behavior looks wrong, prefer a clean local reinstall and a targeted rerun before attempting broader cache cleanup.
+### Common cache troubleshooting
+
+If output looks stale or inconsistent:
+
+1. Reinstall dependencies and rerun the failing command:
+   ```bash
+   pnpm install
+   pnpm build
+   ```
+2. Confirm the expected shared inputs changed under `packages/shared/src` (or shared package config files) when investigating rebuild expectations.
+3. Check whether env changes (for example `.env` or CI env vars) are affecting runtime behavior outside build cache inputs.
+4. If needed, force a no-cache Turbo execution for comparison:
+   ```bash
+   pnpm exec turbo run build --force
+   ```
+
+### Low-memory guidance
+
+When local memory is constrained, reduce Turbo concurrency during troubleshooting runs:
+
+```bash
+pnpm exec turbo run build --concurrency=50%
+```
+
+If memory pressure is still high, run with single-task concurrency:
+
+```bash
+pnpm exec turbo run build --concurrency=1
+```
+
+After troubleshooting, return to standard `pnpm build` / `pnpm test` flows.
 
 ## Handoff Expectations
 
