@@ -4,16 +4,14 @@
     "pnpm-lock.yaml",
     "pnpm-workspace.yaml",
     "tsconfig.base.json",
-    "packages/shared/**"
+    "packages/shared/src/**",
+    "packages/shared/package.json",
+    "packages/shared/tsconfig.json"
   ],
   "tasks": {
     "build": {
       "dependsOn": [
         "^build"
-      ],
-      "inputs": [
-        "$TURBO_DEFAULT$",
-        "packages/shared/**"
       ],
       "outputs": [
         "dist/**",
@@ -27,28 +25,16 @@
     "lint": {
       "dependsOn": [
         "^lint"
-      ],
-      "inputs": [
-        "$TURBO_DEFAULT$",
-        "packages/shared/**"
       ]
     },
     "typecheck": {
       "dependsOn": [
         "^typecheck"
-      ],
-      "inputs": [
-        "$TURBO_DEFAULT$",
-        "packages/shared/**"
       ]
     },
     "test": {
       "dependsOn": [
         "^test"
-      ],
-      "inputs": [
-        "$TURBO_DEFAULT$",
-        "packages/shared/**"
       ],
       "outputs": [
         "coverage/**"
