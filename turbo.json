@@ -1,9 +1,19 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": [
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "tsconfig.base.json",
+    "packages/shared/**"
+  ],
   "tasks": {
     "build": {
       "dependsOn": [
         "^build"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "packages/shared/**"
       ],
       "outputs": [
         "dist/**",
@@ -17,16 +27,28 @@
     "lint": {
       "dependsOn": [
         "^lint"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "packages/shared/**"
       ]
     },
     "typecheck": {
       "dependsOn": [
         "^typecheck"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "packages/shared/**"
       ]
     },
     "test": {
       "dependsOn": [
         "^test"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "packages/shared/**"
       ],
       "outputs": [
         "coverage/**"
