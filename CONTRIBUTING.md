@@ -133,7 +133,7 @@ Use these steps when you need to verify outbound email behavior locally without 
 - Service startup failure: inspect `docker compose ps` first, then check the failing service with `docker compose logs <service>`.
 - Stale Docker state: stop services, remove stale containers or volumes if appropriate, then restart.
 - Dependency drift: run `pnpm install` again after pulling new changes.
-- Cache confusion: if Turborepo or package state looks stale, run `pnpm turbo prune` only if you know why; otherwise start with a clean install and rerun the failing command.
+- Cache confusion: if package state looks stale, start with a clean install and rerun the failing command before attempting advanced troubleshooting.
 
 ## Branching Model
 
@@ -331,22 +331,56 @@ If CI fails:
 
 ## Turborepo Cache Guidance
 
-CollabSphere uses Turborepo-style task orchestration. Cache-related issues are usually one of:
+CollabSphere keeps task graph and cache-input policy in `turbo.json`.
 
-- stale dependency install state
-- changed environment variables
-- build output drift after branch switches
-- low-memory or low-disk conditions on the local machine
+Current cache invalidation inputs include:
 
-Start with:
+- `pnpm-lock.yaml`
+- `pnpm-workspace.yaml`
+- `tsconfig.base.json`
+- `packages/shared/src/**`
+- `packages/shared/package.json`
+- `packages/shared/tsconfig.json`
+
+Use normal repo scripts first:
 
 ```bash
-pnpm install
-pnpm lint
-pnpm typecheck
+pnpm build
+pnpm test
 ```
 
-If cache behavior looks wrong, prefer a clean local reinstall and a targeted rerun before attempting broader cache cleanup.
+### Common cache troubleshooting
+
+If output looks stale or inconsistent:
+
+1. Reinstall dependencies, then rerun the command that failed (for example `pnpm build` or `pnpm test`):
+   ```bash
+   pnpm install
+   pnpm <failing-command>
+   ```
+2. Confirm the expected shared inputs changed under `packages/shared/src` (or shared package config files) when investigating rebuild expectations.
+3. Check whether env changes (for example `.env` or CI env vars) are affecting runtime behavior outside build cache inputs.
+4. If results still look inconsistent after reinstalling dependencies, rerun the exact repo-native command that failed so you can confirm the issue on the supported local workflow surface.
+
+### Low-memory guidance
+
+When local memory is constrained, run the normal repo commands one at a time instead of stacking additional troubleshooting work:
+
+```bash
+pnpm build:web
+pnpm build:api
+pnpm build:collab
+pnpm build:worker
+```
+
+If memory pressure is still high during test runs, split the suites and rerun only the failing surface:
+
+```bash
+pnpm test:unit
+pnpm test:integration
+```
+
+After troubleshooting, return to the standard `pnpm build` / `pnpm test` flows.
 
 ## Handoff Expectations
 
