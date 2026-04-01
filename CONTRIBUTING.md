@@ -133,7 +133,7 @@ Use these steps when you need to verify outbound email behavior locally without 
 - Service startup failure: inspect `docker compose ps` first, then check the failing service with `docker compose logs <service>`.
 - Stale Docker state: stop services, remove stale containers or volumes if appropriate, then restart.
 - Dependency drift: run `pnpm install` again after pulling new changes.
-- Cache confusion: if Turborepo or package state looks stale, run `pnpm dlx turbo prune` only if you know why; otherwise start with a clean install and rerun the failing command.
+- Cache confusion: if package state looks stale, start with a clean install and rerun the failing command before attempting advanced troubleshooting.
 
 ## Branching Model
 
@@ -360,26 +360,27 @@ If output looks stale or inconsistent:
    ```
 2. Confirm the expected shared inputs changed under `packages/shared/src` (or shared package config files) when investigating rebuild expectations.
 3. Check whether env changes (for example `.env` or CI env vars) are affecting runtime behavior outside build cache inputs.
-4. If needed, force a no-cache Turbo execution for comparison:
-   ```bash
-   pnpm dlx turbo run build --force
-   ```
+4. If results still look inconsistent after reinstalling dependencies, rerun the exact repo-native command that failed so you can confirm the issue on the supported local workflow surface.
 
 ### Low-memory guidance
 
-When local memory is constrained, reduce Turbo concurrency during troubleshooting runs:
+When local memory is constrained, run the normal repo commands one at a time instead of stacking additional troubleshooting work:
 
 ```bash
-pnpm dlx turbo run build --concurrency=50%
+pnpm build:web
+pnpm build:api
+pnpm build:collab
+pnpm build:worker
 ```
 
-If memory pressure is still high, run with single-task concurrency:
+If memory pressure is still high during test runs, split the suites and rerun only the failing surface:
 
 ```bash
-pnpm dlx turbo run build --concurrency=1
+pnpm test:unit
+pnpm test:integration
 ```
 
-After troubleshooting, return to standard `pnpm build` / `pnpm test` flows.
+After troubleshooting, return to the standard `pnpm build` / `pnpm test` flows.
 
 ## Handoff Expectations
 
