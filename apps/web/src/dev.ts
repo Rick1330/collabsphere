@@ -11,8 +11,9 @@ const server = createServer((request: IncomingMessage, response: ServerResponse)
     response.end(html);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("Failed to load index.html", { error: message });
     response.writeHead(500, { "content-type": "text/plain; charset=utf-8" });
-    response.end(`Failed to load index.html: ${message}`);
+    response.end("Failed to load index.html.");
   }
 });
 
