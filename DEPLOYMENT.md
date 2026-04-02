@@ -71,13 +71,19 @@ Deploy-time configuration for `staging` is expected in GitHub Actions environmen
 - `AZURE_CONTAINER_REGISTRY_NAME`
 - `AZURE_CONTAINER_REGISTRY_LOGIN_SERVER`
 - `AZURE_MIGRATIONS_JOB_NAME`
-- `AZURE_API_CONTAINERAPP_NAME`
-- `AZURE_COLLAB_CONTAINERAPP_NAME`
-- `AZURE_WORKER_CONTAINERAPP_NAME`
 - `AZURE_S3_AUTH_ID_REF`
 - `AZURE_S3_AUTH_VALUE_REF`
 - `VERCEL_ORG_ID`
 - `VERCEL_PROJECT_ID`
+
+#### Optional GitHub environment variables with workflow defaults
+
+- `AZURE_API_CONTAINERAPP_NAME`
+  - default: `collabsphere-api`
+- `AZURE_COLLAB_CONTAINERAPP_NAME`
+  - default: `collabsphere-collab`
+- `AZURE_WORKER_CONTAINERAPP_NAME`
+  - default: `collabsphere-worker`
 
 #### Required GitHub environment secrets
 
