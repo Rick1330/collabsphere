@@ -17,6 +17,12 @@ interface GitHubJobsResponse {
   jobs?: GitHubJob[];
 }
 
+interface GitHubRunContext {
+  repository: string;
+  runId: string;
+  deployConclusion: DeployConclusion;
+}
+
 const GITHUB_API_TIMEOUT_MS = 10_000;
 const WEBHOOK_TIMEOUT_MS = 10_000;
 const TERMINAL_FAILURE_CONCLUSIONS = [
@@ -36,20 +42,18 @@ function requireEnv(name: string): string {
   return value;
 }
 
-function requireUrlEnv(name: string): string {
+function requireUrlEnv(name: string): URL {
   const value = requireEnv(name);
 
   try {
-    new URL(value);
+    return new URL(value);
   } catch {
     throw new Error(`${name} must be a valid URL.`);
   }
-
-  return value;
 }
 
 async function fetchWithTimeout(
-  url: string,
+  url: URL,
   init: RequestInit,
   timeoutMs: number
 ): Promise<Response> {
@@ -82,12 +86,14 @@ function isTerminalFailure(conclusion: string | null | undefined): boolean {
 }
 
 async function fetchRunJobs(
-  repository: string,
-  runId: string
+  context: GitHubRunContext
 ): Promise<Response | null> {
   try {
     return await fetchWithTimeout(
-      `https://api.github.com/repos/${repository}/actions/runs/${runId}/jobs?per_page=100`,
+      new URL(
+        `/repos/${context.repository}/actions/runs/${context.runId}/jobs?per_page=100`,
+        "https://api.github.com"
+      ),
       {
         headers: {
           Accept: "application/vnd.github+json",
@@ -125,15 +131,13 @@ function findFailingStep(steps: GitHubJobStep[] | null | undefined) {
 }
 
 async function getFailureStage(
-  repository: string,
-  runId: string,
-  deployConclusion: DeployConclusion
+  context: GitHubRunContext
 ): Promise<string> {
-  if (deployConclusion === "success" || !process.env.GITHUB_TOKEN) {
+  if (context.deployConclusion === "success" || !process.env.GITHUB_TOKEN) {
     return "";
   }
 
-  const response = await fetchRunJobs(repository, runId);
+  const response = await fetchRunJobs(context);
   if (!response || !response.ok) {
     return "";
   }
@@ -166,11 +170,11 @@ async function main(): Promise<void> {
 
   const runUrl = `${serverUrl}/${repository}/actions/runs/${runId}`;
   const shortSha = commitSha.slice(0, 7);
-  const failureStage = await getFailureStage(
+  const failureStage = await getFailureStage({
     repository,
     runId,
-    deployConclusion
-  );
+    deployConclusion,
+  });
 
   const messageLines = [
     `**Deploy ${formatConclusion(deployConclusion)}**`,
