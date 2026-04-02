@@ -20,6 +20,11 @@ on:
         description: Optional backend image tag override
         required: false
         type: string
+      allow_branch_staging_deploy:
+        description: Allow manual staging validation from a branch that is not yet on main
+        required: false
+        type: boolean
+        default: false
 
 env:
   NODE_VERSION: 20.19.4
@@ -98,10 +103,11 @@ jobs:
         shell: bash
         env:
           DEPLOY_ENVIRONMENT: ${{ needs.resolve-target.outputs.deploy_environment }}
+          ALLOW_BRANCH_STAGING_DEPLOY: ${{ github.event.inputs.allow_branch_staging_deploy }}
         run: |
           set -euo pipefail
 
-          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${DEPLOY_ENVIRONMENT}" == "staging" ]]; then
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${DEPLOY_ENVIRONMENT}" == "staging" && "${ALLOW_BRANCH_STAGING_DEPLOY}" == "true" ]]; then
             echo "Branch-based staging validation is allowed for manual workflow_dispatch runs."
             exit 0
           fi
@@ -473,9 +479,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          api_name="${AZURE_API_CONTAINERAPP_NAME:-collabsphere-api}"
-          collab_name="${AZURE_COLLAB_CONTAINERAPP_NAME:-collabsphere-collab}"
-          worker_name="${AZURE_WORKER_CONTAINERAPP_NAME:-collabsphere-worker}"
+          api_name="${AZURE_API_CONTAINERAPP_NAME:-collabsphere-api-stg}"
+          collab_name="${AZURE_COLLAB_CONTAINERAPP_NAME:-collabsphere-collab-stg}"
+          worker_name="${AZURE_WORKER_CONTAINERAPP_NAME:-collabsphere-worker-stg}"
 
           az containerapp update \
             --name "$api_name" \

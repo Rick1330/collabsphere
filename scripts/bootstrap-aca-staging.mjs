@@ -10,7 +10,7 @@ const args = new Set(process.argv.slice(2));
 const buildAndPush = args.has("--build-and-push");
 const dryRun = args.has("--dry-run");
 
-const quoteWindowsArg = (value) => `"${String(value).replace(/"/g, '\\"')}"`;
+const quoteWindowsArg = (value) => `"${String(value).replaceAll("\"", String.raw`\"`)}"`;
 
 const execCommand = (command, commandArgs, options = {}) => {
   if (process.platform === "win32") {
@@ -33,10 +33,11 @@ const execCommand = (command, commandArgs, options = {}) => {
 };
 
 const run = (command, commandArgs, options = {}) => {
-  console.log(`> ${command} ${commandArgs.join(" ")}`);
+  const { displayArgs = commandArgs, ...execOptions } = options;
+  console.log(`> ${command} ${displayArgs.join(" ")}`);
   return execCommand(command, commandArgs, {
     stdio: "inherit",
-    ...options,
+    ...execOptions,
   });
 };
 
@@ -138,6 +139,7 @@ const secretPairs = secretSpecs.map(({ envName, secretName }) => ({
 }));
 
 const secretArgs = secretPairs.map(({ secretName, value }) => `${secretName}=${value}`);
+const redactedSecretArgs = secretPairs.map(({ secretName }) => `${secretName}=***`);
 
 const createSecretsYamlBlock = () =>
   secretPairs.map(({ secretName, value }) => `- name: ${secretName}\n  value: ${JSON.stringify(value)}`).join("\n");
@@ -145,7 +147,7 @@ const createSecretsYamlBlock = () =>
 const withInlineSecrets = (renderedYaml) => {
   const block = indentBlock(createSecretsYamlBlock(), 4);
   return renderedYaml.replace(
-    /  configuration:\r?\n/,
+    / {2}configuration:\r?\n/,
     (match) => `${match}    secrets:\n${block}\n`,
   );
 };
@@ -195,6 +197,34 @@ const resourceExists = (argsToRun) => {
   }
 };
 
+const upsertContainerApp = (app, manifestPath) => {
+  if (resourceExists(["containerapp", "show", "--name", app.name, "--resource-group", platformEnv.resourceGroup])) {
+    run(
+      azureCli,
+      ["containerapp", "secret", "set", "--name", app.name, "--resource-group", platformEnv.resourceGroup, "--secrets", ...secretArgs],
+      { displayArgs: ["containerapp", "secret", "set", "--name", app.name, "--resource-group", platformEnv.resourceGroup, "--secrets", ...redactedSecretArgs] },
+    );
+    run(azureCli, ["containerapp", "update", "--name", app.name, "--resource-group", platformEnv.resourceGroup, "--yaml", manifestPath]);
+    return;
+  }
+
+  run(azureCli, ["containerapp", "create", "--name", app.name, "--resource-group", platformEnv.resourceGroup, "--yaml", manifestPath]);
+};
+
+const upsertContainerAppJob = (manifestPath) => {
+  if (resourceExists(["containerapp", "job", "show", "--name", platformEnv.migrationsJobName, "--resource-group", platformEnv.resourceGroup])) {
+    run(
+      azureCli,
+      ["containerapp", "job", "secret", "set", "--name", platformEnv.migrationsJobName, "--resource-group", platformEnv.resourceGroup, "--secrets", ...secretArgs],
+      { displayArgs: ["containerapp", "job", "secret", "set", "--name", platformEnv.migrationsJobName, "--resource-group", platformEnv.resourceGroup, "--secrets", ...redactedSecretArgs] },
+    );
+    run(azureCli, ["containerapp", "job", "update", "--name", platformEnv.migrationsJobName, "--resource-group", platformEnv.resourceGroup, "--yaml", manifestPath]);
+    return;
+  }
+
+  run(azureCli, ["containerapp", "job", "create", "--name", platformEnv.migrationsJobName, "--resource-group", platformEnv.resourceGroup, "--yaml", manifestPath]);
+};
+
 const bootstrap = async () => {
   await rm(runnerDir, { recursive: true, force: true });
   await mkdir(runnerDir, { recursive: true });
@@ -232,12 +262,7 @@ const bootstrap = async () => {
       continue;
     }
 
-    if (resourceExists(["containerapp", "show", "--name", app.name, "--resource-group", platformEnv.resourceGroup])) {
-      run(azureCli, ["containerapp", "secret", "set", "--name", app.name, "--resource-group", platformEnv.resourceGroup, "--secrets", ...secretArgs]);
-      run(azureCli, ["containerapp", "update", "--name", app.name, "--resource-group", platformEnv.resourceGroup, "--yaml", manifestPath]);
-    } else {
-      run(azureCli, ["containerapp", "create", "--name", app.name, "--resource-group", platformEnv.resourceGroup, "--yaml", manifestPath]);
-    }
+    upsertContainerApp(app, manifestPath);
   }
 
   const renderedJob = await renderTemplate("infra/azure/container-apps/migrations.job.yaml", substitutions);
@@ -251,12 +276,7 @@ const bootstrap = async () => {
     return;
   }
 
-  if (resourceExists(["containerapp", "job", "show", "--name", platformEnv.migrationsJobName, "--resource-group", platformEnv.resourceGroup])) {
-    run(azureCli, ["containerapp", "job", "secret", "set", "--name", platformEnv.migrationsJobName, "--resource-group", platformEnv.resourceGroup, "--secrets", ...secretArgs]);
-    run(azureCli, ["containerapp", "job", "update", "--name", platformEnv.migrationsJobName, "--resource-group", platformEnv.resourceGroup, "--yaml", jobManifestPath]);
-  } else {
-    run(azureCli, ["containerapp", "job", "create", "--name", platformEnv.migrationsJobName, "--resource-group", platformEnv.resourceGroup, "--yaml", jobManifestPath]);
-  }
+  upsertContainerAppJob(jobManifestPath);
 
   console.log("ACA staging bootstrap completed.");
   console.log(`Apps: ${platformEnv.apiName}, ${platformEnv.collabName}, ${platformEnv.workerName}`);
