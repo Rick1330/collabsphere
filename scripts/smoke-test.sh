@@ -11,6 +11,8 @@ delay_seconds="${SMOKE_TEST_DELAY_SECONDS:-5}"
 connect_timeout_seconds="${SMOKE_TEST_CONNECT_TIMEOUT_SECONDS:-5}"
 max_time_seconds="${SMOKE_TEST_MAX_TIME_SECONDS:-15}"
 tmp_root="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
+web_url_is_vercel_deployment="false"
+web_url_request_path="/"
 
 require_positive_integer() {
   local name="$1"
@@ -26,6 +28,11 @@ usage() {
   cat <<'EOF'
 Usage:
   API_HEALTH_URL=<url> WEB_URL=<url> bash scripts/smoke-test.sh
+
+Notes:
+  - `node` is required for backend health payload validation.
+  - If `WEB_URL` targets a protected `.vercel.app` deployment, `VERCEL_TOKEN`
+    and the `vercel` CLI on PATH are also required.
 EOF
 }
 
@@ -39,6 +46,24 @@ require_positive_integer "SMOKE_TEST_ATTEMPTS" "$attempts"
 require_positive_integer "SMOKE_TEST_DELAY_SECONDS" "$delay_seconds"
 require_positive_integer "SMOKE_TEST_CONNECT_TIMEOUT_SECONDS" "$connect_timeout_seconds"
 require_positive_integer "SMOKE_TEST_MAX_TIME_SECONDS" "$max_time_seconds"
+
+initialize_web_probe_contract() {
+  local metadata
+
+  metadata="$(
+    node -e '
+      const candidate = process.argv[1];
+      const parsed = new URL(candidate);
+      const isVercel = parsed.hostname.endsWith(".vercel.app") ? "true" : "false";
+      const requestPath = `${parsed.pathname || "/"}${parsed.search || ""}` || "/";
+      process.stdout.write(`${isVercel}\t${requestPath}`);
+    ' "$web_url"
+  )"
+
+  IFS=$'\t' read -r web_url_is_vercel_deployment web_url_request_path <<<"$metadata"
+}
+
+initialize_web_probe_contract
 
 work_dir="$(mktemp -d "${tmp_root}/collabsphere-smoke-XXXXXX")"
 trap 'rm -rf "$work_dir"' EXIT
@@ -60,25 +85,11 @@ probe_url() {
     "$url"
 }
 
-is_vercel_deployment_url() {
-  local url="$1"
-
-  node -e '
-    const candidate = process.argv[1];
-    try {
-      const parsed = new URL(candidate);
-      process.exit(parsed.hostname.endsWith(".vercel.app") ? 0 : 1);
-    } catch {
-      process.exit(1);
-    }
-  ' "$url"
-}
-
 probe_web_url() {
   local body_path="$1"
   local headers_path="$2"
 
-  if ! is_vercel_deployment_url "$web_url"; then
+  if [[ "$web_url_is_vercel_deployment" != "true" ]]; then
     probe_url "$web_url" "$body_path" "$headers_path"
     return
   fi
@@ -88,7 +99,12 @@ probe_web_url() {
     return 1
   fi
 
-  local cmd=(pnpm dlx vercel curl / --yes --deployment "$web_url" --token "$vercel_token")
+  if ! command -v vercel >/dev/null 2>&1; then
+    echo "vercel CLI is required to smoke-test protected Vercel deployment URLs." >&2
+    return 1
+  fi
+
+  local cmd=(vercel curl "$web_url_request_path" --yes --deployment "$web_url" --token "$vercel_token")
   if [[ -n "$vercel_scope" ]]; then
     cmd+=(--scope "$vercel_scope")
   fi

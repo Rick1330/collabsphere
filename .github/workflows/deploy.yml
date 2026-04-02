@@ -30,6 +30,7 @@ env:
   NODE_VERSION: 20.19.4
   PNPM_VERSION: 9.15.9
   TURBO_TELEMETRY_DISABLED: "1"
+  VERCEL_CLI_VERSION: 50.38.3
 
 concurrency:
   group: deploy-${{ github.workflow }}-${{ github.ref_type == 'tag' && 'production' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment) || 'staging' }}
@@ -578,6 +579,10 @@ jobs:
           printf '%s\n' "$deployment_url"
 
           echo "deployment_url=$deployment_url" >> "$GITHUB_OUTPUT"
+
+      - name: Install Vercel CLI for smoke tests
+        shell: bash
+        run: npm install --global "vercel@${VERCEL_CLI_VERSION}"
 
       - name: Run post-deploy smoke tests
         timeout-minutes: 10
