@@ -9,8 +9,10 @@ const runnerDir = path.join(repoRoot, ".tmp", "aca-bootstrap");
 const args = new Set(process.argv.slice(2));
 const buildAndPush = args.has("--build-and-push");
 const dryRun = args.has("--dry-run");
+const windowsQuotedQuote = String.raw`\"`;
+const azureCliWindowsPath = String.raw`C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin\az.cmd`;
 
-const quoteWindowsArg = (value) => `"${String(value).replaceAll("\"", String.raw`\"`)}"`;
+const quoteWindowsArg = (value) => `"${String(value).replaceAll("\"", windowsQuotedQuote)}"`;
 
 const execCommand = (command, commandArgs, options = {}) => {
   if (process.platform === "win32") {
@@ -181,10 +183,9 @@ const appConfigs = [
     template: "infra/azure/container-apps/worker.containerapp.yaml",
   },
 ];
+const backendServices = ["api", "collab", "worker"];
 
-const azureCli = process.platform === "win32"
-  ? "C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\wbin\\az.cmd"
-  : "az";
+const azureCli = process.platform === "win32" ? azureCliWindowsPath : "az";
 
 const resourceExists = (argsToRun) => {
   try {
@@ -197,32 +198,87 @@ const resourceExists = (argsToRun) => {
   }
 };
 
-const upsertContainerApp = (app, manifestPath) => {
-  if (resourceExists(["containerapp", "show", "--name", app.name, "--resource-group", platformEnv.resourceGroup])) {
-    run(
-      azureCli,
-      ["containerapp", "secret", "set", "--name", app.name, "--resource-group", platformEnv.resourceGroup, "--secrets", ...secretArgs],
-      { displayArgs: ["containerapp", "secret", "set", "--name", app.name, "--resource-group", platformEnv.resourceGroup, "--secrets", ...redactedSecretArgs] },
-    );
-    run(azureCli, ["containerapp", "update", "--name", app.name, "--resource-group", platformEnv.resourceGroup, "--yaml", manifestPath]);
-    return;
+const buildAndPushBackendImages = () => {
+  for (const service of backendServices) {
+    run("pnpm", ["--filter", `@collabsphere/${service}`, "run", "build"]);
   }
 
-  run(azureCli, ["containerapp", "create", "--name", app.name, "--resource-group", platformEnv.resourceGroup, "--yaml", manifestPath]);
+  run(azureCli, ["acr", "login", "--name", platformEnv.registryName]);
+
+  for (const service of backendServices) {
+    const imageRef = `${platformEnv.registryServer}/collabsphere-${service}:${platformEnv.imageTag}`;
+    run("docker", [
+      "build",
+      "--file",
+      "infra/azure/container-apps/backend-service.Dockerfile",
+      "--build-arg",
+      `APP_DIR=apps/${service}`,
+      "--tag",
+      imageRef,
+      ".",
+    ]);
+    run("docker", ["push", imageRef]);
+  }
 };
 
-const upsertContainerAppJob = (manifestPath) => {
-  if (resourceExists(["containerapp", "job", "show", "--name", platformEnv.migrationsJobName, "--resource-group", platformEnv.resourceGroup])) {
-    run(
-      azureCli,
-      ["containerapp", "job", "secret", "set", "--name", platformEnv.migrationsJobName, "--resource-group", platformEnv.resourceGroup, "--secrets", ...secretArgs],
-      { displayArgs: ["containerapp", "job", "secret", "set", "--name", platformEnv.migrationsJobName, "--resource-group", platformEnv.resourceGroup, "--secrets", ...redactedSecretArgs] },
-    );
-    run(azureCli, ["containerapp", "job", "update", "--name", platformEnv.migrationsJobName, "--resource-group", platformEnv.resourceGroup, "--yaml", manifestPath]);
+const renderBootstrapManifest = async (templatePath, outputName) => {
+  const rendered = await renderTemplate(templatePath, substitutions);
+  const manifestPath = path.join(runnerDir, `${outputName}.yaml`);
+  await writeFile(manifestPath, withInlineSecrets(rendered), "utf8");
+  return manifestPath;
+};
+
+const upsertContainerResource = ({ kind, name, manifestPath }) => {
+  const resourceSegments = kind === "job" ? ["containerapp", "job"] : ["containerapp"];
+  const existsArgs = [...resourceSegments, "show", "--name", name, "--resource-group", platformEnv.resourceGroup];
+  const secretArgsToRun = [...resourceSegments, "secret", "set", "--name", name, "--resource-group", platformEnv.resourceGroup, "--secrets", ...secretArgs];
+  const redactedSecretArgsToRun = [...resourceSegments, "secret", "set", "--name", name, "--resource-group", platformEnv.resourceGroup, "--secrets", ...redactedSecretArgs];
+  const updateArgs = [...resourceSegments, "update", "--name", name, "--resource-group", platformEnv.resourceGroup, "--yaml", manifestPath];
+  const createArgs = [...resourceSegments, "create", "--name", name, "--resource-group", platformEnv.resourceGroup, "--yaml", manifestPath];
+
+  if (resourceExists(existsArgs)) {
+    run(azureCli, secretArgsToRun, { displayArgs: redactedSecretArgsToRun });
+    run(azureCli, updateArgs);
     return;
   }
 
-  run(azureCli, ["containerapp", "job", "create", "--name", platformEnv.migrationsJobName, "--resource-group", platformEnv.resourceGroup, "--yaml", manifestPath]);
+  run(azureCli, createArgs);
+};
+
+const bootstrapApps = async () => {
+  for (const app of appConfigs) {
+    const manifestPath = await renderBootstrapManifest(app.template, app.name);
+
+    if (dryRun) {
+      console.log(`[dry-run] rendered app bootstrap manifest ${manifestPath}`);
+      continue;
+    }
+
+    upsertContainerResource({
+      kind: "app",
+      name: app.name,
+      manifestPath,
+    });
+  }
+};
+
+const bootstrapJob = async () => {
+  const manifestPath = await renderBootstrapManifest(
+    "infra/azure/container-apps/migrations.job.yaml",
+    platformEnv.migrationsJobName,
+  );
+
+  if (dryRun) {
+    console.log(`[dry-run] rendered job bootstrap manifest ${manifestPath}`);
+    console.log("ACA staging bootstrap dry run completed.");
+    return;
+  }
+
+  upsertContainerResource({
+    kind: "job",
+    name: platformEnv.migrationsJobName,
+    manifestPath,
+  });
 };
 
 const bootstrap = async () => {
@@ -230,60 +286,24 @@ const bootstrap = async () => {
   await mkdir(runnerDir, { recursive: true });
 
   if (buildAndPush) {
-    run("pnpm", ["--filter", "@collabsphere/api", "run", "build"]);
-    run("pnpm", ["--filter", "@collabsphere/collab", "run", "build"]);
-    run("pnpm", ["--filter", "@collabsphere/worker", "run", "build"]);
-    run(azureCli, ["acr", "login", "--name", platformEnv.registryName]);
-
-    for (const service of ["api", "collab", "worker"]) {
-      const imageRef = `${platformEnv.registryServer}/collabsphere-${service}:${platformEnv.imageTag}`;
-      run("docker", [
-        "build",
-        "--file",
-        "infra/azure/container-apps/backend-service.Dockerfile",
-        "--build-arg",
-        `APP_DIR=apps/${service}`,
-        "--tag",
-        imageRef,
-        ".",
-      ]);
-      run("docker", ["push", imageRef]);
-    }
+    buildAndPushBackendImages();
   }
 
-  for (const app of appConfigs) {
-    const rendered = await renderTemplate(app.template, substitutions);
-    const bootstrapYaml = withInlineSecrets(rendered);
-    const manifestPath = path.join(runnerDir, `${app.name}.yaml`);
-    await writeFile(manifestPath, bootstrapYaml, "utf8");
-
-    if (dryRun) {
-      console.log(`[dry-run] rendered app bootstrap manifest ${manifestPath}`);
-      continue;
-    }
-
-    upsertContainerApp(app, manifestPath);
-  }
-
-  const renderedJob = await renderTemplate("infra/azure/container-apps/migrations.job.yaml", substitutions);
-  const bootstrapJobYaml = withInlineSecrets(renderedJob);
-  const jobManifestPath = path.join(runnerDir, `${platformEnv.migrationsJobName}.yaml`);
-  await writeFile(jobManifestPath, bootstrapJobYaml, "utf8");
+  await bootstrapApps();
+  await bootstrapJob();
 
   if (dryRun) {
-    console.log(`[dry-run] rendered job bootstrap manifest ${jobManifestPath}`);
-    console.log("ACA staging bootstrap dry run completed.");
     return;
   }
-
-  upsertContainerAppJob(jobManifestPath);
 
   console.log("ACA staging bootstrap completed.");
   console.log(`Apps: ${platformEnv.apiName}, ${platformEnv.collabName}, ${platformEnv.workerName}`);
   console.log(`Job: ${platformEnv.migrationsJobName}`);
 };
 
-bootstrap().catch((error) => {
+try {
+  await bootstrap();
+} catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);
-});
+}
