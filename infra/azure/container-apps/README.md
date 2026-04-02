@@ -34,7 +34,7 @@
 ## Migration and revision-hook strategy
 - Run the Container Apps job in `migrations.job.yaml` before updating any backend service revision.
 - The migration job is the release hook for schema changes. It must finish successfully before the new `api`, `collab`, or `worker` image tag is applied.
-- The job intentionally uses a separate `__MIGRATIONS_IMAGE__` placeholder rather than the slim service images. That image must include the migration toolchain and schema artifacts required for `pnpm prisma migrate deploy`.
+- The job image is rendered during deploy with the current release tag. The current workflow points `__MIGRATIONS_IMAGE__` at `collabsphere-api` so the job and backend rollout stay on the same release artifact until a dedicated migrations image is introduced.
 - Service manifests use `activeRevisionsMode: Single` so the latest ready revision becomes active after the migration hook succeeds.
 
 ## Manual validation

@@ -1,5 +1,5 @@
 location: __LOCATION__
-name: collabsphere-migrations
+name: __MIGRATIONS_JOB_NAME__
 type: Microsoft.App/jobs
 properties:
   environmentId: __MANAGED_ENVIRONMENT_ID__

@@ -317,6 +317,8 @@ jobs:
           const substitutions = new Map([
             ["__LOCATION__", process.env.AZURE_LOCATION],
             ["__MANAGED_ENVIRONMENT_ID__", process.env.AZURE_MANAGED_ENVIRONMENT_ID],
+            ["__MIGRATIONS_JOB_NAME__", process.env.AZURE_MIGRATIONS_JOB_NAME],
+            ["__MIGRATIONS_IMAGE__", "collabsphere-api"],
             ["__REGISTRY_SERVER__", registryServer],
             ["__IMAGE_TAG__", imageTag],
             ["__S3_AUTH_ID_REF__", process.env.AZURE_S3_AUTH_ID_REF],
@@ -326,6 +328,7 @@ jobs:
           for (const file of [
             "api.containerapp.yaml",
             "collab.containerapp.yaml",
+            "migrations.job.yaml",
             "worker.containerapp.yaml",
           ]) {
             const sourcePath = path.join("infra", "azure", "container-apps", file);
@@ -336,6 +339,28 @@ jobs:
             fs.writeFileSync(path.join(outputDir, file), text, "utf8");
           }
           EOF
+
+      - name: Upsert migrations job definition
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          manifest_path="$RUNNER_TEMP/containerapps/migrations.job.yaml"
+
+          if az containerapp job show \
+            --name "${AZURE_MIGRATIONS_JOB_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            >/dev/null 2>&1; then
+            az containerapp job update \
+              --name "${AZURE_MIGRATIONS_JOB_NAME}" \
+              --resource-group "${AZURE_RESOURCE_GROUP}" \
+              --yaml "$manifest_path"
+          else
+            az containerapp job create \
+              --name "${AZURE_MIGRATIONS_JOB_NAME}" \
+              --resource-group "${AZURE_RESOURCE_GROUP}" \
+              --yaml "$manifest_path"
+          fi
 
       - name: Run migration job before backend revision promotion
         shell: bash
