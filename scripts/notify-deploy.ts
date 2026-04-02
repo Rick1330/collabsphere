@@ -109,7 +109,7 @@ async function getFailureStage(
     return "";
   }
 
-  const jobs = payload.jobs ?? [];
+  const jobs = Array.isArray(payload.jobs) ? payload.jobs : [];
   const failingJob = jobs.find((job) =>
     ["failure", "cancelled", "timed_out", "action_required"].includes(
       job.conclusion ?? ""
@@ -120,7 +120,8 @@ async function getFailureStage(
     return "";
   }
 
-  const failingStep = (failingJob.steps ?? []).find((step) =>
+  const steps = Array.isArray(failingJob.steps) ? failingJob.steps : [];
+  const failingStep = steps.find((step) =>
     ["failure", "cancelled", "timed_out", "action_required"].includes(
       step.conclusion ?? ""
     )
