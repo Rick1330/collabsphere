@@ -69,6 +69,7 @@ Provide an execution-focused reference for CollabSphere CI/CD requirements, requ
 - `docs/agent-ref/ops/local-dev.md`
 - `docs/agent-ref/ops/migrations.md`
 - `docs/agent-ref/ops/deployment.md`
+- `docs/agent-ref/ops/deployment-observability.md`
 - `docs/agent-ref/ops/release-readiness.md`
 - `docs/agent-ref/rules/security-rules.md`
 

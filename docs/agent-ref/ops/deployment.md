@@ -61,6 +61,7 @@ Provide an execution-focused reference for CollabSphere deployment strategy, uni
 ## Related Files / Domains
 - `docs/agent-ref/ops/env-vars.md`
 - `docs/agent-ref/ops/ci-cd.md`
+- `docs/agent-ref/ops/deployment-observability.md`
 - `docs/agent-ref/ops/release-readiness.md`
 - `docs/agent-ref/ops/local-dev.md`
 - `infra/azure/container-apps/README.md`
