@@ -100,6 +100,9 @@ Deploy-time configuration for `staging` is expected in GitHub Actions environmen
 - `AZURE_SUBSCRIPTION_ID`
 - `AZURE_ACR_PASSWORD`
 - `VERCEL_TOKEN`
+- `DEPLOY_NOTIFICATION_WEBHOOK_URL`
+
+The deploy workflow posts a compact Discord notification after each staging or production run using the environment-scoped `DEPLOY_NOTIFICATION_WEBHOOK_URL` secret.
 
 ### Production
 
