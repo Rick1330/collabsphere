@@ -593,3 +593,74 @@ jobs:
           VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: bash scripts/smoke-test.sh
+
+  notify:
+    if: ${{ always() && needs.resolve-target.outputs.deploy_environment != '' }}
+    needs:
+      - resolve-target
+      - build
+      - deploy
+    runs-on: ubuntu-latest
+    environment: ${{ needs.resolve-target.outputs.deploy_environment }}
+    permissions:
+      actions: read
+      contents: read
+    env:
+      DEPLOY_ENVIRONMENT: ${{ needs.resolve-target.outputs.deploy_environment }}
+      DEPLOY_TARGET_SUMMARY: Vercel web + Azure Container Apps backend
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install notification runner dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Resolve notification conclusion
+        id: notification
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ needs.resolve-target.result }}" == "success" && "${{ needs.build.result }}" == "success" && "${{ needs.deploy.result }}" == "success" ]]; then
+            echo "conclusion=success" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ needs.resolve-target.result }}" == "cancelled" || "${{ needs.build.result }}" == "cancelled" || "${{ needs.deploy.result }}" == "cancelled" ]]; then
+            echo "conclusion=cancelled" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ needs.resolve-target.result }}" == "skipped" || "${{ needs.build.result }}" == "skipped" || "${{ needs.deploy.result }}" == "skipped" ]]; then
+            echo "conclusion=failure" >> "$GITHUB_OUTPUT"
+          else
+            echo "conclusion=failure" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate notification contract
+        shell: bash
+        env:
+          DEPLOY_NOTIFICATION_WEBHOOK_URL: ${{ secrets.DEPLOY_NOTIFICATION_WEBHOOK_URL }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${DEPLOY_NOTIFICATION_WEBHOOK_URL:-}" ]]; then
+            echo "::error::DEPLOY_NOTIFICATION_WEBHOOK_URL is required for deploy notifications."
+            exit 1
+          fi
+
+      - name: Send deploy notification
+        timeout-minutes: 2
+        env:
+          DEPLOY_NOTIFICATION_WEBHOOK_URL: ${{ secrets.DEPLOY_NOTIFICATION_WEBHOOK_URL }}
+          DEPLOY_CONCLUSION: ${{ steps.notification.outputs.conclusion }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm exec tsx scripts/notify-deploy.ts
