@@ -29,6 +29,13 @@ Provide an execution-focused reference for deployment-health signals, operator v
 
 Use that run as the baseline example of a healthy CS-008 deployment.
 
+Evidence snapshot:
+- run URL: `https://github.com/Rick1330/collabsphere/actions/runs/23918963071`
+- deploy job conclusion: `success`
+- `Run migration job before backend revision promotion`: `success`
+- `Run post-deploy smoke tests`: `success`
+- Full validation-command evidence for this documentation update is recorded in PR `#1492` and the linked `#232` handoff comment instead of being duplicated inline here.
+
 ## Primary Operator Views
 
 ### 1. GitHub Actions `Deploy` workflow
