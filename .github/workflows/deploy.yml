@@ -585,4 +585,6 @@ jobs:
         env:
           API_HEALTH_URL: ${{ steps.backend-smoke-target.outputs.api_health_url }}
           WEB_URL: ${{ steps.deploy-web.outputs.deployment_url }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: bash scripts/smoke-test.sh

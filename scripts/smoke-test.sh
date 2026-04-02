@@ -4,6 +4,8 @@ set -euo pipefail
 
 api_health_url="${API_HEALTH_URL:-}"
 web_url="${WEB_URL:-}"
+vercel_token="${VERCEL_TOKEN:-}"
+vercel_scope="${VERCEL_ORG_ID:-}"
 attempts="${SMOKE_TEST_ATTEMPTS:-24}"
 delay_seconds="${SMOKE_TEST_DELAY_SECONDS:-5}"
 connect_timeout_seconds="${SMOKE_TEST_CONNECT_TIMEOUT_SECONDS:-5}"
@@ -56,6 +58,53 @@ probe_url() {
     --dump-header "$headers_path" \
     --write-out "%{http_code}" \
     "$url"
+}
+
+is_vercel_deployment_url() {
+  local url="$1"
+
+  node -e '
+    const candidate = process.argv[1];
+    try {
+      const parsed = new URL(candidate);
+      process.exit(parsed.hostname.endsWith(".vercel.app") ? 0 : 1);
+    } catch {
+      process.exit(1);
+    }
+  ' "$url"
+}
+
+probe_web_url() {
+  local body_path="$1"
+  local headers_path="$2"
+
+  if ! is_vercel_deployment_url "$web_url"; then
+    probe_url "$web_url" "$body_path" "$headers_path"
+    return
+  fi
+
+  if [[ -z "$vercel_token" ]]; then
+    echo "VERCEL_TOKEN is required to smoke-test protected Vercel deployment URLs." >&2
+    return 1
+  fi
+
+  local cmd=(pnpm dlx vercel curl / --yes --deployment "$web_url" --token "$vercel_token")
+  if [[ -n "$vercel_scope" ]]; then
+    cmd+=(--scope "$vercel_scope")
+  fi
+  cmd+=(
+    --
+    --silent
+    --show-error
+    --location
+    --connect-timeout "$connect_timeout_seconds"
+    --max-time "$max_time_seconds"
+    --output "$body_path"
+    --dump-header "$headers_path"
+    --write-out "%{http_code}"
+  )
+
+  "${cmd[@]}"
 }
 
 assert_backend_health_payload() {
@@ -124,7 +173,7 @@ wait_for_web() {
 
   for attempt in $(seq 1 "$attempts"); do
     local http_code
-    if ! http_code="$(probe_url "$web_url" "$body_path" "$headers_path")"; then
+    if ! http_code="$(probe_web_url "$body_path" "$headers_path")"; then
       last_error="HTTP request to web URL failed."
     elif [[ "$http_code" != "200" ]]; then
       last_error="Web URL returned HTTP ${http_code}."
