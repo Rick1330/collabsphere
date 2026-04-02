@@ -10,6 +10,16 @@ connect_timeout_seconds="${SMOKE_TEST_CONNECT_TIMEOUT_SECONDS:-5}"
 max_time_seconds="${SMOKE_TEST_MAX_TIME_SECONDS:-15}"
 work_dir="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/collabsphere-smoke"
 
+require_positive_integer() {
+  local name="$1"
+  local value="$2"
+
+  if [[ ! "$value" =~ ^[1-9][0-9]*$ ]]; then
+    echo "${name} must be a positive integer. Got: ${value}" >&2
+    exit 1
+  fi
+}
+
 usage() {
   cat <<'EOF'
 Usage:
@@ -22,6 +32,11 @@ if [[ -z "$api_health_url" || -z "$web_url" ]]; then
   echo "API_HEALTH_URL and WEB_URL are required." >&2
   exit 1
 fi
+
+require_positive_integer "SMOKE_TEST_ATTEMPTS" "$attempts"
+require_positive_integer "SMOKE_TEST_DELAY_SECONDS" "$delay_seconds"
+require_positive_integer "SMOKE_TEST_CONNECT_TIMEOUT_SECONDS" "$connect_timeout_seconds"
+require_positive_integer "SMOKE_TEST_MAX_TIME_SECONDS" "$max_time_seconds"
 
 mkdir -p "$work_dir"
 
