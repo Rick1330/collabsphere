@@ -17,7 +17,7 @@ const quoteWindowsArg = (value) => `"${String(value).replaceAll("\"", windowsQuo
 
 const execCommand = (command, commandArgs, options = {}) => {
   if (process.platform === "win32") {
-    const commandLine = `""${command}" ${commandArgs.map(quoteWindowsArg).join(" ")}`.trim();
+    const commandLine = `""${command}" ${commandArgs.map(quoteWindowsArg).join(" ")}"`;
     return execFileSync(windowsCmdPath, [
       "/d",
       "/s",
@@ -149,10 +149,16 @@ const createSecretsYamlBlock = () =>
 
 const withInlineSecrets = (renderedYaml) => {
   const block = indentBlock(createSecretsYamlBlock(), 4);
-  return renderedYaml.replace(
+  const updatedYaml = renderedYaml.replace(
     / {2}configuration:\r?\n/,
     (match) => `${match}    secrets:\n${block}\n`,
   );
+
+  if (updatedYaml === renderedYaml) {
+    throw new Error("withInlineSecrets failed to inject the ACA secrets block.");
+  }
+
+  return updatedYaml;
 };
 
 const substitutions = new Map([
@@ -187,6 +193,13 @@ const appConfigs = [
 const backendServices = ["api", "collab", "worker"];
 
 const azureCli = process.platform === "win32" ? azureCliWindowsPath : "az";
+const missingResourcePatterns = [
+  "could not be found",
+  "not found",
+  "no such",
+  "resource not found",
+  "(404)",
+];
 
 const resourceExists = (argsToRun) => {
   try {
@@ -194,8 +207,18 @@ const resourceExists = (argsToRun) => {
       stdio: "pipe",
     });
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    const errorText = [
+      error instanceof Error ? error.message : String(error),
+      Buffer.isBuffer(error?.stderr) ? error.stderr.toString("utf8") : "",
+      Buffer.isBuffer(error?.stdout) ? error.stdout.toString("utf8") : "",
+    ].join("\n").toLowerCase();
+
+    if (missingResourcePatterns.some((pattern) => errorText.includes(pattern))) {
+      return false;
+    }
+
+    throw error;
   }
 };
 
