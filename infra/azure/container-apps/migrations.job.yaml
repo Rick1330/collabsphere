@@ -7,13 +7,16 @@ properties:
     triggerType: Manual
     replicaRetryLimit: 1
     replicaTimeout: 1800
+    secrets:
+      - name: database-url
+        value: __DATABASE_URL__
   template:
     containers:
       - name: migrations
         image: __REGISTRY_SERVER__/__MIGRATIONS_IMAGE__:__IMAGE_TAG__
         command:
           - /bin/sh
-          - -lc
+          - -c
           - |
             schema_path=""
             for candidate in ./prisma/schema.prisma ./dist/prisma/schema.prisma ./packages/database/prisma/schema.prisma; do

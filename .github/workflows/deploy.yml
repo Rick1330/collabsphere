@@ -168,6 +168,7 @@ jobs:
       AZURE_S3_AUTH_VALUE_REF: ${{ vars.AZURE_S3_AUTH_VALUE_REF }}
       VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
     steps:
       - name: Check out repository
@@ -250,6 +251,7 @@ jobs:
             AZURE_TENANT_ID
             AZURE_SUBSCRIPTION_ID
             VERCEL_TOKEN
+            DATABASE_URL
           )
 
           for name in "${required_vars[@]}"; do
@@ -316,6 +318,7 @@ jobs:
           const imageTag = process.env.IMAGE_TAG;
           const substitutions = new Map([
             ["__LOCATION__", process.env.AZURE_LOCATION],
+            ["__DATABASE_URL__", process.env.DATABASE_URL],
             ["__MANAGED_ENVIRONMENT_ID__", process.env.AZURE_MANAGED_ENVIRONMENT_ID],
             ["__MIGRATIONS_JOB_NAME__", process.env.AZURE_MIGRATIONS_JOB_NAME],
             ["__MIGRATIONS_IMAGE__", "collabsphere-api"],
@@ -335,6 +338,12 @@ jobs:
             let text = fs.readFileSync(sourcePath, "utf8");
             for (const [needle, replacement] of substitutions) {
               text = text.split(needle).join(replacement);
+            }
+            const unresolved = [...new Set(text.match(/__[A-Z0-9_]+__/g) ?? [])];
+            if (unresolved.length > 0) {
+              throw new Error(
+                `Unresolved placeholders in ${file}: ${unresolved.join(", ")}`
+              );
             }
             fs.writeFileSync(path.join(outputDir, file), text, "utf8");
           }
