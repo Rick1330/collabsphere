@@ -19,6 +19,12 @@ interface GitHubJobsResponse {
 
 const GITHUB_API_TIMEOUT_MS = 10_000;
 const WEBHOOK_TIMEOUT_MS = 10_000;
+const TERMINAL_FAILURE_CONCLUSIONS = [
+  "failure",
+  "cancelled",
+  "timed_out",
+  "action_required",
+];
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -71,18 +77,16 @@ function formatConclusion(conclusion: DeployConclusion): string {
   }
 }
 
-async function getFailureStage(
-  repository: string,
-  runId: string,
-  deployConclusion: DeployConclusion
-): Promise<string> {
-  if (deployConclusion === "success" || !process.env.GITHUB_TOKEN) {
-    return "";
-  }
+function isTerminalFailure(conclusion: string | null | undefined): boolean {
+  return TERMINAL_FAILURE_CONCLUSIONS.includes(conclusion ?? "");
+}
 
-  let response: Response;
+async function fetchRunJobs(
+  repository: string,
+  runId: string
+): Promise<Response | null> {
   try {
-    response = await fetchWithTimeout(
+    return await fetchWithTimeout(
       `https://api.github.com/repos/${repository}/actions/runs/${runId}/jobs?per_page=100`,
       {
         headers: {
@@ -95,37 +99,53 @@ async function getFailureStage(
       GITHUB_API_TIMEOUT_MS
     );
   } catch {
-    return "";
+    return null;
   }
+}
 
-  if (!response.ok) {
-    return "";
-  }
-
+async function parseJobsResponse(response: Response): Promise<GitHubJob[]> {
   let payload: GitHubJobsResponse;
+
   try {
     payload = (await response.json()) as GitHubJobsResponse;
   } catch {
+    return [];
+  }
+
+  return Array.isArray(payload.jobs) ? payload.jobs : [];
+}
+
+function findFailingJob(jobs: GitHubJob[]): GitHubJob | undefined {
+  return jobs.find((job) => isTerminalFailure(job.conclusion));
+}
+
+function findFailingStep(steps: GitHubJobStep[] | null | undefined) {
+  const safeSteps = Array.isArray(steps) ? steps : [];
+  return safeSteps.find((step) => isTerminalFailure(step.conclusion));
+}
+
+async function getFailureStage(
+  repository: string,
+  runId: string,
+  deployConclusion: DeployConclusion
+): Promise<string> {
+  if (deployConclusion === "success" || !process.env.GITHUB_TOKEN) {
     return "";
   }
 
-  const jobs = Array.isArray(payload.jobs) ? payload.jobs : [];
-  const failingJob = jobs.find((job) =>
-    ["failure", "cancelled", "timed_out", "action_required"].includes(
-      job.conclusion ?? ""
-    )
-  );
+  const response = await fetchRunJobs(repository, runId);
+  if (!response || !response.ok) {
+    return "";
+  }
+
+  const jobs = await parseJobsResponse(response);
+  const failingJob = findFailingJob(jobs);
 
   if (!failingJob) {
     return "";
   }
 
-  const steps = Array.isArray(failingJob.steps) ? failingJob.steps : [];
-  const failingStep = steps.find((step) =>
-    ["failure", "cancelled", "timed_out", "action_required"].includes(
-      step.conclusion ?? ""
-    )
-  );
+  const failingStep = findFailingStep(failingJob.steps);
 
   if (failingStep?.name) {
     return `${failingJob.name ?? "unknown"} / ${failingStep.name}`;
