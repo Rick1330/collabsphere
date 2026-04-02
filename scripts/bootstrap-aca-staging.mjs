@@ -88,7 +88,6 @@ const requiredPlatformVars = [
   ["AZURE_CONTAINER_REGISTRY_LOGIN_SERVER", platformEnv.registryServer],
   ["AZURE_CONTAINER_REGISTRY_NAME", platformEnv.registryName],
   ["AZURE_ACR_USERNAME", platformEnv.registryUsername],
-  ["AZURE_ACR_PASSWORD", platformEnv.registryPassword],
   ["IMAGE_TAG", platformEnv.imageTag],
 ];
 

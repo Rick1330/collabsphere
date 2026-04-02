@@ -400,6 +400,10 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Incremental deploys only refresh the registry pull secret here.
+          # The first-run ACA bootstrap flow provisions the runtime app/job secrets
+          # referenced via secretRef in the manifests and must already have run.
+
           api_name="${AZURE_API_CONTAINERAPP_NAME:-collabsphere-api-stg}"
           collab_name="${AZURE_COLLAB_CONTAINERAPP_NAME:-collabsphere-collab-stg}"
           worker_name="${AZURE_WORKER_CONTAINERAPP_NAME:-collabsphere-worker-stg}"
