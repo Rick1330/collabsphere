@@ -188,7 +188,7 @@ jobs:
 
           for service in api collab web worker; do
             artifact_dir="$(
-              find "$artifact_root" -path "*/${service}/dist" -type d | head -n 1
+              find "$artifact_root" -path "*/${service}/dist" -type d -print -quit
             )"
 
             if [[ -z "$artifact_dir" ]]; then
