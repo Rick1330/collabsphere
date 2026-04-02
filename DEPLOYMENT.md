@@ -118,15 +118,23 @@ The deploy workflow variables are not enough to complete the first staging rollo
 - `collab-jwt-secret`
 - `collab-ws-url`
 - `s3-bucket`
-- `s3-access-key-id`
-- `s3-secret-access-key`
 - `s3-region`
 
-### Optional storage secret
+The `collab` and `worker` manifests do not hard-code the S3 credential secret names.
+
+- `AZURE_S3_AUTH_ID_REF` must be set to the Azure Container Apps secret name that holds the S3 access key ID.
+- `AZURE_S3_AUTH_VALUE_REF` must be set to the Azure Container Apps secret name that holds the S3 secret access key.
+
+Recommended canonical secret names:
+
+- `s3-access-key-id`
+- `s3-secret-access-key`
+
+### Optional storage secret not currently used by the Container Apps manifests
 
 - `s3-endpoint`
 
-This is only required if staging uses a non-AWS S3-compatible endpoint.
+This is only relevant if staging uses a non-AWS S3-compatible endpoint. The current `collab` and `worker` Container Apps manifests do not wire an `S3_ENDPOINT` environment variable yet.
 
 ## Staging Deployment Flow
 
