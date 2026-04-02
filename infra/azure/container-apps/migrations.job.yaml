@@ -1,5 +1,5 @@
 location: __LOCATION__
-name: collabsphere-migrations
+name: __MIGRATIONS_JOB_NAME__
 type: Microsoft.App/jobs
 properties:
   environmentId: __MANAGED_ENVIRONMENT_ID__
@@ -7,15 +7,36 @@ properties:
     triggerType: Manual
     replicaRetryLimit: 1
     replicaTimeout: 1800
+    secrets:
+      - name: database-url
+        value: __DATABASE_URL__
   template:
     containers:
       - name: migrations
         image: __REGISTRY_SERVER__/__MIGRATIONS_IMAGE__:__IMAGE_TAG__
         command:
-          - pnpm
-          - prisma
-          - migrate
-          - deploy
+          - /bin/sh
+          - -c
+          - |
+            schema_path=""
+            for candidate in ./prisma/schema.prisma ./dist/prisma/schema.prisma ./packages/database/prisma/schema.prisma; do
+              if [ -f "$candidate" ]; then
+                schema_path="$candidate"
+                break
+              fi
+            done
+
+            if [ -z "$schema_path" ]; then
+              echo "No Prisma schema is present in the release artifact; skipping migrations."
+              exit 0
+            fi
+
+            if ! command -v pnpm >/dev/null 2>&1; then
+              echo "Prisma schema found at $schema_path but pnpm is not available in the migrations image." >&2
+              exit 1
+            fi
+
+            pnpm exec prisma migrate deploy --schema "$schema_path"
         env:
           - name: DATABASE_URL
             secretRef: database-url
