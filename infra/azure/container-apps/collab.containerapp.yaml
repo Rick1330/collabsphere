@@ -1,10 +1,14 @@
 location: __LOCATION__
-name: collabsphere-collab
+name: __COLLAB_CONTAINERAPP_NAME__
 type: Microsoft.App/containerApps
 properties:
   managedEnvironmentId: __MANAGED_ENVIRONMENT_ID__
   configuration:
     activeRevisionsMode: Single
+    registries:
+      - server: __REGISTRY_SERVER__
+        username: __ACR_USERNAME__
+        passwordSecretRef: acr-password
     ingress:
       allowInsecure: false
       external: false
@@ -35,7 +39,7 @@ properties:
           - name: CORS_ORIGINS
             secretRef: cors-origins
           - name: EMAIL_PROVIDER_API_KEY
-            secretRef: email-provider-api-key
+            secretRef: email-provider-key
           - name: API_BASE_URL
             secretRef: api-base-url
           - name: BASE_URL

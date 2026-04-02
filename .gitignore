@@ -9,6 +9,7 @@ node_modules/
 dist/
 build/
 .turbo/
+.tmp/
 .next/
 coverage/
 .nyc_output/
@@ -16,3 +17,4 @@ coverage/
 .env
 .env.local
 .env.*.local
+.vercel
