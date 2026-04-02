@@ -347,19 +347,31 @@ jobs:
 
           manifest_path="$RUNNER_TEMP/containerapps/migrations.job.yaml"
 
-          if az containerapp job show \
-            --name "${AZURE_MIGRATIONS_JOB_NAME}" \
-            --resource-group "${AZURE_RESOURCE_GROUP}" \
-            >/dev/null 2>&1; then
+          set +e
+          show_output="$(
+            az containerapp job show \
+              --name "${AZURE_MIGRATIONS_JOB_NAME}" \
+              --resource-group "${AZURE_RESOURCE_GROUP}" \
+              2>&1
+          )"
+          show_exit_code=$?
+          set -e
+
+          if [[ "$show_exit_code" -eq 0 ]]; then
             az containerapp job update \
               --name "${AZURE_MIGRATIONS_JOB_NAME}" \
               --resource-group "${AZURE_RESOURCE_GROUP}" \
               --yaml "$manifest_path"
-          else
+          elif grep -qi "ResourceNotFound" <<<"$show_output"; then
+            echo "Container Apps job ${AZURE_MIGRATIONS_JOB_NAME} does not exist yet; creating it."
             az containerapp job create \
               --name "${AZURE_MIGRATIONS_JOB_NAME}" \
               --resource-group "${AZURE_RESOURCE_GROUP}" \
               --yaml "$manifest_path"
+          else
+            echo "::error::Failed to inspect Container Apps job ${AZURE_MIGRATIONS_JOB_NAME}."
+            echo "$show_output"
+            exit "$show_exit_code"
           fi
 
       - name: Run migration job before backend revision promotion
