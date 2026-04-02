@@ -32,13 +32,11 @@ It is intentionally operational and current-state focused. It documents what is 
   - `CORS_ORIGINS`
   - email provider key
   - S3-compatible storage values
-- The fixed deploy workflow/bootstrap changes still need to be exercised from GitHub after they are merged, so the live CI path is not yet revalidated end to end.
-- The deploy workflow still has a known follow-up for migrations-job image management:
-  - `#1483` `[CS-008 follow-up] Update migrations job image during deploy workflow`
+- Production still needs its own final environment provisioning and runtime inputs before it should be treated as operational.
 
 ### Important truth about staging today
 
-The staging backend is now bootstrapped and healthy in Azure, but the repo/workflow recovery still needs a GitHub-side validation run after these fixes are merged.
+The staging backend is bootstrapped and healthy in Azure, and the recovered GitHub deploy path is now validated by successful `Deploy` run `23918963071` on `main`.
 
 ## Deployment Architecture
 
@@ -61,8 +59,8 @@ The staging backend is now bootstrapped and healthy in Azure, but the repo/workf
 
 - Backend revisions are promoted only after the migrations job succeeds
 - The current backend service manifests use single-revision rollout
-- The workflow currently starts an existing migrations job before updating backend services
-- The open follow-up in `#1483` exists because the workflow does not yet clearly update that migrations job to the current release image before execution
+- The workflow updates the migrations job definition to the current release image before starting the job
+- The workflow then waits for a successful migrations execution before promoting backend services
 
 ## GitHub Actions Environments
 
@@ -174,9 +172,11 @@ This is only relevant if staging uses a non-AWS S3-compatible endpoint. The curr
 
 The current workflow updates existing workloads. It does not create the first Container Apps services or the first migrations job from nothing.
 
-### Current known staging blocker
+### Current staging status
 
-The next real blocker is no longer missing Azure resources. The backend runtime is healthy in Azure; the remaining validation step is to run the recovered GitHub deploy workflow after the repo-side fixes are merged.
+- The current GitHub deploy workflow is healthy on `main`.
+- The latest verified successful run is `23918963071`.
+- Remaining deployment work is now about observability, notifications, and story validation rather than deploy-path recovery.
 
 ## Production Deployment Flow
 
@@ -255,11 +255,13 @@ Allowed regions discovered during staging bootstrap:
 
 If a resource create/update flow is attempted in another region, Azure policy can reject it.
 
-### Migrations behavior does not match the current release image
+### Migrations behavior regresses after a future change
 
-This is the known workflow follow-up tracked in `#1483`.
+The workflow currently updates the migrations job definition before starting the job. If migrations start failing again after a workflow or manifest change, inspect:
 
-Do not assume the migrations job image is updated automatically by the current workflow until that follow-up lands.
+- `Update migrations job definition`
+- `Run migration job before backend revision promotion`
+- Azure Container Apps job execution history and logs
 
 ## Related References
 
@@ -267,5 +269,5 @@ Do not assume the migrations job image is updated automatically by the current w
 - [docs/spec/14-devops/14.7-release-process.md](./docs/spec/14-devops/14.7-release-process.md)
 - [docs/agent-ref/ops/deployment.md](./docs/agent-ref/ops/deployment.md)
 - [docs/agent-ref/ops/ci-cd.md](./docs/agent-ref/ops/ci-cd.md)
+- [docs/agent-ref/ops/deployment-observability.md](./docs/agent-ref/ops/deployment-observability.md)
 - [infra/azure/container-apps/README.md](./infra/azure/container-apps/README.md)
-- `#1483`

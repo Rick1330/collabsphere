@@ -51,6 +51,7 @@ Provide an execution-focused index for operational concerns: local development, 
 - `ci-cd.md`
 - `migrations.md`
 - `deployment.md`
+- `deployment-observability.md`
 - `release-readiness.md`
 - `github-issue-lifecycle.md`
 - `pr-review-workflow.md`
