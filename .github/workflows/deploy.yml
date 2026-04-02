@@ -502,7 +502,30 @@ jobs:
             --resource-group "$AZURE_RESOURCE_GROUP" \
             --yaml "$RUNNER_TEMP/containerapps/worker.containerapp.yaml"
 
+      - name: Resolve backend smoke-test URL
+        id: backend-smoke-target
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          api_name="${AZURE_API_CONTAINERAPP_NAME:-collabsphere-api-stg}"
+          api_fqdn="$(
+            az containerapp show \
+              --name "$api_name" \
+              --resource-group "$AZURE_RESOURCE_GROUP" \
+              --query properties.configuration.ingress.fqdn \
+              --output tsv
+          )"
+
+          if [[ -z "$api_fqdn" || "$api_fqdn" == "null" ]]; then
+            echo "::error::Could not resolve a public ingress FQDN for ${api_name}."
+            exit 1
+          fi
+
+          echo "api_health_url=https://${api_fqdn}/api/v1/health" >> "$GITHUB_OUTPUT"
+
       - name: Deploy web to Vercel
+        id: deploy-web
         shell: bash
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -512,8 +535,40 @@ jobs:
 
           if [[ "$DEPLOY_ENVIRONMENT" == "production" ]]; then
             pnpm dlx vercel build --prod --token "$VERCEL_TOKEN"
-            pnpm dlx vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN"
+            if ! deployment_output="$(
+              pnpm dlx vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN" 2>&1
+            )"; then
+              printf '%s\n' "$deployment_output"
+              exit 1
+            fi
           else
             pnpm dlx vercel build --token "$VERCEL_TOKEN"
-            pnpm dlx vercel deploy --prebuilt --token "$VERCEL_TOKEN"
+            if ! deployment_output="$(
+              pnpm dlx vercel deploy --prebuilt --token "$VERCEL_TOKEN" 2>&1
+            )"; then
+              printf '%s\n' "$deployment_output"
+              exit 1
+            fi
           fi
+
+          printf '%s\n' "$deployment_output"
+
+          deployment_url="$(
+            {
+              printf '%s\n' "$deployment_output" | grep -Eo 'https://[^[:space:]]+' | tail -n 1
+            } || true
+          )"
+
+          if [[ -z "$deployment_url" ]]; then
+            echo "::error::Could not determine the Vercel deployment URL from vercel deploy output."
+            exit 1
+          fi
+
+          echo "deployment_url=$deployment_url" >> "$GITHUB_OUTPUT"
+
+      - name: Run post-deploy smoke tests
+        shell: bash
+        env:
+          API_HEALTH_URL: ${{ steps.backend-smoke-target.outputs.api_health_url }}
+          WEB_URL: ${{ steps.deploy-web.outputs.deployment_url }}
+        run: bash scripts/smoke-test.sh
