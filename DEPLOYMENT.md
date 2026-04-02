@@ -17,7 +17,7 @@ It is intentionally operational and current-state focused. It documents what is 
   - Resource group, Azure Container Registry, and Azure Container Apps environment were created.
   - GitHub Actions OIDC identity for Azure staging deploys was created and granted access.
 - GitHub `staging` environment now contains the Azure and Vercel deploy-time values required by `.github/workflows/deploy.yml`.
-- The deploy workflow from [deploy.yml](./.github/workflows/deploy.yml) is landed on `main`.
+- The GitHub deploy workflow from [deploy.yml](./.github/workflows/deploy.yml) is landed on `main`.
 - Backend deployment assets exist under [infra/azure/container-apps/](./infra/azure/container-apps/).
 
 ### What is not finished yet
@@ -223,7 +223,7 @@ The current Azure for Students subscription is region-restricted.
 
 Allowed regions discovered during staging bootstrap:
 
-- `austriaeast`
+- `australiaeast`
 - `centralindia`
 - `uaenorth`
 - `spaincentral`
