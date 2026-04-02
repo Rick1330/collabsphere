@@ -10,6 +10,7 @@ const args = new Set(process.argv.slice(2));
 const buildAndPush = args.has("--build-and-push");
 const dryRun = args.has("--dry-run");
 const windowsQuotedQuote = String.raw`\"`;
+const windowsCmdPath = String.raw`C:\Windows\System32\cmd.exe`;
 const azureCliWindowsPath = String.raw`C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin\az.cmd`;
 
 const quoteWindowsArg = (value) => `"${String(value).replaceAll("\"", windowsQuotedQuote)}"`;
@@ -17,7 +18,7 @@ const quoteWindowsArg = (value) => `"${String(value).replaceAll("\"", windowsQuo
 const execCommand = (command, commandArgs, options = {}) => {
   if (process.platform === "win32") {
     const commandLine = `""${command}" ${commandArgs.map(quoteWindowsArg).join(" ")}`.trim();
-    return execFileSync("cmd.exe", [
+    return execFileSync(windowsCmdPath, [
       "/d",
       "/s",
       "/c",
