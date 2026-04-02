@@ -8,7 +8,7 @@ attempts="${SMOKE_TEST_ATTEMPTS:-24}"
 delay_seconds="${SMOKE_TEST_DELAY_SECONDS:-5}"
 connect_timeout_seconds="${SMOKE_TEST_CONNECT_TIMEOUT_SECONDS:-5}"
 max_time_seconds="${SMOKE_TEST_MAX_TIME_SECONDS:-15}"
-work_dir="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/collabsphere-smoke"
+tmp_root="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
 
 require_positive_integer() {
   local name="$1"
@@ -38,7 +38,8 @@ require_positive_integer "SMOKE_TEST_DELAY_SECONDS" "$delay_seconds"
 require_positive_integer "SMOKE_TEST_CONNECT_TIMEOUT_SECONDS" "$connect_timeout_seconds"
 require_positive_integer "SMOKE_TEST_MAX_TIME_SECONDS" "$max_time_seconds"
 
-mkdir -p "$work_dir"
+work_dir="$(mktemp -d "${tmp_root}/collabsphere-smoke-XXXXXX")"
+trap 'rm -rf "$work_dir"' EXIT
 
 probe_url() {
   local url="$1"
