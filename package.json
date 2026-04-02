@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "node scripts/dev.mjs",
+    "bootstrap:aca:staging": "node scripts/bootstrap-aca-staging.mjs",
     "lint": "pnpm exec eslint . --max-warnings=0",
     "typecheck": "pnpm exec tsc -p packages/shared/tsconfig.json --noEmit",
     "test": "pnpm exec turbo run //#test:unit && pnpm exec turbo run //#test:integration --env-mode=loose",

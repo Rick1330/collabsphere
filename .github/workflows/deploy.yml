@@ -160,6 +160,7 @@ jobs:
       AZURE_MANAGED_ENVIRONMENT_ID: ${{ vars.AZURE_MANAGED_ENVIRONMENT_ID }}
       AZURE_CONTAINER_REGISTRY_NAME: ${{ vars.AZURE_CONTAINER_REGISTRY_NAME }}
       AZURE_CONTAINER_REGISTRY_LOGIN_SERVER: ${{ vars.AZURE_CONTAINER_REGISTRY_LOGIN_SERVER }}
+      AZURE_ACR_USERNAME: ${{ vars.AZURE_ACR_USERNAME }}
       AZURE_MIGRATIONS_JOB_NAME: ${{ vars.AZURE_MIGRATIONS_JOB_NAME }}
       AZURE_API_CONTAINERAPP_NAME: ${{ vars.AZURE_API_CONTAINERAPP_NAME }}
       AZURE_COLLAB_CONTAINERAPP_NAME: ${{ vars.AZURE_COLLAB_CONTAINERAPP_NAME }}
@@ -219,17 +220,21 @@ jobs:
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
           AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
           AZURE_MANAGED_ENVIRONMENT_ID: ${{ vars.AZURE_MANAGED_ENVIRONMENT_ID }}
           AZURE_CONTAINER_REGISTRY_NAME: ${{ vars.AZURE_CONTAINER_REGISTRY_NAME }}
           AZURE_CONTAINER_REGISTRY_LOGIN_SERVER: ${{ vars.AZURE_CONTAINER_REGISTRY_LOGIN_SERVER }}
+          AZURE_ACR_USERNAME: ${{ vars.AZURE_ACR_USERNAME }}
           AZURE_MIGRATIONS_JOB_NAME: ${{ vars.AZURE_MIGRATIONS_JOB_NAME }}
+          AZURE_API_CONTAINERAPP_NAME: ${{ vars.AZURE_API_CONTAINERAPP_NAME }}
+          AZURE_COLLAB_CONTAINERAPP_NAME: ${{ vars.AZURE_COLLAB_CONTAINERAPP_NAME }}
+          AZURE_WORKER_CONTAINERAPP_NAME: ${{ vars.AZURE_WORKER_CONTAINERAPP_NAME }}
           AZURE_S3_AUTH_ID_REF: ${{ vars.AZURE_S3_AUTH_ID_REF }}
           AZURE_S3_AUTH_VALUE_REF: ${{ vars.AZURE_S3_AUTH_VALUE_REF }}
           VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          AZURE_ACR_PASSWORD: ${{ secrets.AZURE_ACR_PASSWORD }}
         run: |
           set -euo pipefail
 
@@ -239,6 +244,7 @@ jobs:
             AZURE_MANAGED_ENVIRONMENT_ID
             AZURE_CONTAINER_REGISTRY_NAME
             AZURE_CONTAINER_REGISTRY_LOGIN_SERVER
+            AZURE_ACR_USERNAME
             AZURE_MIGRATIONS_JOB_NAME
             AZURE_S3_AUTH_ID_REF
             AZURE_S3_AUTH_VALUE_REF
@@ -250,8 +256,8 @@ jobs:
             AZURE_CLIENT_ID
             AZURE_TENANT_ID
             AZURE_SUBSCRIPTION_ID
+            AZURE_ACR_PASSWORD
             VERCEL_TOKEN
-            DATABASE_URL
           )
 
           for name in "${required_vars[@]}"; do
@@ -281,6 +287,27 @@ jobs:
           set -euo pipefail
           az extension add --name containerapp --upgrade --yes
 
+      - name: Verify Azure Container Apps bootstrap resources exist
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          api_name="${AZURE_API_CONTAINERAPP_NAME:-collabsphere-api-stg}"
+          collab_name="${AZURE_COLLAB_CONTAINERAPP_NAME:-collabsphere-collab-stg}"
+          worker_name="${AZURE_WORKER_CONTAINERAPP_NAME:-collabsphere-worker-stg}"
+
+          for app_name in "$api_name" "$collab_name" "$worker_name"; do
+            if ! az containerapp show --name "$app_name" --resource-group "$AZURE_RESOURCE_GROUP" >/dev/null 2>&1; then
+              echo "::error::Azure Container App ${app_name} is missing. Run the ACA bootstrap flow before using deploy.yml."
+              exit 1
+            fi
+          done
+
+          if ! az containerapp job show --name "${AZURE_MIGRATIONS_JOB_NAME}" --resource-group "${AZURE_RESOURCE_GROUP}" >/dev/null 2>&1; then
+            echo "::error::Azure Container Apps job ${AZURE_MIGRATIONS_JOB_NAME} is missing. Run the ACA bootstrap flow before using deploy.yml."
+            exit 1
+          fi
+
       - name: Log in to Azure Container Registry
         shell: bash
         run: |
@@ -304,8 +331,6 @@ jobs:
 
       - name: Render Container Apps manifests
         shell: bash
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/containerapps"
@@ -320,7 +345,9 @@ jobs:
           const imageTag = process.env.IMAGE_TAG;
           const substitutions = new Map([
             ["__LOCATION__", process.env.AZURE_LOCATION],
-            ["__DATABASE_URL__", process.env.DATABASE_URL],
+            ["__ACR_USERNAME__", process.env.AZURE_ACR_USERNAME],
+            ["__API_CONTAINERAPP_NAME__", process.env.AZURE_API_CONTAINERAPP_NAME || "collabsphere-api-stg"],
+            ["__COLLAB_CONTAINERAPP_NAME__", process.env.AZURE_COLLAB_CONTAINERAPP_NAME || "collabsphere-collab-stg"],
             ["__MANAGED_ENVIRONMENT_ID__", process.env.AZURE_MANAGED_ENVIRONMENT_ID],
             ["__MIGRATIONS_JOB_NAME__", process.env.AZURE_MIGRATIONS_JOB_NAME],
             ["__MIGRATIONS_IMAGE__", "collabsphere-api"],
@@ -328,6 +355,7 @@ jobs:
             ["__IMAGE_TAG__", imageTag],
             ["__S3_AUTH_ID_REF__", process.env.AZURE_S3_AUTH_ID_REF],
             ["__S3_AUTH_VALUE_REF__", process.env.AZURE_S3_AUTH_VALUE_REF],
+            ["__WORKER_CONTAINERAPP_NAME__", process.env.AZURE_WORKER_CONTAINERAPP_NAME || "collabsphere-worker-stg"],
           ]);
 
           for (const file of [
@@ -351,39 +379,39 @@ jobs:
           }
           EOF
 
-      - name: Upsert migrations job definition
+      - name: Ensure ACR pull secret exists on Container Apps resources
+        shell: bash
+        env:
+          AZURE_ACR_PASSWORD: ${{ secrets.AZURE_ACR_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          api_name="${AZURE_API_CONTAINERAPP_NAME:-collabsphere-api-stg}"
+          collab_name="${AZURE_COLLAB_CONTAINERAPP_NAME:-collabsphere-collab-stg}"
+          worker_name="${AZURE_WORKER_CONTAINERAPP_NAME:-collabsphere-worker-stg}"
+
+          for app_name in "$api_name" "$collab_name" "$worker_name"; do
+            az containerapp secret set \
+              --name "$app_name" \
+              --resource-group "$AZURE_RESOURCE_GROUP" \
+              --secrets "acr-password=${AZURE_ACR_PASSWORD}"
+          done
+
+          az containerapp job secret set \
+            --name "${AZURE_MIGRATIONS_JOB_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --secrets "acr-password=${AZURE_ACR_PASSWORD}"
+
+      - name: Update migrations job definition
         shell: bash
         run: |
           set -euo pipefail
 
           manifest_path="$RUNNER_TEMP/containerapps/migrations.job.yaml"
-
-          set +e
-          show_output="$(
-            az containerapp job show \
-              --name "${AZURE_MIGRATIONS_JOB_NAME}" \
-              --resource-group "${AZURE_RESOURCE_GROUP}" \
-              2>&1
-          )"
-          show_exit_code=$?
-          set -e
-
-          if [[ "$show_exit_code" -eq 0 ]]; then
-            az containerapp job update \
-              --name "${AZURE_MIGRATIONS_JOB_NAME}" \
-              --resource-group "${AZURE_RESOURCE_GROUP}" \
-              --yaml "$manifest_path"
-          elif grep -qi "ResourceNotFound" <<<"$show_output"; then
-            echo "Container Apps job ${AZURE_MIGRATIONS_JOB_NAME} does not exist yet; creating it."
-            az containerapp job create \
-              --name "${AZURE_MIGRATIONS_JOB_NAME}" \
-              --resource-group "${AZURE_RESOURCE_GROUP}" \
-              --yaml "$manifest_path"
-          else
-            echo "::error::Failed to inspect Container Apps job ${AZURE_MIGRATIONS_JOB_NAME}."
-            echo "$show_output"
-            exit "$show_exit_code"
-          fi
+          az containerapp job update \
+            --name "${AZURE_MIGRATIONS_JOB_NAME}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
+            --yaml "$manifest_path"
 
       - name: Run migration job before backend revision promotion
         shell: bash

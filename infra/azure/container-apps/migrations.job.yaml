@@ -4,12 +4,16 @@ type: Microsoft.App/jobs
 properties:
   environmentId: __MANAGED_ENVIRONMENT_ID__
   configuration:
+    registries:
+      - server: __REGISTRY_SERVER__
+        username: __ACR_USERNAME__
+        passwordSecretRef: acr-password
     triggerType: Manual
+    manualTriggerConfig:
+      parallelism: 1
+      replicaCompletionCount: 1
     replicaRetryLimit: 1
     replicaTimeout: 1800
-    secrets:
-      - name: database-url
-        value: __DATABASE_URL__
   template:
     containers:
       - name: migrations

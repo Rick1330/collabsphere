@@ -16,20 +16,29 @@ It is intentionally operational and current-state focused. It documents what is 
 - Azure foundation for staging exists.
   - Resource group, Azure Container Registry, and Azure Container Apps environment were created.
   - GitHub Actions OIDC identity for Azure staging deploys was created and granted access.
-- GitHub `staging` environment now contains the Azure and Vercel deploy-time values required by `.github/workflows/deploy.yml`.
+- Staging Azure workloads now exist:
+  - internal Postgres app
+  - internal Redis app
+  - `api`, `collab`, and `worker` Container Apps
+  - `collabsphere-migrations-stg` Container Apps job
+- GitHub `staging` environment now contains the Azure and Vercel deploy-time values required by `.github/workflows/deploy.yml`, including ACR pull credentials for incremental deploys.
 - The GitHub deploy workflow from [deploy.yml](./.github/workflows/deploy.yml) is landed on `main`.
 - Backend deployment assets exist under [infra/azure/container-apps/](./infra/azure/container-apps/).
 
 ### What is not finished yet
 
-- Runtime application secrets and provider values are still missing for the first end-to-end staging deploy.
-- The initial Azure Container Apps workloads and the migrations job still need to exist with real runtime configuration before the first full deploy can succeed.
+- Some staging runtime values are still temporary placeholders and should be replaced before smoke-test-grade staging:
+  - `BASE_URL`
+  - `CORS_ORIGINS`
+  - email provider key
+  - S3-compatible storage values
+- The fixed deploy workflow/bootstrap changes still need to be exercised from GitHub after they are merged, so the live CI path is not yet revalidated end to end.
 - The deploy workflow still has a known follow-up for migrations-job image management:
   - `#1483` `[CS-008 follow-up] Update migrations job image during deploy workflow`
 
 ### Important truth about staging today
 
-The current staging deployment is not fully runnable yet just because the workflow and Azure foundation exist. The workflow contract is in place, but the runtime inputs and first workload creation are still incomplete.
+The staging backend is now bootstrapped and healthy in Azure, but the repo/workflow recovery still needs a GitHub-side validation run after these fixes are merged.
 
 ## Deployment Architecture
 
@@ -70,6 +79,7 @@ Deploy-time configuration for `staging` is expected in GitHub Actions environmen
 - `AZURE_MANAGED_ENVIRONMENT_ID`
 - `AZURE_CONTAINER_REGISTRY_NAME`
 - `AZURE_CONTAINER_REGISTRY_LOGIN_SERVER`
+- `AZURE_ACR_USERNAME`
 - `AZURE_MIGRATIONS_JOB_NAME`
 - `AZURE_S3_AUTH_ID_REF`
 - `AZURE_S3_AUTH_VALUE_REF`
@@ -90,6 +100,7 @@ Deploy-time configuration for `staging` is expected in GitHub Actions environmen
 - `AZURE_CLIENT_ID`
 - `AZURE_TENANT_ID`
 - `AZURE_SUBSCRIPTION_ID`
+- `AZURE_ACR_PASSWORD`
 - `VERCEL_TOKEN`
 
 ### Production
@@ -102,13 +113,18 @@ Before production deploys are usable, production needs its own GitHub environmen
 
 The deploy workflow variables are not enough to complete the first staging rollout. The application runtime still needs real provider values and secrets.
 
+Internal ACA dependency networking should use app names inside the managed environment:
+
+- Postgres: `collabsphere-pg-stg:5432`
+- Redis: `collabsphere-redis-stg:6379`
+
 ### Shared backend secret names expected by Container Apps
 
 - `database-url`
 - `redis-url`
 - `jwt-access-secret`
 - `cors-origins`
-- `email-provider-api-key`
+- `email-provider-key`
 - `api-base-url`
 - `base-url`
 
@@ -160,7 +176,7 @@ The current workflow updates existing workloads. It does not create the first Co
 
 ### Current known staging blocker
 
-The first staging deploy will still fail until runtime inputs are chosen and the first ACA workloads/job exist. The deploy workflow alone does not solve that bootstrap gap.
+The next real blocker is no longer missing Azure resources. The backend runtime is healthy in Azure; the remaining validation step is to run the recovered GitHub deploy workflow after the repo-side fixes are merged.
 
 ## Production Deployment Flow
 
