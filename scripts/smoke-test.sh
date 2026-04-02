@@ -6,6 +6,8 @@ api_health_url="${API_HEALTH_URL:-}"
 web_url="${WEB_URL:-}"
 attempts="${SMOKE_TEST_ATTEMPTS:-24}"
 delay_seconds="${SMOKE_TEST_DELAY_SECONDS:-5}"
+connect_timeout_seconds="${SMOKE_TEST_CONNECT_TIMEOUT_SECONDS:-5}"
+max_time_seconds="${SMOKE_TEST_MAX_TIME_SECONDS:-15}"
 work_dir="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/collabsphere-smoke"
 
 usage() {
@@ -32,6 +34,8 @@ probe_url() {
     --silent \
     --show-error \
     --location \
+    --connect-timeout "$connect_timeout_seconds" \
+    --max-time "$max_time_seconds" \
     --output "$body_path" \
     --dump-header "$headers_path" \
     --write-out "%{http_code}" \
@@ -84,7 +88,9 @@ wait_for_backend_health() {
     fi
 
     echo "Backend smoke test attempt ${attempt}/${attempts} not ready: ${last_error}" >&2
-    sleep "$delay_seconds"
+    if [[ "$attempt" -lt "$attempts" ]]; then
+      sleep "$delay_seconds"
+    fi
   done
 
   echo "Backend smoke test failed: ${last_error}" >&2
@@ -112,7 +118,9 @@ wait_for_web() {
     fi
 
     echo "Web smoke test attempt ${attempt}/${attempts} not ready: ${last_error}" >&2
-    sleep "$delay_seconds"
+    if [[ "$attempt" -lt "$attempts" ]]; then
+      sleep "$delay_seconds"
+    fi
   done
 
   echo "Web smoke test failed: ${last_error}" >&2
@@ -125,4 +133,3 @@ wait_for_web() {
 
 wait_for_backend_health
 wait_for_web
-
