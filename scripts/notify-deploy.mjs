@@ -28,6 +28,8 @@ const commitSha = process.env.GITHUB_SHA;
 
 const runUrl = `${serverUrl}/${repository}/actions/runs/${runId}`;
 const shortSha = commitSha.slice(0, 7);
+const GITHUB_API_TIMEOUT_MS = 10000;
+const WEBHOOK_TIMEOUT_MS = 10000;
 
 function formatConclusion(conclusion) {
   switch (conclusion) {
@@ -45,17 +47,28 @@ async function getFailureStage() {
     return "";
   }
 
-  const response = await fetch(
-    `https://api.github.com/repos/${repository}/actions/runs/${runId}/jobs?per_page=100`,
-    {
-      headers: {
-        Accept: "application/vnd.github+json",
-        Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
-        "User-Agent": "collabsphere-deploy-notifier",
-        "X-GitHub-Api-Version": "2022-11-28",
-      },
-    }
-  );
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), GITHUB_API_TIMEOUT_MS);
+  let response;
+
+  try {
+    response = await fetch(
+      `https://api.github.com/repos/${repository}/actions/runs/${runId}/jobs?per_page=100`,
+      {
+        headers: {
+          Accept: "application/vnd.github+json",
+          Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+          "User-Agent": "collabsphere-deploy-notifier",
+          "X-GitHub-Api-Version": "2022-11-28",
+        },
+        signal: controller.signal,
+      }
+    );
+  } catch {
+    return "";
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     return "";
@@ -100,22 +113,38 @@ if (failureStage) {
   messageLines.splice(4, 0, `Failure stage: \`${failureStage}\``);
 }
 
-const webhookResponse = await fetch(webhookUrl, {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    content: messageLines.join("\n"),
-  }),
-});
-
-if (!webhookResponse.ok) {
-  throw new Error(
-    `Deploy notification failed with HTTP ${webhookResponse.status}.`
-  );
-}
-
-console.log(
-  `Sent deploy notification for ${deployEnvironment} (${deployConclusion}).`
+const webhookController = new AbortController();
+const webhookTimeoutId = setTimeout(
+  () => webhookController.abort(),
+  WEBHOOK_TIMEOUT_MS
 );
+
+try {
+  const webhookResponse = await fetch(webhookUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      content: messageLines.join("\n"),
+    }),
+    signal: webhookController.signal,
+  });
+
+  if (!webhookResponse.ok) {
+    const errorBody = (await webhookResponse.text().catch(() => "")).slice(0, 200);
+    console.warn(
+      `Deploy notification request returned HTTP ${webhookResponse.status}${errorBody ? `: ${errorBody}` : "."}`
+    );
+  } else {
+    console.log(
+      `Sent deploy notification for ${deployEnvironment} (${deployConclusion}).`
+    );
+  }
+} catch (error) {
+  console.warn(
+    `Deploy notification delivery failed: ${error instanceof Error ? error.message : String(error)}`
+  );
+} finally {
+  clearTimeout(webhookTimeoutId);
+}

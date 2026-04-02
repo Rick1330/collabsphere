@@ -110,6 +110,8 @@ Production is still manual or tag-gated by design.
 
 Before production deploys are usable, production needs its own GitHub environment configuration, approval rules, and runtime inputs. This document does not claim that production is fully provisioned today.
 
+Once production is provisioned, its GitHub environment must also include `DEPLOY_NOTIFICATION_WEBHOOK_URL` so the same deploy workflow can send production outcome notifications without changing the contract between environments.
+
 ## Runtime Inputs Still Required
 
 The deploy workflow variables are not enough to complete the first staging rollout. The application runtime still needs real provider values and secrets.

@@ -628,6 +628,8 @@ jobs:
             echo "conclusion=success" >> "$GITHUB_OUTPUT"
           elif [[ "${{ needs.resolve-target.result }}" == "cancelled" || "${{ needs.build.result }}" == "cancelled" || "${{ needs.deploy.result }}" == "cancelled" ]]; then
             echo "conclusion=cancelled" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ needs.resolve-target.result }}" == "skipped" || "${{ needs.build.result }}" == "skipped" || "${{ needs.deploy.result }}" == "skipped" ]]; then
+            echo "conclusion=failure" >> "$GITHUB_OUTPUT"
           else
             echo "conclusion=failure" >> "$GITHUB_OUTPUT"
           fi
@@ -645,6 +647,7 @@ jobs:
           fi
 
       - name: Send deploy notification
+        timeout-minutes: 2
         env:
           DEPLOY_NOTIFICATION_WEBHOOK_URL: ${{ secrets.DEPLOY_NOTIFICATION_WEBHOOK_URL }}
           DEPLOY_CONCLUSION: ${{ steps.notification.outputs.conclusion }}
