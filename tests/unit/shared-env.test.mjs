@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { copyFileSync, mkdirSync, rmSync } from "node:fs";
+import { mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { createRequire } from "node:module";
@@ -48,26 +48,14 @@ const compileSharedEnvModule = () => {
       path.join("packages", "shared", "src", "env.schema.ts"),
       path.join("packages", "shared", "src", "env.ts"),
       path.join("packages", "shared", "src", "index.ts"),
+      path.join("packages", "shared", "src", "api-env.ts"),
+      path.join("packages", "shared", "src", "runtime-env.ts"),
+      path.join("packages", "shared", "src", "env-core.ts"),
     ],
     {
       cwd: repoRoot,
       stdio: "inherit",
     },
-  );
-
-  copyFileSync(
-    path.join(repoRoot, "packages", "shared", "src", "api-env.js"),
-    path.join(tempBuildDir, "api-env.js"),
-  );
-
-  copyFileSync(
-    path.join(repoRoot, "packages", "shared", "src", "runtime-env.js"),
-    path.join(tempBuildDir, "runtime-env.js"),
-  );
-
-  copyFileSync(
-    path.join(repoRoot, "packages", "shared", "src", "env-core.js"),
-    path.join(tempBuildDir, "env-core.js"),
   );
 
   return pathToFileURL(path.join(tempBuildDir, "env.js")).href;

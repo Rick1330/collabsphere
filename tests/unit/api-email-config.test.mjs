@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import path from "node:path";
 import test from "node:test";
 import { pathToFileURL } from "node:url";
@@ -13,6 +14,10 @@ const importEmailConfigModule = async () => {
   }
 
   runTsc(path.join(repoRoot, "apps", "api", "tsconfig.json"));
+  execFileSync(process.execPath, ["scripts/build-bootstrap-app.mjs", "apps/api"], {
+    cwd: repoRoot,
+    stdio: "inherit",
+  });
   const moduleUrl = pathToFileURL(
     path.join(repoRoot, "apps", "api", "dist", "config", "email.js"),
   ).href;
