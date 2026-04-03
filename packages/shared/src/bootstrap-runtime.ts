@@ -1,11 +1,39 @@
+import type { Server } from "node:http";
+
 const defaultHost = "127.0.0.1";
 
-const warnInvalidPort = (service, value, fallback) => {
+export interface ParseServicePortOptions {
+  service: string;
+  value?: string | undefined;
+  fallback: number;
+}
+
+export interface StartHttpBootstrapServerOptions {
+  server: Server;
+  service: string;
+  defaultPort: number;
+  readyPath?: string | undefined;
+}
+
+export interface ValidateServiceEnvOptions<TEnv, TError extends Error> {
+  service: string;
+  parser: (input: Record<string, string | undefined>) => TEnv;
+  validationErrorClass: new (...args: any[]) => TError;
+  input?: Record<string, string | undefined> | undefined;
+}
+
+type ListenError = NodeJS.ErrnoException & { code?: string };
+
+const warnInvalidPort = (service: string, value: string | undefined, fallback: number) => {
   console.warn(`[${service}] invalid PORT value "${value}", falling back to ${fallback}`);
   return fallback;
 };
 
-export const parseServicePort = ({ service, value = process.env.PORT, fallback }) => {
+export const parseServicePort = ({
+  service,
+  value = process.env.PORT,
+  fallback,
+}: ParseServicePortOptions) => {
   const trimmed = value?.trim();
 
   if (!trimmed) {
@@ -33,7 +61,19 @@ export const parseServicePort = ({ service, value = process.env.PORT, fallback }
   return parsed;
 };
 
-const listenWithFallback = ({ server, service, host, candidatePort, readyPath }) => {
+const listenWithFallback = ({
+  server,
+  service,
+  host,
+  candidatePort,
+  readyPath,
+}: {
+  server: Server;
+  service: string;
+  host: string;
+  candidatePort: number;
+  readyPath: string;
+}) => {
   const onListening = () => {
     const address = server.address();
     const activePort = typeof address === "object" && address ? address.port : candidatePort;
@@ -41,7 +81,7 @@ const listenWithFallback = ({ server, service, host, candidatePort, readyPath })
   };
 
   server
-    .once("error", (error) => {
+    .once("error", (error: ListenError) => {
       server.removeListener("listening", onListening);
 
       if (error.code === "EADDRINUSE" && candidatePort !== 0) {
@@ -61,7 +101,7 @@ export const startHttpBootstrapServer = ({
   service,
   defaultPort,
   readyPath = "",
-}) => {
+}: StartHttpBootstrapServerOptions) => {
   const host = process.env.HOST ?? defaultHost;
   const port = parseServicePort({
     service,
@@ -78,7 +118,7 @@ export const startHttpBootstrapServer = ({
 
   let shuttingDown = false;
 
-  const shutdown = (signal) => {
+  const shutdown = (signal: NodeJS.Signals) => {
     if (shuttingDown) {
       return;
     }
@@ -92,12 +132,12 @@ export const startHttpBootstrapServer = ({
   process.once("SIGTERM", () => shutdown("SIGTERM"));
 };
 
-export const validateServiceEnv = ({
+export const validateServiceEnv = <TEnv, TError extends Error>({
   service,
   parser,
   validationErrorClass,
   input = process.env,
-}) => {
+}: ValidateServiceEnvOptions<TEnv, TError>): TEnv => {
   try {
     return parser(input);
   } catch (error) {

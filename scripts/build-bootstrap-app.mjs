@@ -18,12 +18,27 @@ const sourceTsPath = path.join(packageDir, "src", "dev.ts");
 const distDir = path.join(packageDir, "dist");
 const distEntryPath = path.join(distDir, "dev.js");
 const distPackageJsonPath = path.join(distDir, "package.json");
-const sharedApiEnvPath = path.join(repoRoot, "packages", "shared", "src", "api-env.js");
-const sharedRuntimeEnvPath = path.join(repoRoot, "packages", "shared", "src", "runtime-env.js");
-const sharedEnvCorePath = path.join(repoRoot, "packages", "shared", "src", "env-core.js");
-const sharedBootstrapRuntimePath = path.join(repoRoot, "packages", "shared", "src", "bootstrap-runtime.js");
+const compiledTsEntryPath = path.join(
+  distDir,
+  path.relative(repoRoot, sourceTsPath).replace(/\.ts$/, ".js"),
+);
+const sharedApiEnvPath = path.join(repoRoot, "packages", "shared", "src", "api-env.ts");
+const sharedRuntimeEnvPath = path.join(repoRoot, "packages", "shared", "src", "runtime-env.ts");
+const sharedEnvCorePath = path.join(repoRoot, "packages", "shared", "src", "env-core.ts");
+const sharedBootstrapRuntimePath = path.join(repoRoot, "packages", "shared", "src", "bootstrap-runtime.ts");
+const compiledSharedApiEnvPath = path.join(distDir, "packages", "shared", "src", "api-env.js");
+const compiledSharedRuntimeEnvPath = path.join(distDir, "packages", "shared", "src", "runtime-env.js");
+const compiledSharedEnvCorePath = path.join(distDir, "packages", "shared", "src", "env-core.js");
+const compiledSharedBootstrapRuntimePath = path.join(
+  distDir,
+  "packages",
+  "shared",
+  "src",
+  "bootstrap-runtime.js",
+);
 const sharedZodPackagePath = path.join(repoRoot, "packages", "shared", "node_modules", "zod");
 const sharedPackageJsonPath = path.join(repoRoot, "packages", "shared", "package.json");
+const typescriptCliPath = path.join(repoRoot, "node_modules", "typescript", "bin", "tsc");
 const sharedSourceImport = "../../../packages/shared/src/api-env.js";
 const sharedRuntimeSourceImport = "../../../packages/shared/src/runtime-env.js";
 const sharedBootstrapRuntimeImport = "../../../packages/shared/src/bootstrap-runtime.js";
@@ -40,6 +55,33 @@ const fileExists = async (filePath) => {
   }
 };
 
+const compileSharedRuntimeModules = (outDir, entryPoints) => {
+  execFileSync(
+    process.execPath,
+    [
+      typescriptCliPath,
+      "--target",
+      "ES2022",
+      "--module",
+      "NodeNext",
+      "--moduleResolution",
+      "NodeNext",
+      "--strict",
+      "--skipLibCheck",
+      "--esModuleInterop",
+      "--allowSyntheticDefaultImports",
+      "--verbatimModuleSyntax",
+      "--outDir",
+      outDir,
+      ...entryPoints,
+    ],
+    {
+      cwd: repoRoot,
+      stdio: "pipe",
+    },
+  );
+};
+
 const packageJson = JSON.parse(await readFile(packageJsonPath, "utf8"));
 const sharedPackageJson = JSON.parse(await readFile(sharedPackageJsonPath, "utf8"));
 const hasTsSource = await fileExists(sourceTsPath);
@@ -53,12 +95,14 @@ if (!hasTsSource && !hasJsSource) {
   throw new Error("Missing bootstrap entrypoint (expected src/dev.ts or src/dev.js).");
 }
 
-if (hasTsSource && !(await fileExists(distEntryPath))) {
-  throw new Error(`Missing compiled bootstrap output at ${distEntryPath}. Run tsc before staging.`);
+if (hasTsSource && !(await fileExists(compiledTsEntryPath))) {
+  throw new Error(
+    `Missing compiled bootstrap output at ${compiledTsEntryPath}. Run tsc before staging.`,
+  );
 }
 
 const detectionPath = hasTsSource ? sourceTsPath : sourceJsPath;
-const compiledPath = hasTsSource ? distEntryPath : sourceJsPath;
+const compiledPath = hasTsSource ? compiledTsEntryPath : sourceJsPath;
 const sourceCode = await readFile(detectionPath, "utf8");
 const compiledSourceCode = await readFile(compiledPath, "utf8");
 
@@ -71,6 +115,8 @@ if (hasTsSource) {
   await mkdir(distDir, { recursive: true });
   await rm(path.join(distDir, "_shared"), { recursive: true, force: true });
   await rm(path.join(distDir, "node_modules"), { recursive: true, force: true });
+  await rm(distEntryPath, { force: true });
+  await rm(distPackageJsonPath, { force: true });
 } else {
   await rm(distDir, { recursive: true, force: true });
   await mkdir(distDir, { recursive: true });
@@ -86,15 +132,35 @@ if (needsSharedEnv || needsSharedBootstrap) {
   const distNodeModulesDir = path.join(distDir, "node_modules");
   await mkdir(sharedDistDir, { recursive: true });
 
-  if (needsSharedBootstrap) {
-    await cp(sharedBootstrapRuntimePath, path.join(sharedDistDir, "bootstrap-runtime.js"));
+  const sharedRuntimeEntryPoints = [
+    ...(needsSharedBootstrap ? [sharedBootstrapRuntimePath] : []),
+    ...(needsSharedEnv ? [sharedApiEnvPath, sharedRuntimeEnvPath, sharedEnvCorePath] : []),
+  ];
+
+  const canReuseCompiledSharedFiles =
+    (!needsSharedBootstrap || (await fileExists(compiledSharedBootstrapRuntimePath))) &&
+    (!needsSharedEnv ||
+      ((await fileExists(compiledSharedApiEnvPath)) &&
+        (await fileExists(compiledSharedRuntimeEnvPath)) &&
+        (await fileExists(compiledSharedEnvCorePath))));
+
+  if (sharedRuntimeEntryPoints.length > 0 && !canReuseCompiledSharedFiles) {
+    compileSharedRuntimeModules(sharedDistDir, sharedRuntimeEntryPoints);
+  }
+
+  if (needsSharedBootstrap && canReuseCompiledSharedFiles) {
+    await cp(sharedBootstrapRuntimePath, path.join(sharedDistDir, "bootstrap-runtime.ts"));
+    await cp(compiledSharedBootstrapRuntimePath, path.join(sharedDistDir, "bootstrap-runtime.js"));
+    await rm(path.join(sharedDistDir, "bootstrap-runtime.ts"), { force: true });
   }
 
   if (needsSharedEnv) {
     await mkdir(distNodeModulesDir, { recursive: true });
-    await cp(sharedApiEnvPath, path.join(sharedDistDir, "api-env.js"));
-    await cp(sharedRuntimeEnvPath, path.join(sharedDistDir, "runtime-env.js"));
-    await cp(sharedEnvCorePath, path.join(sharedDistDir, "env-core.js"));
+    if (canReuseCompiledSharedFiles) {
+      await cp(compiledSharedApiEnvPath, path.join(sharedDistDir, "api-env.js"));
+      await cp(compiledSharedRuntimeEnvPath, path.join(sharedDistDir, "runtime-env.js"));
+      await cp(compiledSharedEnvCorePath, path.join(sharedDistDir, "env-core.js"));
+    }
     await cp(sharedZodPackagePath, path.join(distNodeModulesDir, "zod"), {
       recursive: true,
     });
@@ -141,5 +207,10 @@ await writeFile(
   ) + "\n",
   "utf8",
 );
+
+if (hasTsSource) {
+  await rm(path.join(distDir, "apps"), { recursive: true, force: true });
+  await rm(path.join(distDir, "packages"), { recursive: true, force: true });
+}
 
 console.log(`[build] staged ${packageJson.name} bootstrap artifact in ${path.relative(repoRoot, distDir)}`);

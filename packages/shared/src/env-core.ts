@@ -1,42 +1,41 @@
-import { z, ZodError } from "zod";
+import { z, type ZodError } from "zod";
 
-/** @typedef {{ key: string, message: string }} EnvValidationIssue */
+export interface EnvValidationIssue {
+  key: string;
+  message: string;
+}
 
 const positiveIntegerPattern = /^\d+$/;
-const corsOriginProtocols = ["http:", "https:"];
+const corsOriginProtocols = ["http:", "https:"] as const;
 
-const issueMessageByCode = (issue) => issue.message || "is invalid.";
+const issueMessageByCode = (issue: { message?: string }) => issue.message || "is invalid.";
 
-/** @param {{ message?: string, path: readonly PropertyKey[] }} issue */
-const toValidationIssue = (issue) => ({
+const toValidationIssue = (issue: {
+  message?: string;
+  path: readonly PropertyKey[];
+}): EnvValidationIssue => ({
   key: String(issue.path[0] ?? "env"),
   message: issueMessageByCode(issue),
 });
 
-/**
- * @param {readonly EnvValidationIssue[]} issues
- */
-const formatValidationMessage = (issues) => {
+const formatValidationMessage = (issues: readonly EnvValidationIssue[]) => {
   const detail = issues.map((issue) => `${issue.key}: ${issue.message}`).join("; ");
   return `Environment validation failed. Review .env.example and fix: ${detail}`;
 };
 
 export class EnvValidationError extends Error {
-  /**
-   * @param {readonly EnvValidationIssue[]} issues
-   */
-  constructor(issues) {
+  readonly issues: readonly EnvValidationIssue[];
+
+  constructor(issues: readonly EnvValidationIssue[]) {
     super(formatValidationMessage(issues));
     this.name = "EnvValidationError";
     this.issues = issues;
   }
 }
 
-/**
- * @param {ZodError | EnvValidationError} error
- * @returns {EnvValidationIssue[]}
- */
-export const formatEnvValidationIssues = (error) => {
+export const formatEnvValidationIssues = (
+  error: ZodError | EnvValidationError,
+): EnvValidationIssue[] => {
   if (error instanceof EnvValidationError) {
     return [...error.issues];
   }
@@ -44,10 +43,7 @@ export const formatEnvValidationIssues = (error) => {
   return error.issues.map(toValidationIssue);
 };
 
-/**
- * @param {string} key
- */
-export const createRequiredString = (key) =>
+export const createRequiredString = (key: string) =>
   z
     .string({
       error: `${key} is required.`,
@@ -55,13 +51,9 @@ export const createRequiredString = (key) =>
     .trim()
     .min(1, `${key} is required.`);
 
-/**
- * @param {string} key
- * @param {readonly string[]=} protocols
- */
-export const createAbsoluteUrl = (key, protocols) =>
+export const createAbsoluteUrl = (key: string, protocols?: readonly string[]) =>
   createRequiredString(key).superRefine((value, context) => {
-    let parsedUrl;
+    let parsedUrl: URL;
 
     try {
       parsedUrl = new URL(value);
@@ -81,17 +73,13 @@ export const createAbsoluteUrl = (key, protocols) =>
     }
   });
 
-/**
- * @param {string} key
- * @param {readonly string[]=} protocols
- */
-export const createOptionalAbsoluteUrl = (key, protocols) =>
+export const createOptionalAbsoluteUrl = (key: string, protocols?: readonly string[]) =>
   z
     .string()
     .trim()
     .min(1, `${key} must not be empty when provided.`)
     .superRefine((value, context) => {
-      let parsedUrl;
+      let parsedUrl: URL;
 
       try {
         parsedUrl = new URL(value);
@@ -112,10 +100,7 @@ export const createOptionalAbsoluteUrl = (key, protocols) =>
     })
     .optional();
 
-/**
- * @param {string} key
- */
-export const createPositiveInteger = (key) =>
+export const createPositiveInteger = (key: string) =>
   createRequiredString(key)
     .refine((value) => positiveIntegerPattern.test(value), {
       message: `${key} must be a positive integer.`,
@@ -125,7 +110,7 @@ export const createPositiveInteger = (key) =>
       message: `${key} must be a positive integer.`,
     });
 
-const isBareOrigin = (value) =>
+const isBareOrigin = (value: URL) =>
   !value.username &&
   !value.password &&
   value.pathname === "/" &&
@@ -152,7 +137,7 @@ export const createCorsOrigins = () =>
       for (const [index, origin] of origins.entries()) {
         try {
           const parsedUrl = new URL(origin);
-          if (!corsOriginProtocols.includes(parsedUrl.protocol)) {
+          if (!corsOriginProtocols.includes(parsedUrl.protocol as (typeof corsOriginProtocols)[number])) {
             context.addIssue({
               code: z.ZodIssueCode.custom,
               message: `CORS_ORIGINS entry ${index + 1} must use http: or https:.`,

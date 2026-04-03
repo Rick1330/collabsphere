@@ -10,6 +10,7 @@ import {
 } from "./env-core.js";
 
 export { EnvValidationError } from "./env-core.js";
+export type { EnvValidationIssue } from "./env-core.js";
 
 export const secretEnvKeys = Object.freeze([
   "JWT_ACCESS_SECRET",
@@ -17,14 +18,14 @@ export const secretEnvKeys = Object.freeze([
   "COLLAB_JWT_SECRET",
   "S3_ACCESS_KEY_ID",
   "S3_SECRET_ACCESS_KEY",
-]);
+] as const);
 
 export const credentialUrlEnvKeys = Object.freeze([
   "DATABASE_URL",
   "REDIS_URL",
   "COLLAB_DATABASE_URL",
   "COLLAB_REDIS_URL",
-]);
+] as const);
 
 export const requiredEnvKeys = Object.freeze([
   "DATABASE_URL",
@@ -43,17 +44,23 @@ export const requiredEnvKeys = Object.freeze([
   "S3_ACCESS_KEY_ID",
   "S3_SECRET_ACCESS_KEY",
   "S3_REGION",
-]);
+] as const);
 
 export const optionalEnvKeys = Object.freeze([
   "COLLAB_REDIS_URL",
   "S3_ENDPOINT",
-]);
+] as const);
 
 export const declaredEnvKeys = Object.freeze([
   ...requiredEnvKeys,
   ...optionalEnvKeys,
-]);
+] as const);
+
+export type SecretEnvKey = (typeof secretEnvKeys)[number];
+export type CredentialUrlEnvKey = (typeof credentialUrlEnvKeys)[number];
+export type RequiredEnvKey = (typeof requiredEnvKeys)[number];
+export type OptionalEnvKey = (typeof optionalEnvKeys)[number];
+export type DeclaredEnvKey = (typeof declaredEnvKeys)[number];
 
 export const sharedEnvSchema = z
   .object({
@@ -78,10 +85,15 @@ export const sharedEnvSchema = z
   })
   .strict();
 
-const selectSharedEnv = (input) =>
-  Object.fromEntries(declaredEnvKeys.map((key) => [key, input[key]]));
+export type SharedRuntimeEnv = z.infer<typeof sharedEnvSchema>;
 
-export const parseRuntimeEnv = (input) => {
+const selectSharedEnv = (input: Record<string, string | undefined>) =>
+  Object.fromEntries(declaredEnvKeys.map((key) => [key, input[key]])) as Record<
+    DeclaredEnvKey,
+    string | undefined
+  >;
+
+export const parseRuntimeEnv = (input: Record<string, string | undefined>): SharedRuntimeEnv => {
   const parsed = sharedEnvSchema.safeParse(selectSharedEnv(input));
 
   if (!parsed.success) {
