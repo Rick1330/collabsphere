@@ -77,7 +77,7 @@ const compileSharedRuntimeModules = (outDir, entryPoints) => {
     ],
     {
       cwd: repoRoot,
-      stdio: "pipe",
+      stdio: "inherit",
     },
   );
 };
@@ -149,9 +149,7 @@ if (needsSharedEnv || needsSharedBootstrap) {
   }
 
   if (needsSharedBootstrap && canReuseCompiledSharedFiles) {
-    await cp(sharedBootstrapRuntimePath, path.join(sharedDistDir, "bootstrap-runtime.ts"));
     await cp(compiledSharedBootstrapRuntimePath, path.join(sharedDistDir, "bootstrap-runtime.js"));
-    await rm(path.join(sharedDistDir, "bootstrap-runtime.ts"), { force: true });
   }
 
   if (needsSharedEnv) {

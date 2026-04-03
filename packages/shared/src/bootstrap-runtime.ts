@@ -4,7 +4,7 @@ const defaultHost = "127.0.0.1";
 
 export interface ParseServicePortOptions {
   service: string;
-  value?: string | undefined;
+  value?: string;
   fallback: number;
 }
 
@@ -12,14 +12,14 @@ export interface StartHttpBootstrapServerOptions {
   server: Server;
   service: string;
   defaultPort: number;
-  readyPath?: string | undefined;
+  readyPath?: string;
 }
 
 export interface ValidateServiceEnvOptions<TEnv, TError extends Error> {
   service: string;
   parser: (input: Record<string, string | undefined>) => TEnv;
   validationErrorClass: new (...args: any[]) => TError;
-  input?: Record<string, string | undefined> | undefined;
+  input?: Record<string, string | undefined>;
 }
 
 type ListenError = NodeJS.ErrnoException & { code?: string };
