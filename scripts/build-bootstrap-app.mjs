@@ -1,4 +1,4 @@
-import { cp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
@@ -86,6 +86,7 @@ const packageJson = JSON.parse(await readFile(packageJsonPath, "utf8"));
 const sharedPackageJson = JSON.parse(await readFile(sharedPackageJsonPath, "utf8"));
 const hasTsSource = await fileExists(sourceTsPath);
 const hasJsSource = await fileExists(sourceJsPath);
+const compiledAppSourceDir = path.dirname(compiledTsEntryPath);
 
 if (hasTsSource && hasJsSource) {
   throw new Error("Bootstrap entrypoint has both dev.ts and dev.js; remove the JS file.");
@@ -117,6 +118,17 @@ if (hasTsSource) {
   await rm(path.join(distDir, "node_modules"), { recursive: true, force: true });
   await rm(distEntryPath, { force: true });
   await rm(distPackageJsonPath, { force: true });
+
+  for (const entry of await readdir(compiledAppSourceDir, { withFileTypes: true })) {
+    if (entry.name === "dev.js") {
+      continue;
+    }
+
+    const sourcePath = path.join(compiledAppSourceDir, entry.name);
+    const targetPath = path.join(distDir, entry.name);
+    await rm(targetPath, { recursive: true, force: true });
+    await cp(sourcePath, targetPath, { recursive: entry.isDirectory() });
+  }
 } else {
   await rm(distDir, { recursive: true, force: true });
   await mkdir(distDir, { recursive: true });
