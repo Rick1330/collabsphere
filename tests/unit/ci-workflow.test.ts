@@ -9,7 +9,11 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 const workflowPath = path.join(repoRoot, ".github", "workflows", "ci.yml");
 
 test("ci workflow defines the required pull request jobs and services", async () => {
-  const workflow = parse(await readFile(workflowPath, "utf8"));
+  const workflow = parse(await readFile(workflowPath, "utf8")) as {
+    name?: string;
+    on?: { pull_request?: unknown };
+    jobs?: Record<string, { services?: Record<string, { image?: string }>; steps?: Array<Record<string, unknown>> }>;
+  };
   const jobs = workflow.jobs ?? {};
   const jobNames = [
     "lint",
@@ -28,15 +32,17 @@ test("ci workflow defines the required pull request jobs and services", async ()
   );
 
   assert.equal(workflow.name, "CI");
-  assert.ok(workflow.on.pull_request, "workflow must trigger on pull requests");
-  assert.equal(jobs["integration-tests"].services.postgres.image, "postgres:16-alpine");
-  assert.equal(jobs["integration-tests"].services.redis.image, "redis:7-alpine");
+  assert.ok(workflow.on?.pull_request, "workflow must trigger on pull requests");
+  assert.equal(jobs["integration-tests"]?.services?.postgres?.image, "postgres:16-alpine");
+  assert.equal(jobs["integration-tests"]?.services?.redis?.image, "redis:7-alpine");
 
   for (const jobName of jobNames) {
     const steps = jobs[jobName]?.steps;
     assert.ok(Array.isArray(steps), `${jobName} must define a steps array`);
 
-    const setupNode = steps.find((step) => step.uses === "actions/setup-node@v4");
+    const setupNode = steps.find((step) => step.uses === "actions/setup-node@v4") as
+      | { uses?: string; with?: Record<string, string> }
+      | undefined;
     assert.ok(setupNode, `${jobName} must configure actions/setup-node`);
     assert.equal(setupNode.with?.cache, "pnpm", `${jobName} must cache the pnpm store`);
     assert.equal(

@@ -11,7 +11,7 @@ import {
   spawnBootstrap,
   stopChild,
   waitForStdoutMatch,
-} from "./bootstrap-test-helpers.mjs";
+} from "./bootstrap-test-helpers.ts";
 
 const collabEntryPath = path.join(repoRoot, "apps", "collab", "src", "dev.ts");
 const builtCollabEntryPath = path.join(repoRoot, "apps", "collab", "dist", "dev.js");
@@ -41,20 +41,20 @@ const validRuntimeEnv = Object.freeze({
   S3_REGION: "us-east-1",
 });
 
-const spawnCollab = (envOverrides) =>
+const spawnCollab = (envOverrides: NodeJS.ProcessEnv) =>
   spawnBootstrap({ entryPath: collabEntryPath, cwd: repoRoot, envOverrides });
 
-const spawnBuiltCollab = (envOverrides) =>
+const spawnBuiltCollab = (envOverrides: NodeJS.ProcessEnv) =>
   spawnBootstrap({
     entryPath: builtCollabEntryPath,
     cwd: path.join(repoRoot, "apps", "collab", "dist"),
     envOverrides,
   });
 
-const spawnWorker = (envOverrides) =>
+const spawnWorker = (envOverrides: NodeJS.ProcessEnv) =>
   spawnBootstrap({ entryPath: workerEntryPath, cwd: repoRoot, envOverrides });
 
-const spawnBuiltWorker = (envOverrides) =>
+const spawnBuiltWorker = (envOverrides: NodeJS.ProcessEnv) =>
   spawnBootstrap({
     entryPath: builtWorkerEntryPath,
     cwd: path.join(repoRoot, "apps", "worker", "dist"),
@@ -67,6 +67,16 @@ const assertBootstrapHealthy = async ({
   readinessPattern,
   readinessDescription,
   assertReady,
+}: {
+  spawnFn: (envOverrides: NodeJS.ProcessEnv) => ReturnType<typeof spawnBootstrap>;
+  healthyEnv: NodeJS.ProcessEnv;
+  readinessPattern: RegExp;
+  readinessDescription: string;
+  assertReady: (input: {
+    match: RegExpMatchArray;
+    stdoutText: () => string;
+    stderrText: () => string;
+  }) => Promise<void>;
 }) => {
   const child = spawnFn(healthyEnv);
   const stdoutText = collectStream(child.stdout);
@@ -96,12 +106,13 @@ const serviceSpecs = [
     forbiddenPatterns: [/replace-with-local-collab-secret/],
     readinessPattern: /bootstrap listening on http:\/\/[^:]+:(\d+)/,
     readinessDescription: "collab bootstrap readiness",
-    assertReady: async ({ match }) => {
+    assertReady: async ({ match }: { match: RegExpMatchArray }) => {
       const response = await getJson(Number.parseInt(match[1], 10));
+      const body = response.body as { service?: string; status?: string };
 
       assert.equal(response.statusCode, 200);
-      assert.equal(response.body?.service, "collab");
-      assert.equal(response.body?.status, "ok");
+      assert.equal(body.service, "collab");
+      assert.equal(body.status, "ok");
     },
   },
   {
@@ -121,7 +132,13 @@ const serviceSpecs = [
     forbiddenPatterns: [/minioadmin/],
     readinessPattern: /\[worker\] heartbeat interval (\d+)ms/,
     readinessDescription: "worker bootstrap readiness",
-    assertReady: async ({ match, stdoutText }) => {
+    assertReady: async ({
+      match,
+      stdoutText,
+    }: {
+      match: RegExpMatchArray;
+      stdoutText: () => string;
+    }) => {
       assert.equal(Number.parseInt(match[1], 10), 1500);
       assert.match(stdoutText(), /\[worker\] bootstrap started/);
     },

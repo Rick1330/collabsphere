@@ -12,7 +12,7 @@ import {
   spawnBootstrap,
   stopChild,
   waitForStdoutMatch,
-} from "./bootstrap-test-helpers.mjs";
+} from "./bootstrap-test-helpers.ts";
 
 const apiEntryPath = path.join(repoRoot, "apps", "api", "src", "dev.ts");
 const builtApiEntryPath = path.join(repoRoot, "apps", "api", "dist", "dev.js");
@@ -31,10 +31,10 @@ const validApiEnv = Object.freeze({
   BASE_URL: "http://localhost:3000",
 });
 
-const spawnApi = (envOverrides) =>
+const spawnApi = (envOverrides: NodeJS.ProcessEnv) =>
   spawnBootstrap({ entryPath: apiEntryPath, cwd: repoRoot, envOverrides });
 
-const spawnBuiltApi = (envOverrides) =>
+const spawnBuiltApi = (envOverrides: NodeJS.ProcessEnv) =>
   spawnBootstrap({
     entryPath: builtApiEntryPath,
     cwd: path.join(repoRoot, "apps", "api", "dist"),
@@ -45,8 +45,8 @@ const postgresSslResponseBuffer = Buffer.from("S");
 const redisExpectedPing = "*1\r\n$4\r\nPING\r\n";
 const redisPongBuffer = Buffer.from("+PONG\r\n");
 
-const closeServer = (server) =>
-  new Promise((resolve, reject) => {
+const closeServer = (server: net.Server) =>
+  new Promise<void>((resolve, reject) => {
     server.close((error) => {
       if (error) {
         reject(error);
@@ -57,7 +57,7 @@ const closeServer = (server) =>
     });
   });
 
-const createMockDependencyServer = async (onData) => {
+const createMockDependencyServer = async (onData: (chunk: Buffer, socket: net.Socket) => void) => {
   const server = net.createServer((socket) => {
     socket.once("data", (chunk) => onData(chunk, socket));
     socket.once("error", () => {});
@@ -97,7 +97,7 @@ const createHangingRedisServer = () =>
     // Intentionally keep the socket open to exercise timeout behavior.
   });
 
-const withOccupiedPort = async (callback) => {
+const withOccupiedPort = async (callback: (port: number) => Promise<void>) => {
   const blocker = net.createServer((socket) => {
     socket.destroy();
   });
@@ -115,7 +115,10 @@ const withOccupiedPort = async (callback) => {
   }
 };
 
-const withMockDependencies = async (callback, createRedisServer = createMockRedisServer) => {
+const withMockDependencies = async (
+  callback: (dependencyEnv: { DATABASE_URL: string; REDIS_URL: string }) => Promise<void>,
+  createRedisServer = createMockRedisServer,
+) => {
   const postgres = await createMockPostgresServer();
   const redis = await createRedisServer();
 
@@ -129,9 +132,14 @@ const withMockDependencies = async (callback, createRedisServer = createMockRedi
   }
 };
 
+type HealthResponse = Awaited<ReturnType<typeof getJson>>;
+
 const getBootstrapHealthResponse = async ({
   spawn = spawnApi,
   envOverrides = validApiEnv,
+}: {
+  spawn?: (envOverrides: NodeJS.ProcessEnv) => ReturnType<typeof spawnBootstrap>;
+  envOverrides?: NodeJS.ProcessEnv;
 } = {}) => {
   const child = spawn(envOverrides);
   const stdoutText = collectStream(child.stdout);
@@ -155,19 +163,30 @@ const getBootstrapHealthResponse = async ({
   }
 };
 
-const getHealthEnvelope = (response) => {
-  assert.ok(response.body, "health response body should be present");
-  assert.ok(response.body.data, "health response data should be present");
-  assert.ok(response.body.data.resource, "health response resource should be present");
-  assert.ok(response.body.meta, "health response meta should be present");
+const getHealthEnvelope = (response: HealthResponse) => {
+  const body = response.body as {
+    data?: {
+      resource?: {
+        service: string;
+        status: string;
+        checks: Record<string, { status: string; detail?: string }>;
+      };
+    };
+    meta?: { requestId: string };
+  };
+
+  assert.ok(body, "health response body should be present");
+  assert.ok(body.data, "health response data should be present");
+  assert.ok(body.data.resource, "health response resource should be present");
+  assert.ok(body.meta, "health response meta should be present");
 
   return {
-    resource: response.body.data.resource,
-    meta: response.body.meta,
+    resource: body.data.resource,
+    meta: body.meta,
   };
 };
 
-const getRequestIdHeader = (response) =>
+const getRequestIdHeader = (response: HealthResponse) =>
   typeof response.headers?.["x-request-id"] === "string" ? response.headers["x-request-id"] : null;
 
 const assertHealthyBootstrap = async (options = {}) => {

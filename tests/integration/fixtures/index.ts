@@ -5,23 +5,23 @@ const defaultMaxAttempts = 20;
 const defaultAttemptTimeoutMs = 2000;
 const digitsOnlyPattern = /^\d+$/;
 
-function createPortError(name, rawValue) {
+function createPortError(name: string, rawValue: unknown) {
   return new Error(`${name} must be a valid TCP port (1-65535), got: ${String(rawValue)}`);
 }
 
-function requireDigitsOnly(name, rawValue) {
+function requireDigitsOnly(name: string, rawValue: unknown) {
   if (typeof rawValue !== "string" || !digitsOnlyPattern.test(rawValue)) {
     throw createPortError(name, rawValue);
   }
 }
 
-function requirePortRange(name, value, rawValue) {
+function requirePortRange(name: string, value: number, rawValue: unknown) {
   if (value < 1 || value > 65_535) {
     throw createPortError(name, rawValue);
   }
 }
 
-function parsePort(name, rawValue) {
+function parsePort(name: string, rawValue: unknown) {
   requireDigitsOnly(name, rawValue);
   const value = Number.parseInt(rawValue, 10);
   requirePortRange(name, value, rawValue);
@@ -35,7 +35,7 @@ function createPostgresSslRequest() {
   return request;
 }
 
-export function createServiceSmokeFixtures(env = process.env) {
+export function createServiceSmokeFixtures(env: NodeJS.ProcessEnv = process.env) {
   const postgresHost = env.POSTGRES_HOST ?? "127.0.0.1";
   const postgresPort = parsePort("POSTGRES_PORT", env.POSTGRES_PORT ?? "5432");
   const redisHost = env.REDIS_HOST ?? "127.0.0.1";

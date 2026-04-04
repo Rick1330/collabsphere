@@ -3,34 +3,42 @@ import http from "node:http";
 import path from "node:path";
 import { once } from "node:events";
 import { fileURLToPath } from "node:url";
-import { execFileSync, spawn } from "node:child_process";
+import { execFileSync, spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import type { Readable } from "node:stream";
 
 export const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const tsxCli = path.join(repoRoot, "node_modules", "tsx", "dist", "cli.mjs");
 const tscCli = path.join(repoRoot, "node_modules", "typescript", "bin", "tsc");
 
-export const collectStream = (stream) => {
+export const collectStream = (stream: Readable) => {
   let value = "";
   stream.setEncoding("utf8");
-  stream.on("data", (chunk) => {
+  stream.on("data", (chunk: string) => {
     value += chunk;
   });
   return () => value;
 };
 
-export const waitForChildExit = (child) => {
+export const waitForChildExit = (child: ChildProcessWithoutNullStreams) => {
   if (child.exitCode !== null || child.signalCode !== null) {
-    return Promise.resolve([child.exitCode, child.signalCode]);
+    return Promise.resolve<[number | null, NodeJS.Signals | null]>([
+      child.exitCode,
+      child.signalCode,
+    ]);
   }
 
-  return once(child, "exit");
+  return once(child, "exit") as Promise<[number | null, NodeJS.Signals | null]>;
 };
 
 const childExitTimeoutMs = 5000;
 const requestTimeoutMs = 5000;
 
-const waitForChildExitWithTimeout = (child, timeoutMs, label) =>
-  new Promise((resolve, reject) => {
+const waitForChildExitWithTimeout = (
+  child: ChildProcessWithoutNullStreams,
+  timeoutMs: number,
+  label: string,
+) =>
+  new Promise<[number | null, NodeJS.Signals | null]>((resolve, reject) => {
     const timeout = setTimeout(() => {
       reject(new Error(`Timed out waiting for child to exit after ${label}.`));
     }, timeoutMs);
@@ -47,7 +55,7 @@ const waitForChildExitWithTimeout = (child, timeoutMs, label) =>
     );
   });
 
-export const stopChild = async (child) => {
+export const stopChild = async (child: ChildProcessWithoutNullStreams) => {
   if (child.exitCode !== null || child.signalCode !== null) {
     return;
   }
@@ -66,18 +74,26 @@ export const stopChild = async (child) => {
   }
 };
 
+type ValidationFailureOptions = {
+  spawnFn: (envOverrides: NodeJS.ProcessEnv) => ChildProcessWithoutNullStreams;
+  envOverrides: NodeJS.ProcessEnv;
+  service: string;
+  expectedMessages: RegExp[];
+  forbiddenPatterns?: RegExp[];
+};
+
 export const assertBootstrapValidationFailure = async ({
   spawnFn,
   envOverrides,
   service,
   expectedMessages,
   forbiddenPatterns = [],
-}) => {
+}: ValidationFailureOptions) => {
   const child = spawnFn(envOverrides);
   const stdoutText = collectStream(child.stdout);
   const stderrText = collectStream(child.stderr);
-  let code;
-  let signal;
+  let code: number | null;
+  let signal: NodeJS.Signals | null;
 
   try {
     [code, signal] = await waitForChildExitWithTimeout(
@@ -108,8 +124,13 @@ export const assertBootstrapValidationFailure = async ({
   }
 };
 
-export const waitForStdoutMatch = (child, stdoutText, pattern, description) =>
-  new Promise((resolve, reject) => {
+export const waitForStdoutMatch = (
+  child: ChildProcessWithoutNullStreams,
+  stdoutText: () => string,
+  pattern: RegExp,
+  description: string,
+) =>
+  new Promise<RegExpMatchArray>((resolve, reject) => {
     const timeout = setTimeout(() => {
       cleanup();
       reject(new Error(`Timed out waiting for ${description}.\nstdout:\n${stdoutText()}`));
@@ -126,7 +147,7 @@ export const waitForStdoutMatch = (child, stdoutText, pattern, description) =>
       resolve(match);
     };
 
-    const onExit = (code, signal) => {
+    const onExit = (code: number | null, signal: NodeJS.Signals | null) => {
       cleanup();
       clearTimeout(timeout);
       reject(
@@ -146,10 +167,16 @@ export const waitForStdoutMatch = (child, stdoutText, pattern, description) =>
     onData();
   });
 
-export const getJson = (port, pathName = "/") =>
-  new Promise((resolve, reject) => {
+type JsonResponse = {
+  statusCode: number | undefined;
+  headers: http.IncomingHttpHeaders;
+  body: unknown;
+};
+
+export const getJson = (port: number, pathName = "/") =>
+  new Promise<JsonResponse>((resolve, reject) => {
     let settled = false;
-    const settle = (callback) => (value) => {
+    const settle = <T>(callback: (value: T) => void) => (value: T) => {
       if (settled) {
         return;
       }
@@ -168,7 +195,7 @@ export const getJson = (port, pathName = "/") =>
       (response) => {
         let body = "";
         response.setEncoding("utf8");
-        response.on("data", (chunk) => {
+        response.on("data", (chunk: string) => {
           body += chunk;
         });
         response.once("error", rejectOnce);
@@ -177,7 +204,7 @@ export const getJson = (port, pathName = "/") =>
             resolveOnce({
               statusCode: response.statusCode,
               headers: response.headers,
-              body: JSON.parse(body),
+              body: JSON.parse(body) as unknown,
             });
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
@@ -197,7 +224,13 @@ export const getJson = (port, pathName = "/") =>
     });
   });
 
-export const spawnBootstrap = ({ entryPath, cwd, envOverrides }) => {
+type SpawnBootstrapOptions = {
+  entryPath: string;
+  cwd: string;
+  envOverrides?: NodeJS.ProcessEnv;
+};
+
+export const spawnBootstrap = ({ entryPath, cwd, envOverrides }: SpawnBootstrapOptions) => {
   const useTsx = entryPath.endsWith(".ts");
   const command = process.execPath;
   const args = useTsx ? [tsxCli, entryPath] : [entryPath];
@@ -212,7 +245,7 @@ export const spawnBootstrap = ({ entryPath, cwd, envOverrides }) => {
   });
 };
 
-export const runTsc = (projectPath) => {
+export const runTsc = (projectPath: string) => {
   execFileSync(process.execPath, [tscCli, "-p", projectPath], {
     cwd: repoRoot,
     stdio: "inherit",

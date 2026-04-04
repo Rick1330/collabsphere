@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import net from "node:net";
 
-import { createServiceSmokeFixtures } from "./fixtures/index.mjs";
+import { createServiceSmokeFixtures } from "./fixtures/index.ts";
 
 const fixtures = createServiceSmokeFixtures();
 const {
@@ -11,12 +11,12 @@ const {
   timing: { retryDelayMs, maxAttempts, attemptTimeoutMs },
 } = fixtures;
 
-function sleep(ms) {
+function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function openSocket(host, port, timeoutMs = attemptTimeoutMs) {
-  return new Promise((resolve, reject) => {
+function openSocket(host: string, port: number, timeoutMs = attemptTimeoutMs) {
+  return new Promise<net.Socket>((resolve, reject) => {
     const socket = net.createConnection({ host, port });
     let settled = false;
 
@@ -37,7 +37,7 @@ function openSocket(host, port, timeoutMs = attemptTimeoutMs) {
       resolve(socket);
     };
 
-    const onError = (error) => {
+    const onError = (error: Error) => {
       if (settled) {
         return;
       }
@@ -66,8 +66,8 @@ function openSocket(host, port, timeoutMs = attemptTimeoutMs) {
   });
 }
 
-function readOnce(socket, timeoutMs = attemptTimeoutMs) {
-  return new Promise((resolve, reject) => {
+function readOnce(socket: net.Socket, timeoutMs = attemptTimeoutMs) {
+  return new Promise<Buffer>((resolve, reject) => {
     let settled = false;
 
     const cleanup = () => {
@@ -77,7 +77,7 @@ function readOnce(socket, timeoutMs = attemptTimeoutMs) {
       socket.off("timeout", onTimeout);
     };
 
-    const onData = (chunk) => {
+    const onData = (chunk: Buffer) => {
       if (settled) {
         return;
       }
@@ -88,7 +88,7 @@ function readOnce(socket, timeoutMs = attemptTimeoutMs) {
       resolve(chunk);
     };
 
-    const onError = (error) => {
+    const onError = (error: Error) => {
       if (settled) {
         return;
       }
@@ -129,14 +129,14 @@ function readOnce(socket, timeoutMs = attemptTimeoutMs) {
   });
 }
 
-async function withRetries(label, action) {
-  let lastError;
+async function withRetries(label: string, action: () => Promise<void>) {
+  let lastError: Error | undefined;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
       return await action();
     } catch (error) {
-      lastError = error;
+      lastError = error instanceof Error ? error : new Error(String(error));
 
       if (attempt < maxAttempts) {
         await sleep(retryDelayMs);
@@ -144,7 +144,7 @@ async function withRetries(label, action) {
     }
   }
 
-  throw new Error(`${label} did not become ready after ${maxAttempts} attempts: ${lastError.message}`);
+  throw new Error(`${label} did not become ready after ${maxAttempts} attempts: ${lastError?.message}`);
 }
 
 test("postgres accepts startup handshakes", { timeout: 30_000 }, async () => {

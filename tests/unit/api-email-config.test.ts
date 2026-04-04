@@ -4,9 +4,9 @@ import path from "node:path";
 import test from "node:test";
 import { pathToFileURL } from "node:url";
 
-import { repoRoot, runTsc } from "./bootstrap-test-helpers.mjs";
+import { repoRoot, runTsc } from "./bootstrap-test-helpers.ts";
 
-let emailConfigModulePromise;
+let emailConfigModulePromise: Promise<typeof import("../../apps/api/dist/config/email.js")> | undefined;
 
 const importEmailConfigModule = async () => {
   if (emailConfigModulePromise) {
@@ -30,7 +30,7 @@ const validProviderEmailInput = Object.freeze({
   EMAIL_PROVIDER_API_KEY: "replace-with-provider-key",
 });
 
-const createEmailInput = (overrides = {}) => ({
+const createEmailInput = (overrides: Record<string, string | number | undefined> = {}) => ({
   ...validProviderEmailInput,
   ...overrides,
 });
