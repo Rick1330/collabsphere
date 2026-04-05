@@ -101,8 +101,9 @@ const runSyntaxCheck = (filePath: string) => {
       stdio: "pipe",
     });
   } catch (error) {
-    const stderr = Buffer.isBuffer(error?.stderr) ? error.stderr.toString("utf8").trim() : "";
-    const stdout = Buffer.isBuffer(error?.stdout) ? error.stdout.toString("utf8").trim() : "";
+    const execError = error as { stderr?: unknown; stdout?: unknown };
+    const stderr = Buffer.isBuffer(execError.stderr) ? execError.stderr.toString("utf8").trim() : "";
+    const stdout = Buffer.isBuffer(execError.stdout) ? execError.stdout.toString("utf8").trim() : "";
     const details = [stderr, stdout].filter(Boolean).join("\n");
     throw new Error(
       details
@@ -141,15 +142,21 @@ const validateBuildContext = async (context: BuildContext) => {
     throw new Error("Bootstrap entrypoint has both dev.ts and dev.js; remove the JS file.");
   }
 
-  if (!context.hasTsSource && !context.hasJsSource) {
+  if (!(context.hasTsSource || context.hasJsSource)) {
     throw new Error("Missing bootstrap entrypoint (expected src/dev.ts or src/dev.js).");
   }
 
-  if (context.hasTsSource && !(await fileExists(compiledTsEntryPath))) {
-    throw new Error(
-      `Missing compiled bootstrap output at ${compiledTsEntryPath}. Run tsc before staging.`,
-    );
+  if (!context.hasTsSource) {
+    return;
   }
+
+  if (await fileExists(compiledTsEntryPath)) {
+    return;
+  }
+
+  throw new Error(
+    `Missing compiled bootstrap output at ${compiledTsEntryPath}. Run tsc before staging.`,
+  );
 };
 
 const stageAppDistLayout = async (context: BuildContext) => {
@@ -183,22 +190,28 @@ const needsSharedEnvRuntime = (sourceCode: string) =>
 const needsSharedBootstrapRuntime = (sourceCode: string) =>
   sourceCode.includes(sharedBootstrapRuntimeImport);
 
+const collectSharedRuntimeEntryPoints = (needsSharedEnv: boolean, needsSharedBootstrap: boolean) => {
+  const entryPoints = [];
+  if (needsSharedBootstrap) {
+    entryPoints.push(sharedBootstrapRuntimePath);
+  }
+  if (needsSharedEnv) {
+    entryPoints.push(sharedApiEnvPath, sharedRuntimeEnvPath, sharedEnvCorePath);
+  }
+  return entryPoints;
+};
+
 const stageSharedRuntimeArtifacts = async ({
   needsSharedEnv,
-  needsSharedBootstrap,
   sharedDistDir,
   distNodeModulesDir,
+  sharedRuntimeEntryPoints,
 }: {
   needsSharedEnv: boolean;
-  needsSharedBootstrap: boolean;
   sharedDistDir: string;
   distNodeModulesDir: string;
+  sharedRuntimeEntryPoints: string[];
 }) => {
-  const sharedRuntimeEntryPoints = [
-    ...(needsSharedBootstrap ? [sharedBootstrapRuntimePath] : []),
-    ...(needsSharedEnv ? [sharedApiEnvPath, sharedRuntimeEnvPath, sharedEnvCorePath] : []),
-  ];
-
   if (sharedRuntimeEntryPoints.length > 0) {
     compileSharedRuntimeModules(sharedDistDir, sharedRuntimeEntryPoints);
   }
@@ -224,11 +237,13 @@ const rewriteSharedRuntimeImports = (sourceCode: string) =>
     .join(sharedBootstrapRuntimeDistImport);
 
 const assertNoMonorepoSharedImports = (sourceCode: string) => {
-  if (
-    sourceCode.includes(sharedSourceImport) ||
-    sourceCode.includes(sharedRuntimeSourceImport) ||
-    sourceCode.includes(sharedBootstrapRuntimeImport)
-  ) {
+  const monorepoImports = [
+    sharedSourceImport,
+    sharedRuntimeSourceImport,
+    sharedBootstrapRuntimeImport,
+  ];
+
+  if (monorepoImports.some((moduleImport) => sourceCode.includes(moduleImport))) {
     throw new Error("Bootstrap artifact still references a monorepo shared source path.");
   }
 };
@@ -293,6 +308,10 @@ const main = async () => {
     : {};
   const needsSharedEnv = needsSharedEnvRuntime(context.sourceCode);
   const needsSharedBootstrap = needsSharedBootstrapRuntime(context.sourceCode);
+  const sharedRuntimeEntryPoints = collectSharedRuntimeEntryPoints(
+    needsSharedEnv,
+    needsSharedBootstrap,
+  );
 
   if (needsSharedEnv || needsSharedBootstrap) {
     const sharedDistDir = path.join(distDir, "_shared");
@@ -301,9 +320,9 @@ const main = async () => {
 
     await stageSharedRuntimeArtifacts({
       needsSharedEnv,
-      needsSharedBootstrap,
       sharedDistDir,
       distNodeModulesDir,
+      sharedRuntimeEntryPoints,
     });
 
     distSourceCode = rewriteSharedRuntimeImports(distSourceCode);
