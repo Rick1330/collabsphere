@@ -28,13 +28,14 @@ Provide an execution-focused reference for CollabSphere deployment strategy, uni
 - `api`, `collab`, `worker` deployed together on a shared network.
 
 ### Recommended v1 Hosting
-- Frontend (`web`): Vercel serving the deployable `apps/web/dist` artifact.
+- Frontend (`web`): Vercel deploying the Next.js App Router application in `apps/web`.
 - Backend services (`api`, `collab`, `worker`): Azure Container Apps as the preferred managed runtime.
 - Backend portability: keep backend services packaged as OCI-compatible containers so another host such as DigitalOcean remains viable without a runtime rewrite.
 - Database: managed Postgres selected separately from the compute runtime.
 - Redis: managed Redis selected separately from the compute runtime.
 - Object storage: not part of the immediate CS-008 runtime migration; keep the storage interface S3-compatible and treat Cloudflare R2 as a deferred option.
 - Backend asset shape: see `infra/azure/container-apps/` for the current ACA service manifests and migration-job hook contract.
+- Web deploy contract: Vercel CLI runs from `apps/web`, and downloaded build artifacts are backend-only.
 
 ### Environment Rules
 - Separate configs for Local, Staging, Production.

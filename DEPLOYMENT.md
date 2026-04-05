@@ -43,8 +43,9 @@ The staging backend is bootstrapped and healthy in Azure, and the recovered GitH
 ### Web
 
 - Hosted on Vercel
-- Current deployed web surface is the temporary placeholder artifact produced in `apps/web/dist`
-- The intended long-term frontend architecture for `apps/web` remains a Next.js App Router application frontend on Vercel; this document does not claim that transition is already complete
+- `apps/web` is now a Next.js App Router application foundation
+- The deploy workflow builds and deploys the web app from `apps/web` using Vercel CLI and the app-local [apps/web/vercel.json](./apps/web/vercel.json) contract
+- Upload/download build artifacts remain backend-only (`api`, `collab`, `worker`); the web deploy no longer depends on a staged `apps/web/dist` artifact
 - Staging deploys from `main` use Vercel preview mode
 - Production deploys use `vercel build --prod` followed by `vercel deploy --prebuilt --prod`
 

@@ -1,0 +1,21 @@
+import { RoutePlaceholder } from "@/components/foundation/route-placeholder";
+
+export default function AdminPage() {
+  return (
+    <RoutePlaceholder
+      title="Admin route"
+      summary="The admin namespace now exists in the web runtime so later platform-admin stories do not need another routing reset."
+      implementedNow={[
+        "Stable /admin route",
+        "Dedicated admin layout boundary",
+        "Baseline route shell for future restricted content",
+      ]}
+      deferredWork={[
+        "Admin dashboards and audit tooling",
+        "Role-gated access control and redirects",
+        "Platform management workflows and data integration",
+      ]}
+    />
+  );
+}
+

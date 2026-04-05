@@ -338,7 +338,6 @@ Current cache invalidation inputs include:
 - `pnpm-lock.yaml`
 - `pnpm-workspace.yaml`
 - `scripts/build-bootstrap-app.ts`
-- `scripts/build-static-web-app.ts`
 - `tsconfig.base.json`
 - `packages/shared/src/**`
 - `packages/shared/package.json`
