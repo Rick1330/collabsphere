@@ -166,16 +166,20 @@ const loadBuildContext = async (): Promise<BuildContext> => {
   };
 };
 
-const validateBuildContext = async (context: BuildContext) => {
+const assertSingleBootstrapEntrypoint = (context: BuildContext) => {
   if (context.hasTsSource && context.hasJsSource) {
     throw new Error("Bootstrap entrypoint has both dev.ts and dev.js; remove the JS file.");
   }
+};
 
+const assertBootstrapEntrypointExists = (context: BuildContext) => {
   if (!(context.hasTsSource || context.hasJsSource)) {
     throw new Error("Missing bootstrap entrypoint (expected src/dev.ts or src/dev.js).");
   }
+};
 
-  if (!context.hasTsSource) {
+const ensureCompiledTsBootstrapExists = async (hasTsSource: boolean) => {
+  if (!hasTsSource) {
     return;
   }
 
@@ -186,6 +190,12 @@ const validateBuildContext = async (context: BuildContext) => {
   throw new Error(
     `Missing compiled bootstrap output at ${compiledTsEntryPath}. Run tsc before staging.`,
   );
+};
+
+const validateBuildContext = async (context: BuildContext) => {
+  assertSingleBootstrapEntrypoint(context);
+  assertBootstrapEntrypointExists(context);
+  await ensureCompiledTsBootstrapExists(context.hasTsSource);
 };
 
 const stageAppDistLayout = async (context: BuildContext) => {

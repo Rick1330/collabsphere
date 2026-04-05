@@ -26,7 +26,7 @@ const fileExists = async (filePath: string) => {
   }
 };
 
-const main = async () => {
+const ensureStaticBuildInputs = async () => {
   if (!(await fileExists(packageJsonPath))) {
     throw new Error(`Missing package.json at ${packageJsonPath}.`);
   }
@@ -34,11 +34,13 @@ const main = async () => {
   if (!(await fileExists(sourceHtmlPath))) {
     throw new Error(`Missing static web entrypoint at ${sourceHtmlPath}.`);
   }
+};
 
-  let packageJson: { name: string };
+const readPackageName = async () => {
+  let packageJson: { name?: unknown };
 
   try {
-    packageJson = JSON.parse(await readFile(packageJsonPath, "utf8")) as { name: string };
+    packageJson = JSON.parse(await readFile(packageJsonPath, "utf8")) as { name?: unknown };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     throw new Error(`Failed to read ${packageJsonPath}: ${message}`);
@@ -48,12 +50,22 @@ const main = async () => {
     throw new Error(`Missing or invalid "name" field in ${packageJsonPath}.`);
   }
 
+  return packageJson.name;
+};
+
+const stageStaticBuildOutput = async () => {
   await rm(distDir, { recursive: true, force: true });
   await mkdir(distDir, { recursive: true });
   await cp(sourceHtmlPath, distHtmlPath);
+};
+
+const main = async () => {
+  await ensureStaticBuildInputs();
+  const packageName = await readPackageName();
+  await stageStaticBuildOutput();
 
   console.log(
-    `[build] staged ${packageJson.name} static artifact in ${path.relative(repoRoot, distDir)}`,
+    `[build] staged ${packageName} static artifact in ${path.relative(repoRoot, distDir)}`,
   );
 };
 

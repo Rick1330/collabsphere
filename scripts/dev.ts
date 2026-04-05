@@ -11,7 +11,7 @@ const envPath = join(rootDir, ".env");
 const envLocalPath = join(rootDir, ".env.local");
 const composeFilePath = join(rootDir, "docker-compose.yml");
 const windowsTaskkillPath = String.raw`C:\Windows\System32\taskkill.exe`;
-const envAssignmentPattern = /^\s*([A-Za-z_]\w*)\s*=\s*([^\r\n]*)$/;
+const envKeyPattern = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 const portEnvKeys = new Set([
   "POSTGRES_PORT",
@@ -118,6 +118,22 @@ const unquoteEnvValue = (value) => {
   return value;
 };
 
+const skipLeadingSpaceOrTab = (value, startIndex) => {
+  let index = startIndex;
+
+  while (index < value.length) {
+    const char = value[index];
+
+    if (char !== " " && char !== "\t") {
+      break;
+    }
+
+    index += 1;
+  }
+
+  return index;
+};
+
 const parseEnvAssignment = (rawLine, lineNumber, label) => {
   const line = rawLine.trim();
 
@@ -125,13 +141,20 @@ const parseEnvAssignment = (rawLine, lineNumber, label) => {
     return null;
   }
 
-  const match = rawLine.match(envAssignmentPattern);
+  const separatorIndex = rawLine.indexOf("=");
 
-  if (!match) {
+  if (separatorIndex <= 0) {
     throw new Error(`${label} has an invalid assignment on line ${lineNumber}.`);
   }
 
-  const [, key, value] = match;
+  const key = rawLine.slice(0, separatorIndex).trim();
+  const valueStart = skipLeadingSpaceOrTab(rawLine, separatorIndex + 1);
+  const value = rawLine.slice(valueStart);
+
+  if (!envKeyPattern.test(key)) {
+    throw new Error(`${label} has an invalid assignment on line ${lineNumber}.`);
+  }
+
   return [key, unquoteEnvValue(value)];
 };
 
