@@ -59,34 +59,6 @@ type BuildContext = {
 };
 
 const compileOutputDirs = [path.join(distDir, "apps"), path.join(distDir, "packages")];
-const retryableRmCodes = new Set(["ENOTEMPTY", "EBUSY", "EPERM"]);
-
-const asRecord = (value: unknown): Record<string, unknown> | null => {
-  if (value === null) {
-    return null;
-  }
-
-  if (typeof value !== "object") {
-    return null;
-  }
-
-  return value as Record<string, unknown>;
-};
-
-const getErrorCode = (error: unknown): string | undefined => {
-  const record = asRecord(error);
-  if (!record) {
-    return undefined;
-  }
-
-  const code = record.code;
-  return typeof code === "string" ? code : undefined;
-};
-
-const isRetryableRmError = (error: unknown) => {
-  const code = getErrorCode(error);
-  return code !== undefined && retryableRmCodes.has(code);
-};
 
 const removeDirectoryWithRetries = async (directory: string, maxAttempts = 3) => {
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
@@ -94,7 +66,7 @@ const removeDirectoryWithRetries = async (directory: string, maxAttempts = 3) =>
       await rm(directory, { recursive: true, force: true });
       return;
     } catch (error) {
-      if (attempt === maxAttempts - 1 || !isRetryableRmError(error)) {
+      if (attempt === maxAttempts - 1) {
         throw error;
       }
 
