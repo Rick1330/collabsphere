@@ -60,7 +60,13 @@ type BuildContext = {
 
 const compileOutputDirs = [path.join(distDir, "apps"), path.join(distDir, "packages")];
 
-const removeDirectoryWithRetries = async (directory: string, maxAttempts = 3) => {
+const removeDirectoryWithRetries = async ({
+  directory,
+  maxAttempts = 3,
+}: {
+  directory: string;
+  maxAttempts?: number;
+}) => {
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     try {
       await rm(directory, { recursive: true, force: true });
@@ -75,7 +81,7 @@ const removeDirectoryWithRetries = async (directory: string, maxAttempts = 3) =>
   }
 };
 
-const fileExists = async (filePath: string) => {
+const fileExists = async ({ filePath }: { filePath: string }) => {
   try {
     await stat(filePath);
     return true;
@@ -84,7 +90,13 @@ const fileExists = async (filePath: string) => {
   }
 };
 
-const compileSharedRuntimeModules = (outDir: string, entryPoints: string[]) => {
+const compileSharedRuntimeModules = ({
+  outDir,
+  entryPoints,
+}: {
+  outDir: string;
+  entryPoints: string[];
+}) => {
   execFileSync(
     process.execPath,
     [
@@ -111,7 +123,7 @@ const compileSharedRuntimeModules = (outDir: string, entryPoints: string[]) => {
   );
 };
 
-const runSyntaxCheck = (filePath: string) => {
+const runSyntaxCheck = ({ filePath }: { filePath: string }) => {
   try {
     execFileSync(process.execPath, ["--check", filePath], {
       cwd: repoRoot,
@@ -133,8 +145,8 @@ const runSyntaxCheck = (filePath: string) => {
 const loadBuildContext = async (): Promise<BuildContext> => {
   const packageJson = JSON.parse(await readFile(packageJsonPath, "utf8")) as PackageJson;
   const sharedPackageJson = JSON.parse(await readFile(sharedPackageJsonPath, "utf8")) as SharedPackageJson;
-  const hasTsSource = await fileExists(sourceTsPath);
-  const hasJsSource = await fileExists(sourceJsPath);
+  const hasTsSource = await fileExists({ filePath: sourceTsPath });
+  const hasJsSource = await fileExists({ filePath: sourceJsPath });
   const compiledAppSourceDir = path.dirname(compiledTsEntryPath);
   const detectionPath = hasTsSource ? sourceTsPath : sourceJsPath;
   const compiledPath = hasTsSource ? compiledTsEntryPath : sourceJsPath;
@@ -166,12 +178,12 @@ const assertBootstrapEntrypointExists = (context: BuildContext) => {
   }
 };
 
-const ensureCompiledTsBootstrapExists = async (hasTsSource: boolean) => {
+const ensureCompiledTsBootstrapExists = async ({ hasTsSource }: { hasTsSource: boolean }) => {
   if (!hasTsSource) {
     return;
   }
 
-  if (await fileExists(compiledTsEntryPath)) {
+  if (await fileExists({ filePath: compiledTsEntryPath })) {
     return;
   }
 
@@ -183,7 +195,7 @@ const ensureCompiledTsBootstrapExists = async (hasTsSource: boolean) => {
 const validateBuildContext = async (context: BuildContext) => {
   assertSingleBootstrapEntrypoint(context);
   assertBootstrapEntrypointExists(context);
-  await ensureCompiledTsBootstrapExists(context.hasTsSource);
+  await ensureCompiledTsBootstrapExists({ hasTsSource: context.hasTsSource });
 };
 
 const stageAppDistLayout = async (context: BuildContext) => {
@@ -211,13 +223,19 @@ const stageAppDistLayout = async (context: BuildContext) => {
   }
 };
 
-const needsSharedEnvRuntime = (sourceCode: string) =>
+const needsSharedEnvRuntime = ({ sourceCode }: { sourceCode: string }) =>
   sourceCode.includes(sharedSourceImport) || sourceCode.includes(sharedRuntimeSourceImport);
 
-const needsSharedBootstrapRuntime = (sourceCode: string) =>
+const needsSharedBootstrapRuntime = ({ sourceCode }: { sourceCode: string }) =>
   sourceCode.includes(sharedBootstrapRuntimeImport);
 
-const collectSharedRuntimeEntryPoints = (needsSharedEnv: boolean, needsSharedBootstrap: boolean) => {
+const collectSharedRuntimeEntryPoints = ({
+  needsSharedEnv,
+  needsSharedBootstrap,
+}: {
+  needsSharedEnv: boolean;
+  needsSharedBootstrap: boolean;
+}) => {
   const entryPoints = [];
   if (needsSharedBootstrap) {
     entryPoints.push(sharedBootstrapRuntimePath);
@@ -240,7 +258,7 @@ const stageSharedRuntimeArtifacts = async ({
   sharedRuntimeEntryPoints: string[];
 }) => {
   if (sharedRuntimeEntryPoints.length > 0) {
-    compileSharedRuntimeModules(sharedDistDir, sharedRuntimeEntryPoints);
+    compileSharedRuntimeModules({ outDir: sharedDistDir, entryPoints: sharedRuntimeEntryPoints });
   }
 
   if (!needsSharedEnv) {
@@ -254,7 +272,7 @@ const stageSharedRuntimeArtifacts = async ({
   });
 };
 
-const rewriteSharedRuntimeImports = (sourceCode: string) =>
+const rewriteSharedRuntimeImports = ({ sourceCode }: { sourceCode: string }) =>
   sourceCode
     .split(sharedSourceImport)
     .join(sharedDistImport)
@@ -263,7 +281,7 @@ const rewriteSharedRuntimeImports = (sourceCode: string) =>
     .split(sharedBootstrapRuntimeImport)
     .join(sharedBootstrapRuntimeDistImport);
 
-const assertNoMonorepoSharedImports = (sourceCode: string) => {
+const assertNoMonorepoSharedImports = ({ sourceCode }: { sourceCode: string }) => {
   const monorepoImports = [
     sharedSourceImport,
     sharedRuntimeSourceImport,
@@ -275,11 +293,15 @@ const assertNoMonorepoSharedImports = (sourceCode: string) => {
   }
 };
 
-const writeStagedArtifact = async (
-  packageJson: PackageJson,
-  distSourceCode: string,
-  distPackageDependencies: Record<string, string>,
-) => {
+const writeStagedArtifact = async ({
+  packageJson,
+  distSourceCode,
+  distPackageDependencies,
+}: {
+  packageJson: PackageJson;
+  distSourceCode: string;
+  distPackageDependencies: Record<string, string>;
+}) => {
   await writeFile(distEntryPath, distSourceCode, "utf8");
   await writeFile(
     distPackageJsonPath,
@@ -302,32 +324,32 @@ const writeStagedArtifact = async (
   );
 };
 
-const cleanupTsCompileArtifacts = async (hasTsSource: boolean) => {
+const cleanupTsCompileArtifacts = async ({ hasTsSource }: { hasTsSource: boolean }) => {
   if (!hasTsSource) {
     return;
   }
 
   for (const directory of compileOutputDirs) {
-    await removeDirectoryWithRetries(directory);
+    await removeDirectoryWithRetries({ directory });
   }
 };
 
 const main = async () => {
   const context = await loadBuildContext();
   await validateBuildContext(context);
-  runSyntaxCheck(context.compiledPath);
+  runSyntaxCheck({ filePath: context.compiledPath });
   await stageAppDistLayout(context);
 
   let distSourceCode = context.compiledSourceCode;
   const distPackageDependencies = context.packageJson.dependencies
     ? { ...context.packageJson.dependencies }
     : {};
-  const needsSharedEnv = needsSharedEnvRuntime(context.sourceCode);
-  const needsSharedBootstrap = needsSharedBootstrapRuntime(context.sourceCode);
-  const sharedRuntimeEntryPoints = collectSharedRuntimeEntryPoints(
+  const needsSharedEnv = needsSharedEnvRuntime({ sourceCode: context.sourceCode });
+  const needsSharedBootstrap = needsSharedBootstrapRuntime({ sourceCode: context.sourceCode });
+  const sharedRuntimeEntryPoints = collectSharedRuntimeEntryPoints({
     needsSharedEnv,
     needsSharedBootstrap,
-  );
+  });
 
   if (needsSharedEnv || needsSharedBootstrap) {
     const sharedDistDir = path.join(distDir, "_shared");
@@ -341,16 +363,20 @@ const main = async () => {
       sharedRuntimeEntryPoints,
     });
 
-    distSourceCode = rewriteSharedRuntimeImports(distSourceCode);
+    distSourceCode = rewriteSharedRuntimeImports({ sourceCode: distSourceCode });
 
     if (needsSharedEnv && context.sharedPackageJson.dependencies?.zod) {
       distPackageDependencies.zod = context.sharedPackageJson.dependencies.zod;
     }
   }
 
-  assertNoMonorepoSharedImports(distSourceCode);
-  await writeStagedArtifact(context.packageJson, distSourceCode, distPackageDependencies);
-  await cleanupTsCompileArtifacts(context.hasTsSource);
+  assertNoMonorepoSharedImports({ sourceCode: distSourceCode });
+  await writeStagedArtifact({
+    packageJson: context.packageJson,
+    distSourceCode,
+    distPackageDependencies,
+  });
+  await cleanupTsCompileArtifacts({ hasTsSource: context.hasTsSource });
 
   console.log(
     `[build] staged ${context.packageJson.name} bootstrap artifact in ${path.relative(repoRoot, distDir)}`,
