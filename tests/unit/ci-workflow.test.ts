@@ -7,48 +7,75 @@ import { parse } from "yaml";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const workflowPath = path.join(repoRoot, ".github", "workflows", "ci.yml");
+const requiredJobNames = [
+  "lint",
+  "typecheck",
+  "unit-tests",
+  "integration-tests",
+  "build-web",
+  "build-api",
+  "build-collab",
+  "build-worker",
+] as const;
 
-test("ci workflow defines the required pull request jobs and services", async () => {
-  const workflow = parse(await readFile(workflowPath, "utf8")) as {
-    name?: string;
-    on?: { pull_request?: unknown };
-    jobs?: Record<string, { services?: Record<string, { image?: string }>; steps?: Array<Record<string, unknown>> }>;
-  };
-  const jobs = workflow.jobs ?? {};
-  const jobNames = [
-    "lint",
-    "typecheck",
-    "unit-tests",
-    "integration-tests",
-    "build-web",
-    "build-api",
-    "build-collab",
-    "build-worker",
-  ];
+type WorkflowJob = {
+  services?: Record<string, { image?: string }>;
+  steps?: Array<Record<string, unknown>>;
+};
 
+type CiWorkflow = {
+  name?: string;
+  on?: { pull_request?: unknown };
+  jobs?: Record<string, WorkflowJob>;
+};
+
+const readWorkflow = async () =>
+  parse(await readFile(workflowPath, "utf8")) as CiWorkflow;
+
+const assertRequiredJobs = (jobs: Record<string, WorkflowJob>) => {
   assert.deepEqual(
     [...new Set(Object.keys(jobs))].sort(),
-    jobNames.sort(),
+    [...requiredJobNames].sort(),
   );
+};
 
+const assertWorkflowMetadata = (workflow: CiWorkflow) => {
   assert.equal(workflow.name, "CI");
   assert.ok(workflow.on?.pull_request, "workflow must trigger on pull requests");
+};
+
+const assertIntegrationServices = (jobs: Record<string, WorkflowJob>) => {
   assert.equal(jobs["integration-tests"]?.services?.postgres?.image, "postgres:16-alpine");
   assert.equal(jobs["integration-tests"]?.services?.redis?.image, "redis:7-alpine");
+};
 
-  for (const jobName of jobNames) {
-    const steps = jobs[jobName]?.steps;
-    assert.ok(Array.isArray(steps), `${jobName} must define a steps array`);
+const getSetupNodeStep = (steps: Array<Record<string, unknown>>) =>
+  steps.find((step) => step.uses === "actions/setup-node@v4") as
+    | { uses?: string; with?: Record<string, string> }
+    | undefined;
 
-    const setupNode = steps.find((step) => step.uses === "actions/setup-node@v4") as
-      | { uses?: string; with?: Record<string, string> }
-      | undefined;
-    assert.ok(setupNode, `${jobName} must configure actions/setup-node`);
-    assert.equal(setupNode.with?.cache, "pnpm", `${jobName} must cache the pnpm store`);
-    assert.equal(
-      setupNode.with?.["cache-dependency-path"],
-      "pnpm-lock.yaml",
-      `${jobName} must key pnpm cache with pnpm-lock.yaml`,
-    );
+const assertJobCachesPnpmStore = (jobName: string, job: WorkflowJob | undefined) => {
+  const steps = job?.steps;
+  assert.ok(Array.isArray(steps), `${jobName} must define a steps array`);
+
+  const setupNode = getSetupNodeStep(steps);
+  assert.ok(setupNode, `${jobName} must configure actions/setup-node`);
+  assert.equal(setupNode.with?.cache, "pnpm", `${jobName} must cache the pnpm store`);
+  assert.equal(
+    setupNode.with?.["cache-dependency-path"],
+    "pnpm-lock.yaml",
+    `${jobName} must key pnpm cache with pnpm-lock.yaml`,
+  );
+};
+
+test("ci workflow defines the required pull request jobs and services", async () => {
+  const workflow = await readWorkflow();
+  const jobs = workflow.jobs ?? {};
+  assertRequiredJobs(jobs);
+  assertWorkflowMetadata(workflow);
+  assertIntegrationServices(jobs);
+
+  for (const jobName of requiredJobNames) {
+    assertJobCachesPnpmStore(jobName, jobs[jobName]);
   }
 });

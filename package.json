@@ -13,7 +13,7 @@
     "typecheck": "pnpm exec tsc -p packages/shared/tsconfig.json --noEmit",
     "test": "pnpm exec turbo run //#test:unit && pnpm exec turbo run //#test:integration --env-mode=loose",
     "test:unit": "pnpm exec tsx --test .github/scripts/story-project-gates.test.js tests/unit/api-bootstrap-env.test.ts tests/unit/api-email-config.test.ts tests/unit/ci-workflow.test.ts tests/unit/collab-worker-bootstrap-env.test.ts tests/unit/integration-fixtures.test.ts tests/unit/shared-env.test.ts",
-    "test:integration": "pnpm exec tsx --test tests/integration/service-smoke.test.ts",
+    "test:integration": "node --test tests/integration",
     "build": "pnpm exec turbo run build",
     "build:web": "pnpm --filter @collabsphere/web run build",
     "build:api": "pnpm --filter @collabsphere/api run build",

@@ -68,6 +68,8 @@ export default [
     ...js.configs.recommended,
     files: [
       "packages/**/*.ts",
+      "tests/**/*.ts",
+      "apps/**/test/**/*.ts",
     ],
     languageOptions: {
       ...js.configs.recommended.languageOptions,

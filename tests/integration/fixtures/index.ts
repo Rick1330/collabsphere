@@ -9,7 +9,7 @@ function createPortError(name: string, rawValue: unknown) {
   return new Error(`${name} must be a valid TCP port (1-65535), got: ${String(rawValue)}`);
 }
 
-function requireDigitsOnly(name: string, rawValue: unknown) {
+function requireDigitsOnly(name: string, rawValue: unknown): asserts rawValue is string {
   if (typeof rawValue !== "string" || !digitsOnlyPattern.test(rawValue)) {
     throw createPortError(name, rawValue);
   }
