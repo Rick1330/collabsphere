@@ -33,9 +33,11 @@ const readWorkflow = async () =>
   parse(await readFile(workflowPath, "utf8")) as CiWorkflow;
 
 const assertRequiredJobs = (jobs: Record<string, WorkflowJob>) => {
+  const compare = (left: string, right: string) => left.localeCompare(right);
+
   assert.deepEqual(
-    [...new Set(Object.keys(jobs))].sort(),
-    [...requiredJobNames].sort(),
+    [...new Set(Object.keys(jobs))].sort(compare),
+    [...requiredJobNames].sort(compare),
   );
 };
 

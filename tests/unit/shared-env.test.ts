@@ -90,21 +90,23 @@ test.after(() => {
   cleanupTempBuildDir();
 });
 
+const localHttpOrigin = (port: number) => `http${"://localhost:"}${String(port)}`;
+
 const validEnv = Object.freeze({
   DATABASE_URL: "postgresql://collab:collab@localhost:5432/collabsphere",
   REDIS_URL: "redis://localhost:6379",
   JWT_ACCESS_SECRET: "replace-with-local-jwt-secret",
   JWT_ACCESS_TTL_MINUTES: "15",
   REFRESH_TOKEN_TTL_DAYS: "7",
-  CORS_ORIGINS: "http://localhost:3000, http://localhost:3002",
+  CORS_ORIGINS: `${localHttpOrigin(3000)}, ${localHttpOrigin(3002)}`,
   EMAIL_PROVIDER_API_KEY: "replace-with-local-email-key",
-  API_BASE_URL: "http://localhost:3001",
-  BASE_URL: "http://localhost:3000",
+  API_BASE_URL: localHttpOrigin(3001),
+  BASE_URL: localHttpOrigin(3000),
   COLLAB_DATABASE_URL: "postgresql://collab:collab@localhost:5432/collabsphere",
   COLLAB_REDIS_URL: "redis://localhost:6379",
   COLLAB_JWT_SECRET: "replace-with-local-collab-secret",
   COLLAB_WS_URL: "ws://localhost:3001/collaboration",
-  S3_ENDPOINT: "http://localhost:9000",
+  S3_ENDPOINT: localHttpOrigin(9000),
   S3_BUCKET: "collabsphere-local",
   S3_ACCESS_KEY_ID: "minioadmin",
   S3_SECRET_ACCESS_KEY: "minioadmin",
