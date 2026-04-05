@@ -15,12 +15,15 @@
   - Updated deployment truth by moving Vercel config into `apps/web/vercel.json`, deleting the retired static-web build helper, and changing deploy workflow web steps to run from `apps/web` while backend artifacts remain the only uploaded download/stage artifacts.
   - Updated repo/docs/AGENTS references that would otherwise keep claiming the retired placeholder surface was current truth.
   - Ran dependency refresh and the required validation commands through successful final passes.
+  - Added a deny-by-default protected-route boundary for the non-public namespaces so `/dashboard`, `/workspaces`, `/settings`, `/w/:workspaceId/*`, and `/admin/*` redirect to `/login` before protected UI renders.
+  - Implemented the protected-route boundary with a shared path classifier plus Next middleware, and added unit coverage for route classification, redirect construction, and middleware behavior.
+  - Cleared the remaining auth-boundary review blockers so the PR head is clean on checks and current-head review threads.
 - In progress:
-  - Prepare PR metadata and final report evidence.
+  - Await final merge recheck and squash merge.
 - Blocked:
   - None currently.
 - Next:
-  - Capture final issue/PR snapshots and open the `#1508` PR with exact contract changes and deferred-work boundaries.
+  - Merge `#1510` once the final live recheck remains clean.
 
 ## Surprises & Discoveries
 - The current deploy workflow uploads and restages `apps/web/dist`, but the deploy job already rebuilds web for Vercel separately; only backend artifacts truly need download/restaging.
@@ -43,6 +46,10 @@
   - Rationale: This baton must establish truthful architecture and route shells without pretending the PRJ-02 story chain is already implemented.
   - Alternatives: Build feature-complete marketing/app-shell screens now.
   - Source (spec/domain/agent-ref): `docs/spec/03-information-architecture/03.2-route-map.md`, `docs/agent-ref/ui/page-states.md`, `#1508`
+- Decision: Enforce protected namespaces with a deny-by-default login redirect until real session and RBAC wiring lands.
+  - Rationale: Non-public route groups cannot remain publicly renderable, but full auth/session product delivery is outside `#1508`.
+  - Alternatives: Leave protected placeholders public; widen into full auth/session implementation.
+  - Source (spec/domain/agent-ref): `apps/web/AGENTS.md`, `docs/agent-ref/ui/routes.md`, `#1508`
 
 ## Outcomes & Retrospective
 - Intended outcome:
@@ -50,11 +57,12 @@
   - Local dev/build and Vercel deploy contracts reflect the new runtime truth.
   - Docs/rules no longer describe `src/index.html` as the current frontend source-of-truth.
 - Delivered so far:
-  - The platform-transition contract is implemented and validates locally.
+  - The platform-transition contract is implemented, validated, and protected namespaces are no longer publicly renderable.
 - Deferred:
   - PRJ-02 feature stories `#29`-`#38`
   - final visual-direction/polish work
   - shared UI package extraction unless the implementation proves it is necessary
+  - real session retrieval, membership-aware workspace authorization, and admin-role differentiation beyond the deny-by-default protected-route redirect
 
 ## Context and Orientation
 - Current placeholder sources:

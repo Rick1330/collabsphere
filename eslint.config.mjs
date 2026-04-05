@@ -76,6 +76,7 @@ export default [
       "apps/**/*.tsx",
       "packages/**/*.ts",
       "tests/**/*.ts",
+      "tests/**/*.tsx",
       ".github/scripts/**/*.ts",
     ],
     languageOptions: {
