@@ -43,7 +43,10 @@ const assertRequiredJobs = (jobs: Record<string, WorkflowJob>) => {
 
 const assertWorkflowMetadata = (workflow: CiWorkflow) => {
   assert.equal(workflow.name, "CI");
-  assert.ok(workflow.on?.pull_request, "workflow must trigger on pull requests");
+  assert.ok(
+    workflow.on && Object.prototype.hasOwnProperty.call(workflow.on, "pull_request"),
+    "workflow must trigger on pull requests",
+  );
 };
 
 const assertIntegrationServices = (jobs: Record<string, WorkflowJob>) => {
