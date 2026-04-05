@@ -1,14 +1,45 @@
-const test = require("node:test");
-const assert = require("node:assert/strict");
+import assert from "node:assert/strict";
+import { createRequire } from "node:module";
+import test from "node:test";
 
+type Issue = {
+  state?: string;
+  labels: Array<{ name: string }>;
+};
+
+type ValidationGate = {
+  allTerminal: boolean;
+  validationDone: boolean;
+  validationStatus: string;
+};
+
+type ParentGate = ValidationGate & {
+  parentStatus: string | null;
+  parentState: string | null;
+};
+
+type Scenario<TExpected> = {
+  name: string;
+  children: Issue[];
+  validation: Issue;
+  parent?: Issue;
+  expected: TExpected;
+};
+
+const require = createRequire(import.meta.url);
 const {
   evaluateParentGate,
   evaluateValidationGate,
   statusLabel,
   terminal,
-} = require("./story-project-gates");
+} = require("./story-project-gates.js") as {
+  evaluateParentGate: (children: Issue[], validation: Issue, parent: Issue) => ParentGate;
+  evaluateValidationGate: (children: Issue[], validation: Issue) => ValidationGate;
+  statusLabel: (issue: Issue) => string | null;
+  terminal: (issue: Issue) => boolean;
+};
 
-function issue(status, extras = {}) {
+function issue(status: string | string[], extras: Partial<Issue> = {}): Issue {
   const statuses = Array.isArray(status) ? status : [status];
   return {
     state: "open",
@@ -17,7 +48,7 @@ function issue(status, extras = {}) {
   };
 }
 
-const validationScenarios = [
+const validationScenarios: Array<Scenario<ValidationGate>> = [
   {
     name: "becomes ready when all implementation children are terminal",
     children: [issue("status:done"), issue("status:cancelled")],
@@ -60,7 +91,7 @@ const validationScenarios = [
   },
 ];
 
-const parentScenarios = [
+const parentScenarios: Array<Scenario<ParentGate>> = [
   {
     name: "validated parent remains done and closed when cancelled children exist",
     children: [issue("status:done"), issue("status:cancelled")],
@@ -141,7 +172,11 @@ const parentScenarios = [
   },
 ];
 
-async function runScenarioSubtests(t, scenarios, evaluate) {
+async function runScenarioSubtests<TExpected>(
+  t: test.TestContext,
+  scenarios: Array<Scenario<TExpected>>,
+  evaluate: (scenario: Scenario<TExpected>) => TExpected,
+): Promise<void> {
   for (const scenario of scenarios) {
     await t.test(scenario.name, () => {
       assert.deepEqual(evaluate(scenario), scenario.expected);
@@ -170,6 +205,6 @@ test("evaluateParentGate preserves cancelled parents and only mutates when requi
   await runScenarioSubtests(
     t,
     parentScenarios,
-    (scenario) => evaluateParentGate(scenario.children, scenario.validation, scenario.parent),
+    (scenario) => evaluateParentGate(scenario.children, scenario.validation, scenario.parent!),
   );
 });

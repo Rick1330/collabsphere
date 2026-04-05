@@ -2,6 +2,8 @@ import js from "@eslint/js";
 import globals from "globals";
 import tsParser from "@typescript-eslint/parser";
 
+// Intentionally kept as .mjs because ESLint's flat-config entrypoint is native ESM.
+// Switching this file to TypeScript would require loader/bootstrap coupling for lint.
 export default [
   {
     ignores: [
@@ -70,6 +72,7 @@ export default [
       "packages/**/*.ts",
       "tests/**/*.ts",
       "apps/**/test/**/*.ts",
+      ".github/scripts/**/*.ts",
     ],
     languageOptions: {
       ...js.configs.recommended.languageOptions,
