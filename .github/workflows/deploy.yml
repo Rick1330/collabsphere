@@ -228,13 +228,77 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
+      - name: Resolve and validate Vercel token
+        id: vercel-token
+        shell: bash
+        env:
+          VERCEL_TOKEN_PRIMARY: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TOKEN_ROLLOVER: ${{ secrets.VERCEL_TOKEN_ROLLOVER }}
+        run: |
+          set -euo pipefail
+
+          token_labels=()
+          token_values=()
+
+          if [[ -n "${VERCEL_TOKEN_PRIMARY:-}" ]]; then
+            token_labels+=("VERCEL_TOKEN")
+            token_values+=("$VERCEL_TOKEN_PRIMARY")
+          fi
+
+          if [[ -n "${VERCEL_TOKEN_ROLLOVER:-}" ]]; then
+            token_labels+=("VERCEL_TOKEN_ROLLOVER")
+            token_values+=("$VERCEL_TOKEN_ROLLOVER")
+          fi
+
+          if [[ "${#token_labels[@]}" -eq 0 ]]; then
+            echo "::error::Missing Vercel token secret. Set VERCEL_TOKEN (or VERCEL_TOKEN_ROLLOVER) in the ${DEPLOY_ENVIRONMENT} environment."
+            exit 1
+          fi
+
+          selected_label=""
+          selected_token=""
+
+          for index in "${!token_labels[@]}"; do
+            label="${token_labels[$index]}"
+            token="${token_values[$index]}"
+
+            if pnpm dlx "vercel@${VERCEL_CLI_VERSION}" whoami --token "$token" >/dev/null 2>&1; then
+              selected_label="$label"
+              selected_token="$token"
+              break
+            fi
+
+            echo "::warning::${label} failed Vercel auth preflight for ${DEPLOY_ENVIRONMENT}; trying next configured token (if any)."
+          done
+
+          if [[ -z "$selected_token" ]]; then
+            echo "::error::No configured Vercel token passed authentication preflight. Rotate VERCEL_TOKEN for the ${DEPLOY_ENVIRONMENT} environment."
+            exit 1
+          fi
+
+          echo "::add-mask::$selected_token"
+          echo "VERCEL_TOKEN=$selected_token" >> "$GITHUB_ENV"
+          echo "token_source=$selected_label" >> "$GITHUB_OUTPUT"
+
+      - name: Validate Vercel project access
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${VERCEL_ORG_ID:-}" || -z "${VERCEL_PROJECT_ID:-}" ]]; then
+            echo "::error::VERCEL_ORG_ID and VERCEL_PROJECT_ID are required for Vercel deploy preflight."
+            exit 1
+          fi
+
+          pnpm dlx "vercel@${VERCEL_CLI_VERSION}" pull --yes --environment="$VERCEL_ENVIRONMENT" --token "$VERCEL_TOKEN" >/dev/null
+          echo "Using ${DEPLOY_ENVIRONMENT} Vercel token source: ${{ steps.vercel-token.outputs.token_source }}"
+
       - name: Validate required deployment contracts
         shell: bash
         env:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
           AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
           AZURE_MANAGED_ENVIRONMENT_ID: ${{ vars.AZURE_MANAGED_ENVIRONMENT_ID }}
@@ -272,7 +336,6 @@ jobs:
             AZURE_TENANT_ID
             AZURE_SUBSCRIPTION_ID
             AZURE_ACR_PASSWORD
-            VERCEL_TOKEN
           )
 
           for name in "${required_vars[@]}"; do
@@ -288,6 +351,11 @@ jobs:
               exit 1
             fi
           done
+
+          if [[ -z "${VERCEL_TOKEN:-}" ]]; then
+            echo "::error::Resolved Vercel token is missing. Ensure the Resolve and validate Vercel token step runs before contract validation."
+            exit 1
+          fi
 
       - name: Authenticate to Azure
         uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5
@@ -528,8 +596,6 @@ jobs:
       - name: Deploy web to Vercel
         id: deploy-web
         shell: bash
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           set -euo pipefail
           deploy_stdout="$RUNNER_TEMP/vercel-deploy.out"
@@ -591,7 +657,6 @@ jobs:
           API_HEALTH_URL: ${{ steps.backend-smoke-target.outputs.api_health_url }}
           WEB_URL: ${{ steps.deploy-web.outputs.deployment_url }}
           VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: bash scripts/smoke-test.sh
 
   notify:

@@ -102,6 +102,13 @@ Deploy-time configuration for `staging` is expected in GitHub Actions environmen
 - `VERCEL_TOKEN`
 - `DEPLOY_NOTIFICATION_WEBHOOK_URL`
 
+#### Optional GitHub environment secrets for token rollover safety
+
+- `VERCEL_TOKEN_ROLLOVER`
+  - optional fallback token used when `VERCEL_TOKEN` fails deploy-time Vercel auth preflight
+
+The deploy workflow now validates Vercel token auth (`vercel whoami`) and project access (`vercel pull`) before Azure deployment mutation steps. If both configured tokens fail, the run exits early with a token-rotation error.
+
 The deploy workflow posts a compact Discord notification after each staging or production run using the environment-scoped `DEPLOY_NOTIFICATION_WEBHOOK_URL` secret.
 
 ### Production
