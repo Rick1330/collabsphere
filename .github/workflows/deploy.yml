@@ -228,13 +228,101 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
+      - name: Resolve and validate Vercel token
+        id: vercel-token
+        shell: bash
+        env:
+          VERCEL_TOKEN_PRIMARY: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TOKEN_ROLLOVER: ${{ secrets.VERCEL_TOKEN_ROLLOVER }}
+        run: |
+          set -euo pipefail
+
+          token_labels=()
+          token_values=()
+
+          if [[ -n "${VERCEL_TOKEN_PRIMARY:-}" ]]; then
+            token_labels+=("VERCEL_TOKEN")
+            token_values+=("$VERCEL_TOKEN_PRIMARY")
+          fi
+
+          if [[ -n "${VERCEL_TOKEN_ROLLOVER:-}" ]]; then
+            token_labels+=("VERCEL_TOKEN_ROLLOVER")
+            token_values+=("$VERCEL_TOKEN_ROLLOVER")
+          fi
+
+          if [[ "${#token_labels[@]}" -eq 0 ]]; then
+            echo "::error::Missing Vercel token secret. Set VERCEL_TOKEN (or VERCEL_TOKEN_ROLLOVER) in the ${DEPLOY_ENVIRONMENT} environment."
+            exit 1
+          fi
+
+          selected_label=""
+          selected_token=""
+
+          for index in "${!token_labels[@]}"; do
+            label="${token_labels[$index]}"
+            token="${token_values[$index]}"
+
+            if auth_output="$(pnpm dlx "vercel@${VERCEL_CLI_VERSION}" whoami --token "$token" 2>&1)"; then
+              selected_label="$label"
+              selected_token="$token"
+              break
+            fi
+
+            if echo "$auth_output" | grep -Eiq "(not valid|invalid token|authentication failed|unauthorized|\\b401\\b)"; then
+              echo "::warning::${label} failed Vercel auth preflight for ${DEPLOY_ENVIRONMENT}; trying next configured token (if any)."
+              continue
+            fi
+
+            echo "::error::Vercel auth preflight encountered a non-token error while validating ${label} for ${DEPLOY_ENVIRONMENT}: ${auth_output}"
+            exit 1
+          done
+
+          if [[ -z "$selected_token" ]]; then
+            echo "::error::No configured Vercel token passed authentication preflight. Rotate or update all configured Vercel token secrets (for example, VERCEL_TOKEN and VERCEL_TOKEN_ROLLOVER) for the ${DEPLOY_ENVIRONMENT} environment."
+            exit 1
+          fi
+
+          echo "::add-mask::$selected_token"
+          echo "token_source=$selected_label" >> "$GITHUB_OUTPUT"
+          echo "vercel_token=$selected_token" >> "$GITHUB_OUTPUT"
+
+      - name: Validate Vercel project access
+        shell: bash
+        env:
+          VERCEL_TOKEN: ${{ steps.vercel-token.outputs.vercel_token }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${VERCEL_ORG_ID:-}" || -z "${VERCEL_PROJECT_ID:-}" ]]; then
+            echo "::error::VERCEL_ORG_ID and VERCEL_PROJECT_ID are required for Vercel deploy preflight."
+            exit 1
+          fi
+
+          vercel_project_api_url="https://api.vercel.com/v9/projects/${VERCEL_PROJECT_ID}?teamId=${VERCEL_ORG_ID}"
+          vercel_project_response="$RUNNER_TEMP/vercel-project-access.json"
+          if ! vercel_http_status="$(
+            curl --silent --show-error --output "$vercel_project_response" --write-out "%{http_code}" \
+              --header "Authorization: Bearer ${VERCEL_TOKEN}" \
+              "$vercel_project_api_url"
+          )"; then
+            echo "::error::Vercel project access preflight failed due to network/transport error while validating ${DEPLOY_ENVIRONMENT}."
+            exit 1
+          fi
+
+          if [[ "$vercel_http_status" != "200" ]]; then
+            response_preview="$(head -c 200 "$vercel_project_response" | tr '\n' ' ')"
+            echo "::error::Unable to access Vercel project ${VERCEL_PROJECT_ID} in org/team ${VERCEL_ORG_ID} (HTTP ${vercel_http_status}). ${response_preview}"
+            exit 1
+          fi
+
+          echo "Using ${DEPLOY_ENVIRONMENT} Vercel token source: ${{ steps.vercel-token.outputs.token_source }}"
+
       - name: Validate required deployment contracts
         shell: bash
         env:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
           AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
           AZURE_MANAGED_ENVIRONMENT_ID: ${{ vars.AZURE_MANAGED_ENVIRONMENT_ID }}
@@ -250,6 +338,9 @@ jobs:
           VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
           AZURE_ACR_PASSWORD: ${{ secrets.AZURE_ACR_PASSWORD }}
+          VERCEL_TOKEN_PRIMARY: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TOKEN_ROLLOVER: ${{ secrets.VERCEL_TOKEN_ROLLOVER }}
+          RESOLVED_VERCEL_TOKEN: ${{ steps.vercel-token.outputs.vercel_token }}
         run: |
           set -euo pipefail
 
@@ -272,7 +363,6 @@ jobs:
             AZURE_TENANT_ID
             AZURE_SUBSCRIPTION_ID
             AZURE_ACR_PASSWORD
-            VERCEL_TOKEN
           )
 
           for name in "${required_vars[@]}"; do
@@ -288,6 +378,16 @@ jobs:
               exit 1
             fi
           done
+
+          if [[ -z "${VERCEL_TOKEN_PRIMARY:-}" && -z "${VERCEL_TOKEN_ROLLOVER:-}" ]]; then
+            echo "::error::At least one Vercel token secret (VERCEL_TOKEN or VERCEL_TOKEN_ROLLOVER) is required for deploy.yml."
+            exit 1
+          fi
+
+          if [[ -z "${RESOLVED_VERCEL_TOKEN:-}" ]]; then
+            echo "::error::Resolved Vercel token is missing. Ensure the Resolve and validate Vercel token step runs before contract validation."
+            exit 1
+          fi
 
       - name: Authenticate to Azure
         uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5
@@ -529,23 +629,23 @@ jobs:
         id: deploy-web
         shell: bash
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TOKEN: ${{ steps.vercel-token.outputs.vercel_token }}
         run: |
           set -euo pipefail
           deploy_stdout="$RUNNER_TEMP/vercel-deploy.out"
           deploy_stderr="$RUNNER_TEMP/vercel-deploy.err"
 
-          pnpm dlx vercel pull --yes --environment="$VERCEL_ENVIRONMENT" --token "$VERCEL_TOKEN"
+          pnpm dlx "vercel@${VERCEL_CLI_VERSION}" pull --yes --environment="$VERCEL_ENVIRONMENT" --token "$VERCEL_TOKEN"
 
           if [[ "$DEPLOY_ENVIRONMENT" == "production" ]]; then
-            pnpm dlx vercel build --prod --token "$VERCEL_TOKEN"
-            if ! pnpm dlx vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN" >"$deploy_stdout" 2>"$deploy_stderr"; then
+            pnpm dlx "vercel@${VERCEL_CLI_VERSION}" build --prod --token "$VERCEL_TOKEN"
+            if ! pnpm dlx "vercel@${VERCEL_CLI_VERSION}" deploy --prebuilt --prod --token "$VERCEL_TOKEN" >"$deploy_stdout" 2>"$deploy_stderr"; then
               cat "$deploy_stderr"
               exit 1
             fi
           else
-            pnpm dlx vercel build --token "$VERCEL_TOKEN"
-            if ! pnpm dlx vercel deploy --prebuilt --token "$VERCEL_TOKEN" >"$deploy_stdout" 2>"$deploy_stderr"; then
+            pnpm dlx "vercel@${VERCEL_CLI_VERSION}" build --token "$VERCEL_TOKEN"
+            if ! pnpm dlx "vercel@${VERCEL_CLI_VERSION}" deploy --prebuilt --token "$VERCEL_TOKEN" >"$deploy_stdout" 2>"$deploy_stderr"; then
               cat "$deploy_stderr"
               exit 1
             fi
@@ -591,7 +691,7 @@ jobs:
           API_HEALTH_URL: ${{ steps.backend-smoke-target.outputs.api_health_url }}
           WEB_URL: ${{ steps.deploy-web.outputs.deployment_url }}
           VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TOKEN: ${{ steps.vercel-token.outputs.vercel_token }}
         run: bash scripts/smoke-test.sh
 
   notify:

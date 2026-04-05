@@ -99,8 +99,18 @@ Deploy-time configuration for `staging` is expected in GitHub Actions environmen
 - `AZURE_TENANT_ID`
 - `AZURE_SUBSCRIPTION_ID`
 - `AZURE_ACR_PASSWORD`
-- `VERCEL_TOKEN`
 - `DEPLOY_NOTIFICATION_WEBHOOK_URL`
+
+#### Required GitHub environment secrets for Vercel authentication
+
+At least one of the following secrets must be configured:
+
+- `VERCEL_TOKEN`
+  - primary token
+- `VERCEL_TOKEN_ROLLOVER`
+  - optional fallback token for rotation windows and emergency recoveries
+
+The deploy workflow validates token auth (`vercel whoami`) and project access (Vercel project API) before Azure deployment mutation steps. If both configured tokens fail auth preflight, the run exits early with a token-rotation error.
 
 The deploy workflow posts a compact Discord notification after each staging or production run using the environment-scoped `DEPLOY_NOTIFICATION_WEBHOOK_URL` secret.
 
