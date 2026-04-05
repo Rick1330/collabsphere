@@ -5,7 +5,7 @@ import { useEffect } from "react";
 type SegmentErrorProps = {
   label: string;
   detail: string;
-  error: Error;
+  error: Error & { digest?: string };
   reset: () => void;
 };
 
