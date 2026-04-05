@@ -10,7 +10,8 @@ const envExamplePath = join(rootDir, ".env.example");
 const envPath = join(rootDir, ".env");
 const envLocalPath = join(rootDir, ".env.local");
 const composeFilePath = join(rootDir, "docker-compose.yml");
-const envAssignmentPattern = /^\s*([A-Za-z_]\w*)\s*=\s*(.*)\s*$/;
+const windowsTaskkillPath = String.raw`C:\Windows\System32\taskkill.exe`;
+const envAssignmentPattern = /^\s*([A-Za-z_]\w*)\s*=\s*([^\r\n]*)$/;
 
 const portEnvKeys = new Set([
   "POSTGRES_PORT",
@@ -360,7 +361,7 @@ const terminateChild = (child, label) =>
     child.once("exit", finish);
 
     if (process.platform === "win32") {
-      const killer = spawn("taskkill", ["/PID", String(child.pid), "/T", "/F"], {
+      const killer = spawn(windowsTaskkillPath, ["/PID", String(child.pid), "/T", "/F"], {
         stdio: "ignore",
         windowsHide: true
       });

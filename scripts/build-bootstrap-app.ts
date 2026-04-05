@@ -1,4 +1,4 @@
-import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, readdir, realpath, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
@@ -26,16 +26,6 @@ const sharedApiEnvPath = path.join(repoRoot, "packages", "shared", "src", "api-e
 const sharedRuntimeEnvPath = path.join(repoRoot, "packages", "shared", "src", "runtime-env.ts");
 const sharedEnvCorePath = path.join(repoRoot, "packages", "shared", "src", "env-core.ts");
 const sharedBootstrapRuntimePath = path.join(repoRoot, "packages", "shared", "src", "bootstrap-runtime.ts");
-const compiledSharedApiEnvPath = path.join(distDir, "packages", "shared", "src", "api-env.js");
-const compiledSharedRuntimeEnvPath = path.join(distDir, "packages", "shared", "src", "runtime-env.js");
-const compiledSharedEnvCorePath = path.join(distDir, "packages", "shared", "src", "env-core.js");
-const compiledSharedBootstrapRuntimePath = path.join(
-  distDir,
-  "packages",
-  "shared",
-  "src",
-  "bootstrap-runtime.js",
-);
 const sharedZodPackagePath = path.join(repoRoot, "packages", "shared", "node_modules", "zod");
 const sharedPackageJsonPath = path.join(repoRoot, "packages", "shared", "package.json");
 const typescriptCliPath = path.join(repoRoot, "node_modules", "typescript", "bin", "tsc");
@@ -193,13 +183,6 @@ const needsSharedEnvRuntime = (sourceCode: string) =>
 const needsSharedBootstrapRuntime = (sourceCode: string) =>
   sourceCode.includes(sharedBootstrapRuntimeImport);
 
-const canReuseCompiledSharedRuntime = async (needsSharedEnv: boolean, needsSharedBootstrap: boolean) =>
-  (!needsSharedBootstrap || (await fileExists(compiledSharedBootstrapRuntimePath))) &&
-  (!needsSharedEnv ||
-    ((await fileExists(compiledSharedApiEnvPath)) &&
-      (await fileExists(compiledSharedRuntimeEnvPath)) &&
-      (await fileExists(compiledSharedEnvCorePath))));
-
 const stageSharedRuntimeArtifacts = async ({
   needsSharedEnv,
   needsSharedBootstrap,
@@ -216,14 +199,8 @@ const stageSharedRuntimeArtifacts = async ({
     ...(needsSharedEnv ? [sharedApiEnvPath, sharedRuntimeEnvPath, sharedEnvCorePath] : []),
   ];
 
-  const reuseCompiled = await canReuseCompiledSharedRuntime(needsSharedEnv, needsSharedBootstrap);
-
-  if (sharedRuntimeEntryPoints.length > 0 && !reuseCompiled) {
+  if (sharedRuntimeEntryPoints.length > 0) {
     compileSharedRuntimeModules(sharedDistDir, sharedRuntimeEntryPoints);
-  }
-
-  if (needsSharedBootstrap && reuseCompiled) {
-    await cp(compiledSharedBootstrapRuntimePath, path.join(sharedDistDir, "bootstrap-runtime.js"));
   }
 
   if (!needsSharedEnv) {
@@ -231,13 +208,9 @@ const stageSharedRuntimeArtifacts = async ({
   }
 
   await mkdir(distNodeModulesDir, { recursive: true });
-  if (reuseCompiled) {
-    await cp(compiledSharedApiEnvPath, path.join(sharedDistDir, "api-env.js"));
-    await cp(compiledSharedRuntimeEnvPath, path.join(sharedDistDir, "runtime-env.js"));
-    await cp(compiledSharedEnvCorePath, path.join(sharedDistDir, "env-core.js"));
-  }
-  await cp(sharedZodPackagePath, path.join(distNodeModulesDir, "zod"), {
+  await cp(await realpath(sharedZodPackagePath), path.join(distNodeModulesDir, "zod"), {
     recursive: true,
+    dereference: true,
   });
 };
 
@@ -292,8 +265,20 @@ const cleanupTsCompileArtifacts = async (hasTsSource: boolean) => {
     return;
   }
 
-  await rm(path.join(distDir, "apps"), { recursive: true, force: true });
-  await rm(path.join(distDir, "packages"), { recursive: true, force: true });
+  for (const directory of [path.join(distDir, "apps"), path.join(distDir, "packages")]) {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        await rm(directory, { recursive: true, force: true });
+        break;
+      } catch (error) {
+        const code = error instanceof Error && "code" in error ? error.code : "";
+        if (attempt === 2 || (code !== "ENOTEMPTY" && code !== "EBUSY" && code !== "EPERM")) {
+          throw error;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 50 * (attempt + 1)));
+      }
+    }
+  }
 };
 
 const main = async () => {
