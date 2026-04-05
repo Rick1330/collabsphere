@@ -58,6 +58,35 @@ type BuildContext = {
   compiledSourceCode: string;
 };
 
+const compileOutputDirs = [path.join(distDir, "apps"), path.join(distDir, "packages")];
+const retryableRmCodes = new Set(["ENOTEMPTY", "EBUSY", "EPERM"]);
+
+const getErrorCode = (error: unknown) => {
+  if (!error || typeof error !== "object" || !("code" in error)) {
+    return "";
+  }
+
+  const maybeCode = (error as { code?: unknown }).code;
+  return typeof maybeCode === "string" ? maybeCode : "";
+};
+
+const isRetryableRmError = (error: unknown) => retryableRmCodes.has(getErrorCode(error));
+
+const removeDirectoryWithRetries = async (directory: string, maxAttempts = 3) => {
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    try {
+      await rm(directory, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      if (attempt === maxAttempts - 1 || !isRetryableRmError(error)) {
+        throw error;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 50 * (attempt + 1)));
+    }
+  }
+};
+
 const fileExists = async (filePath: string) => {
   try {
     await stat(filePath);
@@ -280,19 +309,8 @@ const cleanupTsCompileArtifacts = async (hasTsSource: boolean) => {
     return;
   }
 
-  for (const directory of [path.join(distDir, "apps"), path.join(distDir, "packages")]) {
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      try {
-        await rm(directory, { recursive: true, force: true });
-        break;
-      } catch (error) {
-        const code = error instanceof Error && "code" in error ? error.code : "";
-        if (attempt === 2 || (code !== "ENOTEMPTY" && code !== "EBUSY" && code !== "EPERM")) {
-          throw error;
-        }
-        await new Promise((resolve) => setTimeout(resolve, 50 * (attempt + 1)));
-      }
-    }
+  for (const directory of compileOutputDirs) {
+    await removeDirectoryWithRetries(directory);
   }
 };
 

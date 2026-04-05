@@ -44,6 +44,10 @@ const main = async () => {
     throw new Error(`Failed to read ${packageJsonPath}: ${message}`);
   }
 
+  if (typeof packageJson.name !== "string" || packageJson.name.trim().length === 0) {
+    throw new Error(`Missing or invalid "name" field in ${packageJsonPath}.`);
+  }
+
   await rm(distDir, { recursive: true, force: true });
   await mkdir(distDir, { recursive: true });
   await cp(sourceHtmlPath, distHtmlPath);
