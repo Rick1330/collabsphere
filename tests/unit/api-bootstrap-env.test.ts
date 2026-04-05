@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { once } from "node:events";
-import { execFileSync } from "node:child_process";
 import net from "node:net";
 import test from "node:test";
 import path from "node:path";
@@ -9,6 +8,7 @@ import {
   getJson,
   repoRoot,
   runTsc,
+  runTsx,
   spawnBootstrap,
   stopChild,
   waitForStdoutMatch,
@@ -251,10 +251,7 @@ test("API bootstrap accepts SMTP-only local email configuration", async () => {
 
 test("built API bootstrap artifact stays runnable without monorepo source imports", async () => {
   runTsc(path.join(repoRoot, "apps", "api", "tsconfig.json"));
-  execFileSync(process.execPath, ["scripts/build-bootstrap-app.mjs", "apps/api"], {
-    cwd: repoRoot,
-    stdio: "inherit",
-  });
+  runTsx("scripts/build-bootstrap-app.ts", "apps/api");
 
   await withMockDependencies(async (dependencyEnv) => {
     await assertHealthyBootstrap({

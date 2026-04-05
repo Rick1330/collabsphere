@@ -5,6 +5,6 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/dev.ts",
-    "build": "pnpm exec tsc -p tsconfig.json && node ../../scripts/build-bootstrap-app.mjs ."
+    "build": "pnpm exec tsc -p tsconfig.json && tsx ../../scripts/build-bootstrap-app.ts ."
   }
 }

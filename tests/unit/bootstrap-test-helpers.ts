@@ -251,3 +251,10 @@ export const runTsc = (projectPath: string) => {
     stdio: "inherit",
   });
 };
+
+export const runTsx = (...args: string[]) => {
+  execFileSync(process.execPath, [tsxCli, ...args], {
+    cwd: repoRoot,
+    stdio: "inherit",
+  });
+};

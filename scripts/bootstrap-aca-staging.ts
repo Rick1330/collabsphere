@@ -324,9 +324,11 @@ const bootstrap = async () => {
   console.log(`Job: ${platformEnv.migrationsJobName}`);
 };
 
-try {
+const main = async () => {
   await bootstrap();
-} catch (error) {
+};
+
+main().catch((error) => {
   console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);
-}
+});
