@@ -16,7 +16,7 @@ export function RoutePlaceholder({
   deferredWork,
   emptyState,
   children,
-}: RoutePlaceholderProps) {
+}: Readonly<RoutePlaceholderProps>) {
   return (
     <article className="placeholder-card">
       <header className="placeholder-card__header">
