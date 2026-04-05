@@ -10,7 +10,7 @@ const envExamplePath = join(rootDir, ".env.example");
 const envPath = join(rootDir, ".env");
 const envLocalPath = join(rootDir, ".env.local");
 const composeFilePath = join(rootDir, "docker-compose.yml");
-const envAssignmentPattern = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/;
+const envAssignmentPattern = /^\s*([A-Za-z_]\w*)\s*=\s*(.*)\s*$/;
 
 const portEnvKeys = new Set([
   "POSTGRES_PORT",
@@ -161,10 +161,6 @@ const parsePositiveIntegerValue = (key, value) => {
   }
 
   const parsed = Number.parseInt(value, 10);
-
-  if (!Number.isInteger(parsed)) {
-    throw new Error(`${key} must be a positive integer in .env or .env.local.`);
-  }
 
   if (parsed <= 0) {
     throw new Error(`${key} must be a positive integer in .env or .env.local.`);
@@ -320,7 +316,7 @@ const getRunnableDevScript = (manifest) => {
   }
 
   const devScript = manifest.scripts.dev.trim();
-  return devScript ? devScript : null;
+  return devScript || null;
 };
 
 const ensureAppSurfaces = () => {
@@ -355,7 +351,7 @@ const resolvePnpmRunner = () => {
 
 const terminateChild = (child, label) =>
   new Promise((resolve) => {
-    if (!child || child.exitCode !== null || child.signalCode !== null) {
+    if (child?.exitCode !== null || child?.signalCode !== null) {
       resolve();
       return;
     }

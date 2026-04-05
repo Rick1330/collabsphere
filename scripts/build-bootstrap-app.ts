@@ -46,6 +46,28 @@ const sharedDistImport = "./_shared/api-env.js";
 const sharedRuntimeDistImport = "./_shared/runtime-env.js";
 const sharedBootstrapRuntimeDistImport = "./_shared/bootstrap-runtime.js";
 
+type PackageJson = {
+  name: string;
+  type?: string;
+  dependencies?: Record<string, string>;
+};
+
+type SharedPackageJson = {
+  dependencies?: Record<string, string>;
+};
+
+type BuildContext = {
+  packageJson: PackageJson;
+  sharedPackageJson: SharedPackageJson;
+  hasTsSource: boolean;
+  hasJsSource: boolean;
+  compiledAppSourceDir: string;
+  detectionPath: string;
+  compiledPath: string;
+  sourceCode: string;
+  compiledSourceCode: string;
+};
+
 const fileExists = async (filePath: string) => {
   try {
     await stat(filePath);
@@ -82,128 +104,167 @@ const compileSharedRuntimeModules = (outDir: string, entryPoints: string[]) => {
   );
 };
 
-const main = async () => {
-  const packageJson = JSON.parse(await readFile(packageJsonPath, "utf8")) as {
-    name: string;
-    type?: string;
-    dependencies?: Record<string, string>;
-  };
-  const sharedPackageJson = JSON.parse(await readFile(sharedPackageJsonPath, "utf8")) as {
-    dependencies?: Record<string, string>;
-  };
+const runSyntaxCheck = (filePath: string) => {
+  try {
+    execFileSync(process.execPath, ["--check", filePath], {
+      cwd: repoRoot,
+      stdio: "pipe",
+    });
+  } catch (error) {
+    const stderr = Buffer.isBuffer(error?.stderr) ? error.stderr.toString("utf8").trim() : "";
+    const stdout = Buffer.isBuffer(error?.stdout) ? error.stdout.toString("utf8").trim() : "";
+    const details = [stderr, stdout].filter(Boolean).join("\n");
+    throw new Error(
+      details
+        ? `Syntax check failed for ${filePath}:\n${details}`
+        : `Syntax check failed for ${filePath}.`,
+    );
+  }
+};
+
+const loadBuildContext = async (): Promise<BuildContext> => {
+  const packageJson = JSON.parse(await readFile(packageJsonPath, "utf8")) as PackageJson;
+  const sharedPackageJson = JSON.parse(await readFile(sharedPackageJsonPath, "utf8")) as SharedPackageJson;
   const hasTsSource = await fileExists(sourceTsPath);
   const hasJsSource = await fileExists(sourceJsPath);
   const compiledAppSourceDir = path.dirname(compiledTsEntryPath);
-
-  if (hasTsSource && hasJsSource) {
-    throw new Error("Bootstrap entrypoint has both dev.ts and dev.js; remove the JS file.");
-  }
-
-  if (!hasTsSource && !hasJsSource) {
-    throw new Error("Missing bootstrap entrypoint (expected src/dev.ts or src/dev.js).");
-  }
-
-  if (hasTsSource && !(await fileExists(compiledTsEntryPath))) {
-    throw new Error(
-      `Missing compiled bootstrap output at ${compiledTsEntryPath}. Run tsc before staging.`,
-    );
-  }
-
   const detectionPath = hasTsSource ? sourceTsPath : sourceJsPath;
   const compiledPath = hasTsSource ? compiledTsEntryPath : sourceJsPath;
   const sourceCode = await readFile(detectionPath, "utf8");
   const compiledSourceCode = await readFile(compiledPath, "utf8");
 
-  execFileSync(process.execPath, ["--check", compiledPath], {
-    cwd: repoRoot,
-    stdio: "pipe",
-  });
+  return {
+    packageJson,
+    sharedPackageJson,
+    hasTsSource,
+    hasJsSource,
+    compiledAppSourceDir,
+    detectionPath,
+    compiledPath,
+    sourceCode,
+    compiledSourceCode,
+  };
+};
 
-  if (hasTsSource) {
-    await mkdir(distDir, { recursive: true });
-    await rm(path.join(distDir, "_shared"), { recursive: true, force: true });
-    await rm(path.join(distDir, "node_modules"), { recursive: true, force: true });
-    await rm(distEntryPath, { force: true });
-    await rm(distPackageJsonPath, { force: true });
+const validateBuildContext = async (context: BuildContext) => {
+  if (context.hasTsSource && context.hasJsSource) {
+    throw new Error("Bootstrap entrypoint has both dev.ts and dev.js; remove the JS file.");
+  }
 
-    for (const entry of await readdir(compiledAppSourceDir, { withFileTypes: true })) {
-      if (entry.name === "dev.js") {
-        continue;
-      }
+  if (!context.hasTsSource && !context.hasJsSource) {
+    throw new Error("Missing bootstrap entrypoint (expected src/dev.ts or src/dev.js).");
+  }
 
-      const sourcePath = path.join(compiledAppSourceDir, entry.name);
-      const targetPath = path.join(distDir, entry.name);
-      await rm(targetPath, { recursive: true, force: true });
-      await cp(sourcePath, targetPath, { recursive: entry.isDirectory() });
-    }
-  } else {
+  if (context.hasTsSource && !(await fileExists(compiledTsEntryPath))) {
+    throw new Error(
+      `Missing compiled bootstrap output at ${compiledTsEntryPath}. Run tsc before staging.`,
+    );
+  }
+};
+
+const stageAppDistLayout = async (context: BuildContext) => {
+  if (!context.hasTsSource) {
     await rm(distDir, { recursive: true, force: true });
     await mkdir(distDir, { recursive: true });
-  }
-  let distSourceCode = compiledSourceCode;
-  const distPackageDependencies = { ...(packageJson.dependencies ?? {}) };
-  const needsSharedEnv =
-    sourceCode.includes(sharedSourceImport) || sourceCode.includes(sharedRuntimeSourceImport);
-  const needsSharedBootstrap = sourceCode.includes(sharedBootstrapRuntimeImport);
-
-  if (needsSharedEnv || needsSharedBootstrap) {
-    const sharedDistDir = path.join(distDir, "_shared");
-    const distNodeModulesDir = path.join(distDir, "node_modules");
-    await mkdir(sharedDistDir, { recursive: true });
-
-    const sharedRuntimeEntryPoints = [
-      ...(needsSharedBootstrap ? [sharedBootstrapRuntimePath] : []),
-      ...(needsSharedEnv ? [sharedApiEnvPath, sharedRuntimeEnvPath, sharedEnvCorePath] : []),
-    ];
-
-    const canReuseCompiledSharedFiles =
-      (!needsSharedBootstrap || (await fileExists(compiledSharedBootstrapRuntimePath))) &&
-      (!needsSharedEnv ||
-        ((await fileExists(compiledSharedApiEnvPath)) &&
-          (await fileExists(compiledSharedRuntimeEnvPath)) &&
-          (await fileExists(compiledSharedEnvCorePath))));
-
-    if (sharedRuntimeEntryPoints.length > 0 && !canReuseCompiledSharedFiles) {
-      compileSharedRuntimeModules(sharedDistDir, sharedRuntimeEntryPoints);
-    }
-
-    if (needsSharedBootstrap && canReuseCompiledSharedFiles) {
-      await cp(compiledSharedBootstrapRuntimePath, path.join(sharedDistDir, "bootstrap-runtime.js"));
-    }
-
-    if (needsSharedEnv) {
-      await mkdir(distNodeModulesDir, { recursive: true });
-      if (canReuseCompiledSharedFiles) {
-        await cp(compiledSharedApiEnvPath, path.join(sharedDistDir, "api-env.js"));
-        await cp(compiledSharedRuntimeEnvPath, path.join(sharedDistDir, "runtime-env.js"));
-        await cp(compiledSharedEnvCorePath, path.join(sharedDistDir, "env-core.js"));
-      }
-      await cp(sharedZodPackagePath, path.join(distNodeModulesDir, "zod"), {
-        recursive: true,
-      });
-    }
-
-    distSourceCode = distSourceCode
-      .split(sharedSourceImport)
-      .join(sharedDistImport)
-      .split(sharedRuntimeSourceImport)
-      .join(sharedRuntimeDistImport)
-      .split(sharedBootstrapRuntimeImport)
-      .join(sharedBootstrapRuntimeDistImport);
-
-    if (needsSharedEnv && sharedPackageJson.dependencies?.zod) {
-      distPackageDependencies.zod = sharedPackageJson.dependencies.zod;
-    }
+    return;
   }
 
+  await mkdir(distDir, { recursive: true });
+  await rm(path.join(distDir, "_shared"), { recursive: true, force: true });
+  await rm(path.join(distDir, "node_modules"), { recursive: true, force: true });
+  await rm(distEntryPath, { force: true });
+  await rm(distPackageJsonPath, { force: true });
+
+  for (const entry of await readdir(context.compiledAppSourceDir, { withFileTypes: true })) {
+    if (entry.name === "dev.js") {
+      continue;
+    }
+
+    const sourcePath = path.join(context.compiledAppSourceDir, entry.name);
+    const targetPath = path.join(distDir, entry.name);
+    await rm(targetPath, { recursive: true, force: true });
+    await cp(sourcePath, targetPath, { recursive: entry.isDirectory() });
+  }
+};
+
+const needsSharedEnvRuntime = (sourceCode: string) =>
+  sourceCode.includes(sharedSourceImport) || sourceCode.includes(sharedRuntimeSourceImport);
+
+const needsSharedBootstrapRuntime = (sourceCode: string) =>
+  sourceCode.includes(sharedBootstrapRuntimeImport);
+
+const canReuseCompiledSharedRuntime = async (needsSharedEnv: boolean, needsSharedBootstrap: boolean) =>
+  (!needsSharedBootstrap || (await fileExists(compiledSharedBootstrapRuntimePath))) &&
+  (!needsSharedEnv ||
+    ((await fileExists(compiledSharedApiEnvPath)) &&
+      (await fileExists(compiledSharedRuntimeEnvPath)) &&
+      (await fileExists(compiledSharedEnvCorePath))));
+
+const stageSharedRuntimeArtifacts = async ({
+  needsSharedEnv,
+  needsSharedBootstrap,
+  sharedDistDir,
+  distNodeModulesDir,
+}: {
+  needsSharedEnv: boolean;
+  needsSharedBootstrap: boolean;
+  sharedDistDir: string;
+  distNodeModulesDir: string;
+}) => {
+  const sharedRuntimeEntryPoints = [
+    ...(needsSharedBootstrap ? [sharedBootstrapRuntimePath] : []),
+    ...(needsSharedEnv ? [sharedApiEnvPath, sharedRuntimeEnvPath, sharedEnvCorePath] : []),
+  ];
+
+  const reuseCompiled = await canReuseCompiledSharedRuntime(needsSharedEnv, needsSharedBootstrap);
+
+  if (sharedRuntimeEntryPoints.length > 0 && !reuseCompiled) {
+    compileSharedRuntimeModules(sharedDistDir, sharedRuntimeEntryPoints);
+  }
+
+  if (needsSharedBootstrap && reuseCompiled) {
+    await cp(compiledSharedBootstrapRuntimePath, path.join(sharedDistDir, "bootstrap-runtime.js"));
+  }
+
+  if (!needsSharedEnv) {
+    return;
+  }
+
+  await mkdir(distNodeModulesDir, { recursive: true });
+  if (reuseCompiled) {
+    await cp(compiledSharedApiEnvPath, path.join(sharedDistDir, "api-env.js"));
+    await cp(compiledSharedRuntimeEnvPath, path.join(sharedDistDir, "runtime-env.js"));
+    await cp(compiledSharedEnvCorePath, path.join(sharedDistDir, "env-core.js"));
+  }
+  await cp(sharedZodPackagePath, path.join(distNodeModulesDir, "zod"), {
+    recursive: true,
+  });
+};
+
+const rewriteSharedRuntimeImports = (sourceCode: string) =>
+  sourceCode
+    .split(sharedSourceImport)
+    .join(sharedDistImport)
+    .split(sharedRuntimeSourceImport)
+    .join(sharedRuntimeDistImport)
+    .split(sharedBootstrapRuntimeImport)
+    .join(sharedBootstrapRuntimeDistImport);
+
+const assertNoMonorepoSharedImports = (sourceCode: string) => {
   if (
-    distSourceCode.includes(sharedSourceImport) ||
-    distSourceCode.includes(sharedRuntimeSourceImport) ||
-    distSourceCode.includes(sharedBootstrapRuntimeImport)
+    sourceCode.includes(sharedSourceImport) ||
+    sourceCode.includes(sharedRuntimeSourceImport) ||
+    sourceCode.includes(sharedBootstrapRuntimeImport)
   ) {
     throw new Error("Bootstrap artifact still references a monorepo shared source path.");
   }
+};
 
+const writeStagedArtifact = async (
+  packageJson: PackageJson,
+  distSourceCode: string,
+  distPackageDependencies: Record<string, string>,
+) => {
   await writeFile(distEntryPath, distSourceCode, "utf8");
   await writeFile(
     distPackageJsonPath,
@@ -224,14 +285,55 @@ const main = async () => {
     ) + "\n",
     "utf8",
   );
+};
 
-  if (hasTsSource) {
-    await rm(path.join(distDir, "apps"), { recursive: true, force: true });
-    await rm(path.join(distDir, "packages"), { recursive: true, force: true });
+const cleanupTsCompileArtifacts = async (hasTsSource: boolean) => {
+  if (!hasTsSource) {
+    return;
   }
 
+  await rm(path.join(distDir, "apps"), { recursive: true, force: true });
+  await rm(path.join(distDir, "packages"), { recursive: true, force: true });
+};
+
+const main = async () => {
+  const context = await loadBuildContext();
+  await validateBuildContext(context);
+  runSyntaxCheck(context.compiledPath);
+  await stageAppDistLayout(context);
+
+  let distSourceCode = context.compiledSourceCode;
+  const distPackageDependencies = context.packageJson.dependencies
+    ? { ...context.packageJson.dependencies }
+    : {};
+  const needsSharedEnv = needsSharedEnvRuntime(context.sourceCode);
+  const needsSharedBootstrap = needsSharedBootstrapRuntime(context.sourceCode);
+
+  if (needsSharedEnv || needsSharedBootstrap) {
+    const sharedDistDir = path.join(distDir, "_shared");
+    const distNodeModulesDir = path.join(distDir, "node_modules");
+    await mkdir(sharedDistDir, { recursive: true });
+
+    await stageSharedRuntimeArtifacts({
+      needsSharedEnv,
+      needsSharedBootstrap,
+      sharedDistDir,
+      distNodeModulesDir,
+    });
+
+    distSourceCode = rewriteSharedRuntimeImports(distSourceCode);
+
+    if (needsSharedEnv && context.sharedPackageJson.dependencies?.zod) {
+      distPackageDependencies.zod = context.sharedPackageJson.dependencies.zod;
+    }
+  }
+
+  assertNoMonorepoSharedImports(distSourceCode);
+  await writeStagedArtifact(context.packageJson, distSourceCode, distPackageDependencies);
+  await cleanupTsCompileArtifacts(context.hasTsSource);
+
   console.log(
-    `[build] staged ${packageJson.name} bootstrap artifact in ${path.relative(repoRoot, distDir)}`,
+    `[build] staged ${context.packageJson.name} bootstrap artifact in ${path.relative(repoRoot, distDir)}`,
   );
 };
 
