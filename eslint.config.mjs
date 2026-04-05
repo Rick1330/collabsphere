@@ -89,7 +89,6 @@ export default [
         },
       },
       globals: {
-        ...globals.browser,
         ...globals.node,
       },
     },
@@ -109,6 +108,12 @@ export default [
     },
     plugins: {
       "@next/next": nextPlugin,
+    },
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
     },
     rules: {
       ...nextPlugin.configs.recommended.rules,

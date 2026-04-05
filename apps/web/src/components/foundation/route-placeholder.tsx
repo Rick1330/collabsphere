@@ -1,10 +1,11 @@
-import type { ReactNode } from "react";
+import React, { type ReactNode } from "react";
 
 type RoutePlaceholderProps = {
   title: string;
   summary: string;
   implementedNow: string[];
   deferredWork: string[];
+  emptyState: string;
   children?: ReactNode;
 };
 
@@ -13,6 +14,7 @@ export function RoutePlaceholder({
   summary,
   implementedNow,
   deferredWork,
+  emptyState,
   children,
 }: RoutePlaceholderProps) {
   return (
@@ -23,6 +25,10 @@ export function RoutePlaceholder({
         <p className="placeholder-card__summary">{summary}</p>
       </header>
       {children}
+      <section className="placeholder-card__section">
+        <h3>Empty-state foundation</h3>
+        <p className="placeholder-card__summary">{emptyState}</p>
+      </section>
       <div className="placeholder-card__columns">
         <section className="placeholder-card__section">
           <h3>Implemented now</h3>

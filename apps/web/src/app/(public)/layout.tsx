@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
-import { publicNavItems } from "@/components/foundation/navigation";
-import { ShellFrame } from "@/components/foundation/shell-frame";
+import { publicNavItems } from "../../components/foundation/navigation";
+import { ShellFrame } from "../../components/foundation/shell-frame";
 
 export default function PublicLayout({
   children,
@@ -18,4 +18,3 @@ export default function PublicLayout({
     </ShellFrame>
   );
 }
-

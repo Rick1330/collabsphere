@@ -1,10 +1,11 @@
-import { RoutePlaceholder } from "@/components/foundation/route-placeholder";
+import { RoutePlaceholder } from "../../../../components/foundation/route-placeholder";
 
 export default function ProfileSettingsPage() {
   return (
     <RoutePlaceholder
       title="Profile settings route"
       summary="A nested settings path now exists so downstream account stories can land without changing the route architecture again."
+      emptyState="Profile settings now surface an explicit empty-state slot for unconfigured profile data and onboarding-first accounts."
       implementedNow={[
         "Nested /settings/profile path",
         "Inherited authenticated layout and route loading/error boundaries",
@@ -18,4 +19,3 @@ export default function ProfileSettingsPage() {
     />
   );
 }
-

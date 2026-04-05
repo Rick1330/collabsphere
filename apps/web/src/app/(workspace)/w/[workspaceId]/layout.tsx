@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
-import { workspaceNavItems } from "@/components/foundation/navigation";
-import { ShellFrame } from "@/components/foundation/shell-frame";
+import { workspaceNavItems } from "../../../../components/foundation/navigation";
+import { ShellFrame } from "../../../../components/foundation/shell-frame";
 
 type WorkspaceLayoutProps = {
   children: ReactNode;
@@ -28,4 +28,3 @@ export default async function WorkspaceLayout({
     </ShellFrame>
   );
 }
-

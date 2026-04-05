@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
-import { adminNavItems } from "@/components/foundation/navigation";
-import { ShellFrame } from "@/components/foundation/shell-frame";
+import { adminNavItems } from "../../../components/foundation/navigation";
+import { ShellFrame } from "../../../components/foundation/shell-frame";
 
 export default function AdminLayout({
   children,
@@ -18,4 +18,3 @@ export default function AdminLayout({
     </ShellFrame>
   );
 }
-

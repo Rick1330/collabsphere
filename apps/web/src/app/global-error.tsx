@@ -1,11 +1,19 @@
 "use client";
 
+import "./globals.css";
+
+import { useEffect } from "react";
+
 type GlobalErrorProps = {
   error: Error & { digest?: string };
   reset: () => void;
 };
 
 export default function GlobalError({ error, reset }: GlobalErrorProps) {
+  useEffect(() => {
+    console.error("Global App Router error boundary caught an error.", error);
+  }, [error]);
+
   return (
     <html lang="en">
       <body>
@@ -19,13 +27,9 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
               global fallback.
             </p>
             <p>
-              <strong>Error:</strong> {error.message}
+              We keep the user-facing message stable here and leave detailed
+              diagnostics to logs and observability tooling.
             </p>
-            {error.digest ? (
-              <p>
-                <strong>Digest:</strong> {error.digest}
-              </p>
-            ) : null}
             <button type="button" onClick={() => reset()}>
               Retry route
             </button>

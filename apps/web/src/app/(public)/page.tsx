@@ -1,6 +1,7 @@
+import React from "react";
 import Link from "next/link";
 
-import { RoutePlaceholder } from "@/components/foundation/route-placeholder";
+import { RoutePlaceholder } from "../../components/foundation/route-placeholder";
 
 export default function LandingPage() {
   return (
@@ -47,6 +48,7 @@ export default function LandingPage() {
       <RoutePlaceholder
         title="Public route group"
         summary="The public entry surface now has a persistent layout, route loading/not-found/error handling, and truthful room for auth and marketing stories."
+        emptyState="Public routes now reserve a stable empty-state presentation area for later marketing and auth-driven variants."
         implementedNow={[
           "Root App Router layout and global CSS",
           "Public route grouping for unauthenticated pages",
@@ -61,4 +63,3 @@ export default function LandingPage() {
     </>
   );
 }
-

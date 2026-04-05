@@ -147,7 +147,11 @@ a {
 .shell__nav-link:hover,
 .shell__nav-link:focus-visible {
   background: rgba(255, 255, 255, 0.16);
-  outline: none;
+}
+
+.shell__nav-link:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.96);
+  outline-offset: 2px;
 }
 
 .shell__nav-hint {
@@ -289,7 +293,7 @@ a {
 }
 
 .path-list code {
-  font-family: "Cascadia Code", "Consolas", monospace;
+  font-family: "Cascadia Code", Consolas, monospace;
   color: var(--text);
 }
 
@@ -355,16 +359,25 @@ a {
   cursor: pointer;
 }
 
-@media (max-width: 960px) {
+@media (max-width: 1279px) {
   .shell,
   .hero-grid,
   .placeholder-card__columns,
   .status-grid {
     grid-template-columns: 1fr;
   }
-
-  .shell__rail {
-    padding-bottom: 1rem;
-  }
 }
 
+@media (max-width: 767px) {
+  .shell__rail {
+    padding: 1rem 1rem 0.5rem;
+  }
+
+  .shell__content,
+  .placeholder-card,
+  .hero-card,
+  .hero-panel,
+  .error-card {
+    padding: 1rem;
+  }
+}

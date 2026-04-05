@@ -1,4 +1,5 @@
-import { RoutePlaceholder } from "@/components/foundation/route-placeholder";
+import React from "react";
+import { RoutePlaceholder } from "../../../components/foundation/route-placeholder";
 
 export default function DashboardPage() {
   return (
@@ -20,6 +21,7 @@ export default function DashboardPage() {
       <RoutePlaceholder
         title="Dashboard route"
         summary="The authenticated global home route is now part of the real frontend runtime, but still intentionally stops short of product-complete widgets."
+        emptyState="Dashboard empty-state handling is now called out explicitly so later data modules can render no-workspace and no-activity variants in-place."
         implementedNow={[
           "Authenticated route group layout",
           "Dashboard route segment and server component page",
@@ -34,4 +36,3 @@ export default function DashboardPage() {
     </>
   );
 }
-

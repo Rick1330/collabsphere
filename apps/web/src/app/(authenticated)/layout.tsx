@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
-import { globalNavItems } from "@/components/foundation/navigation";
-import { ShellFrame } from "@/components/foundation/shell-frame";
+import { globalNavItems } from "../../components/foundation/navigation";
+import { ShellFrame } from "../../components/foundation/shell-frame";
 
 export default function AuthenticatedLayout({
   children,
@@ -18,4 +18,3 @@ export default function AuthenticatedLayout({
     </ShellFrame>
   );
 }
-

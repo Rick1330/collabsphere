@@ -1,4 +1,4 @@
-import { RoutePlaceholder } from "@/components/foundation/route-placeholder";
+import { RoutePlaceholder } from "../../../../components/foundation/route-placeholder";
 
 type WorkspacePageProps = {
   params: Promise<{
@@ -13,6 +13,7 @@ export default async function WorkspacePage({ params }: WorkspacePageProps) {
     <RoutePlaceholder
       title={`Workspace home: ${workspaceId}`}
       summary="This dynamic segment locks in the workspace route namespace and layout boundary for downstream document, task, and member stories."
+      emptyState="Workspace home now reserves an explicit empty-state presentation area for no-content or no-membership variants once data wiring lands."
       implementedNow={[
         "Dynamic /w/[workspaceId] segment",
         "Workspace-specific shell and navigation seed",
@@ -26,4 +27,3 @@ export default async function WorkspacePage({ params }: WorkspacePageProps) {
     />
   );
 }
-
