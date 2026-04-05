@@ -1,6 +1,6 @@
 # CollabSphere
 
-CollabSphere is a realtime collaboration workspace platform. Today `apps/web` is a temporary static placeholder surface used to keep local and Vercel deployment truth aligned, while the intended long-term product frontend remains a Next.js App Router application in `apps/web`. The backend stack remains NestJS, Hocuspocus, BullMQ, PostgreSQL, Redis, and local Docker-backed developer services.
+CollabSphere is a realtime collaboration workspace platform. `apps/web` now runs as a real Next.js App Router application foundation on Vercel, while PRJ-02 feature stories continue to layer in navigation behavior, account flows, and product-complete UI on top of that platform. The backend stack remains NestJS, Hocuspocus, BullMQ, PostgreSQL, Redis, and local Docker-backed developer services.
 
 ## Local Development
 
@@ -13,7 +13,7 @@ CollabSphere is a realtime collaboration workspace platform. Today `apps/web` is
 
 ### Current setup flow
 
-The current repo state uses Docker Compose for local infrastructure and `pnpm dev` for app processes. Today that still starts the placeholder `apps/web/src/index.html` surface alongside the backend services; the real PRJ-02 frontend platform transition is planned separately.
+The current repo state uses Docker Compose for local infrastructure and `pnpm dev` for app processes. That now starts the Next.js App Router web runtime in `apps/web` alongside the backend services.
 
 1. Install dependencies:
 

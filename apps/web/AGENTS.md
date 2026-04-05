@@ -1,18 +1,19 @@
 # AGENTS.md
 
 ## Purpose
-Local rules for the current `apps/web` placeholder surface and the product frontend that will replace it.
+Local rules for the current `apps/web` Next.js App Router foundation and the downstream product frontend work that will extend it.
 
 ## Scope
-`apps/web` placeholder entrypoint assets, client-side behavior, and deployment-facing web output during the PRJ-02 transition.
+`apps/web` App Router routes, layouts, placeholder pages, and deployment-facing web runtime during the PRJ-02 transition.
 
 ## Must Follow
-- Preserve the current `src/index.html` -> `dist/index.html` placeholder contract unless the dedicated PRJ-02 web-platform transition baton explicitly changes it.
-- Treat the current static surface as a temporary placeholder, not the intended long-term frontend architecture.
-- The intended long-term target for `apps/web` is a Next.js App Router frontend on Vercel; do not claim that target is already implemented.
+- Preserve the Next.js App Router foundation in `src/app`; do not reintroduce `src/index.html` as the web source-of-truth.
+- Treat the current routes/layouts as architectural foundation, not proof that downstream PRJ-02 feature stories are already complete.
+- Keep Vercel as the web deployment target and keep local/dev/build contracts truthful with the implemented Next runtime.
 - Every page must implement Loading, Empty, Error, and Loaded states.
 - Use TanStack Query for server state and mutations; follow optimistic update rules.
 - Respect auth/session boundaries; do not assume access outside API contracts.
+- Until session and RBAC wiring lands, non-public route groups must deny by default and redirect to `/login` before protected UI renders.
 - Realtime app updates use Socket.IO; apply fallback polling intervals when sockets fail.
 - Document editor loads content via collab service (Hocuspocus), not REST.
 - Auth/session: expired sessions redirect to `/login` and show appropriate state.

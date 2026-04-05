@@ -1,4 +1,5 @@
 import js from "@eslint/js";
+import nextPlugin from "@next/eslint-plugin-next";
 import globals from "globals";
 import tsParser from "@typescript-eslint/parser";
 
@@ -8,6 +9,7 @@ export default [
   {
     ignores: [
       "**/dist/**",
+      "**/.next/**",
       "**/node_modules/**",
       ".turbo/**",
       "coverage/**",
@@ -40,6 +42,7 @@ export default [
     ...js.configs.recommended,
     files: [
       "apps/**/*.js",
+      "apps/**/*.mjs",
       "scripts/**/*.mjs",
       "tests/**/*.mjs",
     ],
@@ -69,9 +72,11 @@ export default [
   {
     ...js.configs.recommended,
     files: [
+      "apps/**/*.ts",
+      "apps/**/*.tsx",
       "packages/**/*.ts",
       "tests/**/*.ts",
-      "apps/**/test/**/*.ts",
+      "tests/**/*.tsx",
       ".github/scripts/**/*.ts",
     ],
     languageOptions: {
@@ -80,6 +85,9 @@ export default [
       parser: tsParser,
       parserOptions: {
         sourceType: "module",
+        ecmaFeatures: {
+          jsx: true,
+        },
       },
       globals: {
         ...globals.node,
@@ -87,6 +95,31 @@ export default [
     },
     rules: {
       "no-unused-vars": "off",
+    },
+  },
+  {
+    files: [
+      "apps/web/**/*.ts",
+      "apps/web/**/*.tsx",
+    ],
+    settings: {
+      next: {
+        rootDir: "apps/web",
+      },
+    },
+    plugins: {
+      "@next/next": nextPlugin,
+    },
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
+    },
+    rules: {
+      ...nextPlugin.configs.recommended.rules,
+      ...nextPlugin.configs["core-web-vitals"].rules,
+      "@next/next/no-html-link-for-pages": "off",
     },
   },
 ];

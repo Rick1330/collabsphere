@@ -34,12 +34,10 @@ pnpm dev
 ```
 
 `pnpm dev` starts:
-- `apps/web` (today's temporary placeholder surface served from `src/index.html`; this is current local truth, not the intended long-term frontend architecture)
+- `apps/web` (Next.js App Router dev server for the current frontend foundation)
 - `apps/api` (NestJS REST + Socket.IO)
 - `apps/collab` (Hocuspocus)
 - `apps/worker` (BullMQ workers)
-
-The intended long-term product frontend for `apps/web` remains a Next.js App Router application on Vercel. This reference documents the current local behavior during the transition period.
 
 ### Required local services (Docker)
 Minimum services:

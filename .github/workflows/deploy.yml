@@ -152,7 +152,6 @@ jobs:
           path: |
             apps/api/dist
             apps/collab/dist
-            apps/web/dist
             apps/worker/dist
           if-no-files-found: error
 
@@ -202,7 +201,7 @@ jobs:
 
           artifact_root="${RUNNER_TEMP}/deploy-build-artifacts"
 
-          for service in api collab web worker; do
+          for service in api collab worker; do
             artifact_dir="$(
               find "$artifact_root" -path "*/${service}/dist" -type d -print -quit
             )"
@@ -627,6 +626,7 @@ jobs:
 
       - name: Deploy web to Vercel
         id: deploy-web
+        working-directory: apps/web
         shell: bash
         env:
           VERCEL_TOKEN: ${{ steps.vercel-token.outputs.vercel_token }}
