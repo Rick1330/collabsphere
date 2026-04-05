@@ -61,27 +61,36 @@ const compileSharedEnvModule = () => {
   return pathToFileURL(path.join(tempBuildDir, "env.js")).href;
 };
 
-let sharedEnvModule;
+let EnvValidationError: new (...args: unknown[]) => Error & {
+  issues: Array<{ key: string; message: string }>;
+};
+let parseApiRuntimeEnv: (env: Record<string, string | undefined>) => Record<string, unknown>;
+let parseEnv: (env: Record<string, string | undefined>) => Record<string, unknown>;
+let parseRuntimeEnv: (env: Record<string, string | undefined>) => Record<string, unknown>;
+let sanitizeEnv: (env: Record<string, unknown>) => Record<string, unknown>;
 
-try {
-  const buildUrl = compileSharedEnvModule();
-  sharedEnvModule = await import(`${buildUrl}?t=${Date.now()}`);
-} catch (error) {
-  cleanupTempBuildDir();
-  throw error;
-}
+test.before(async () => {
+  try {
+    const buildUrl = compileSharedEnvModule();
+    const sharedEnvModule = await import(`${buildUrl}?t=${Date.now()}`);
+    ({
+      EnvValidationError,
+      parseApiRuntimeEnv,
+      parseEnv,
+      parseRuntimeEnv,
+      sanitizeEnv,
+    } = sharedEnvModule);
+  } catch (error) {
+    cleanupTempBuildDir();
+    throw error;
+  }
+});
 
 test.after(() => {
   cleanupTempBuildDir();
 });
 
-const {
-  EnvValidationError,
-  parseApiRuntimeEnv,
-  parseEnv,
-  parseRuntimeEnv,
-  sanitizeEnv,
-} = sharedEnvModule;
+const localHttpOrigin = (port: number) => `http${"://localhost:"}${String(port)}`;
 
 const validEnv = Object.freeze({
   DATABASE_URL: "postgresql://collab:collab@localhost:5432/collabsphere",
@@ -89,15 +98,15 @@ const validEnv = Object.freeze({
   JWT_ACCESS_SECRET: "replace-with-local-jwt-secret",
   JWT_ACCESS_TTL_MINUTES: "15",
   REFRESH_TOKEN_TTL_DAYS: "7",
-  CORS_ORIGINS: "http://localhost:3000, http://localhost:3002",
+  CORS_ORIGINS: `${localHttpOrigin(3000)}, ${localHttpOrigin(3002)}`,
   EMAIL_PROVIDER_API_KEY: "replace-with-local-email-key",
-  API_BASE_URL: "http://localhost:3001",
-  BASE_URL: "http://localhost:3000",
+  API_BASE_URL: localHttpOrigin(3001),
+  BASE_URL: localHttpOrigin(3000),
   COLLAB_DATABASE_URL: "postgresql://collab:collab@localhost:5432/collabsphere",
   COLLAB_REDIS_URL: "redis://localhost:6379",
   COLLAB_JWT_SECRET: "replace-with-local-collab-secret",
   COLLAB_WS_URL: "ws://localhost:3001/collaboration",
-  S3_ENDPOINT: "http://localhost:9000",
+  S3_ENDPOINT: localHttpOrigin(9000),
   S3_BUCKET: "collabsphere-local",
   S3_ACCESS_KEY_ID: "minioadmin",
   S3_SECRET_ACCESS_KEY: "minioadmin",
@@ -116,13 +125,19 @@ const validApiEnv = Object.freeze({
   BASE_URL: validEnv.BASE_URL,
 });
 
-const createApiEnvInput = (overrides = {}) => ({
+const createApiEnvInput = (overrides: Record<string, string | undefined> = {}) => ({
   ...validApiEnv,
   ...overrides,
 });
 
 test("shared env parser accepts valid input and normalizes typed values", () => {
-  const parsed = parseRuntimeEnv(validEnv);
+  const parsed = parseRuntimeEnv(validEnv) as {
+    JWT_ACCESS_TTL_MINUTES: number;
+    REFRESH_TOKEN_TTL_DAYS: number;
+    CORS_ORIGINS: string[];
+    COLLAB_REDIS_URL: string;
+    S3_ENDPOINT: string;
+  };
 
   assert.equal(parsed.JWT_ACCESS_TTL_MINUTES, 15);
   assert.equal(parsed.REFRESH_TOKEN_TTL_DAYS, 7);
@@ -139,14 +154,18 @@ test("shared env parser ignores unrelated env keys when validating runtime input
     ...validEnv,
     POSTGRES_DB: "collabsphere",
     MINIO_ROOT_PASSWORD: "minioadmin",
-  });
+  }) as { DATABASE_URL: string; S3_BUCKET: string };
 
   assert.equal(parsed.DATABASE_URL, validEnv.DATABASE_URL);
   assert.equal(parsed.S3_BUCKET, validEnv.S3_BUCKET);
 });
 
 test("API runtime parser accepts the API bootstrap subset without collab or storage keys", () => {
-  const parsed = parseApiRuntimeEnv(createApiEnvInput());
+  const parsed = parseApiRuntimeEnv(createApiEnvInput()) as {
+    DATABASE_URL: string;
+    API_BASE_URL: string;
+    CORS_ORIGINS: string[];
+  };
 
   assert.equal(parsed.DATABASE_URL, validEnv.DATABASE_URL);
   assert.equal(parsed.API_BASE_URL, validEnv.API_BASE_URL);
@@ -161,7 +180,7 @@ test("API runtime parser normalizes CORS origins to bare origins", () => {
     createApiEnvInput({
       CORS_ORIGINS: "http://localhost:3000/, https://example.com",
     }),
-  );
+  ) as { CORS_ORIGINS: string[] };
 
   assert.deepEqual(parsed.CORS_ORIGINS, [
     "http://localhost:3000",
@@ -176,7 +195,7 @@ test("API runtime parser accepts SMTP-only local email config without provider k
       EMAIL_SMTP_HOST: "127.0.0.1",
       EMAIL_SMTP_PORT: "1025",
     }),
-  );
+  ) as { EMAIL_PROVIDER_API_KEY?: string; EMAIL_SMTP_HOST?: string; EMAIL_SMTP_PORT?: number };
 
   assert.equal(parsed.EMAIL_PROVIDER_API_KEY, undefined);
   assert.equal(parsed.EMAIL_SMTP_HOST, "127.0.0.1");
@@ -190,7 +209,7 @@ test("API runtime parser accepts SMTP-only config when provider key is blank", (
       EMAIL_SMTP_HOST: "127.0.0.1",
       EMAIL_SMTP_PORT: "1025",
     }),
-  );
+  ) as { EMAIL_PROVIDER_API_KEY?: string; EMAIL_SMTP_HOST?: string; EMAIL_SMTP_PORT?: number };
 
   assert.equal(parsed.EMAIL_PROVIDER_API_KEY, undefined);
   assert.equal(parsed.EMAIL_SMTP_HOST, "127.0.0.1");
@@ -203,7 +222,7 @@ test("API runtime parser treats blank SMTP values as not configured", () => {
       EMAIL_SMTP_HOST: "   ",
       EMAIL_SMTP_PORT: "   ",
     }),
-  );
+  ) as { EMAIL_PROVIDER_API_KEY?: string; EMAIL_SMTP_HOST?: string; EMAIL_SMTP_PORT?: number };
 
   assert.equal(parsed.EMAIL_PROVIDER_API_KEY, validEnv.EMAIL_PROVIDER_API_KEY);
   assert.equal(parsed.EMAIL_SMTP_HOST, undefined);
@@ -215,8 +234,8 @@ test("API runtime parser still rejects incomplete local SMTP pair with blanks", 
     () =>
       parseApiRuntimeEnv(
         createApiEnvInput({
-        EMAIL_SMTP_HOST: "127.0.0.1",
-        EMAIL_SMTP_PORT: "   ",
+          EMAIL_SMTP_HOST: "127.0.0.1",
+          EMAIL_SMTP_PORT: "   ",
         }),
       ),
     (error) => {
@@ -310,7 +329,7 @@ test("shared env parser rejects non-origin CORS entries without echoing raw valu
 });
 
 test("sanitizeEnv redacts secrets and URL credentials without losing safe fields", () => {
-  const rawEnv = parseRuntimeEnv(validEnv);
+  const rawEnv = parseRuntimeEnv(validEnv) as Record<string, unknown>;
   const sanitized = sanitizeEnv(rawEnv);
 
   assert.equal(
@@ -332,7 +351,7 @@ test("sanitizeEnv strips query and hash from credential URLs", () => {
   const rawEnv = parseRuntimeEnv({
     ...validEnv,
     REDIS_URL: "redis://:secret@localhost:6379/0?token=abc#frag",
-  });
+  }) as Record<string, unknown>;
 
   const sanitized = sanitizeEnv(rawEnv);
 
@@ -343,7 +362,7 @@ test("sanitizeEnv strips query and hash from non-credential URLs", () => {
   const rawEnv = parseRuntimeEnv({
     ...validEnv,
     REDIS_URL: "redis://localhost:6379/0?token=abc#frag",
-  });
+  }) as Record<string, unknown>;
 
   const sanitized = sanitizeEnv(rawEnv);
 

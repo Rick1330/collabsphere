@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createServiceSmokeFixtures } from "../integration/fixtures/index.mjs";
+import { createServiceSmokeFixtures } from "../integration/fixtures/index.ts";
 
 test("service smoke fixtures stay deterministic with default env", () => {
   const fixtures = createServiceSmokeFixtures({});
