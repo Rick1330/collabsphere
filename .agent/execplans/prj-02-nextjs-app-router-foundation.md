@@ -71,7 +71,7 @@
   - `scripts/build-static-web-app.ts`
 - Current runtime/deploy contract files:
   - `apps/web/package.json`
-  - `vercel.json`
+  - `apps/web/vercel.json`
   - `.github/workflows/ci.yml`
   - `.github/workflows/deploy.yml`
   - `scripts/dev.ts`
@@ -122,7 +122,7 @@
 - Rollback steps (if applicable):
   - Revert only the `#1508` branch changes if the Next.js transition proves incompatible with the existing Vercel contract.
 - Resume instructions:
-  - Start from this ExecPlan, inspect `git status --short`, then validate `apps/web/package.json`, `vercel.json`, and `.github/workflows/deploy.yml`.
+  - Start from this ExecPlan, inspect `git status --short`, then validate `apps/web/package.json`, `apps/web/vercel.json`, and `.github/workflows/deploy.yml`.
 
 ## Interfaces and Dependencies
 - APIs touched:
