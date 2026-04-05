@@ -13,7 +13,7 @@ export default function AdminPage() {
       ]}
       deferredWork={[
         "Admin dashboards and audit tooling",
-        "Role-gated access control and redirects",
+        "Role-aware admin access control beyond the foundation login redirect",
         "Platform management workflows and data integration",
       ]}
     />

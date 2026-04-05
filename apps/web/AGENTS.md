@@ -13,6 +13,7 @@ Local rules for the current `apps/web` Next.js App Router foundation and the dow
 - Every page must implement Loading, Empty, Error, and Loaded states.
 - Use TanStack Query for server state and mutations; follow optimistic update rules.
 - Respect auth/session boundaries; do not assume access outside API contracts.
+- Until session and RBAC wiring lands, non-public route groups must deny by default and redirect to `/login` before protected UI renders.
 - Realtime app updates use Socket.IO; apply fallback polling intervals when sockets fail.
 - Document editor loads content via collab service (Hocuspocus), not REST.
 - Auth/session: expired sessions redirect to `/login` and show appropriate state.
