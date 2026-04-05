@@ -13,13 +13,14 @@
   - Created follow-up issue `#1508` for the real `apps/web` platform transition because no open issue already covered it cleanly.
   - Synced GitHub continuity for `#2`, `#620`, and backlog stories `#29`-`#38`.
   - Opened PR `#1509` for the source-of-truth correction baton.
+  - Addressed the first round of current-head doc review nits on portable references and wording clarity.
 - In progress:
-  - Address current-head review nits on portable references and wording clarity.
+  - Resolve any remaining current-head review feedback on PR `#1509` and re-check live review state.
 - Blocked:
   - None currently.
 - Next:
-  - Record final validation evidence.
-  - Re-check PR `#1509` review state after the doc-nit follow-up commit.
+  - Record final validation evidence once the current PR head is clean.
+  - Merge only if the elevated-review gate is satisfied live; otherwise hold for independent human review.
 
 ## Surprises & Discoveries
 - The current repo shell still has no `rg` binary installed, so wording audits had to fall back to PowerShell/native file inspection.
