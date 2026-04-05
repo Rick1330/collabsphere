@@ -12,13 +12,14 @@
   - Corrected canonical docs/rules so they now distinguish current placeholder truth, intended Next.js App Router target architecture, and the unchanged Vercel deploy contract.
   - Created follow-up issue `#1508` for the real `apps/web` platform transition because no open issue already covered it cleanly.
   - Synced GitHub continuity for `#2`, `#620`, and backlog stories `#29`-`#38`.
+  - Opened PR `#1509` for the source-of-truth correction baton.
 - In progress:
-  - Validate wording/scope containment and open the `#1507` PR.
+  - Address current-head review nits on portable references and wording clarity.
 - Blocked:
   - None currently.
 - Next:
   - Record final validation evidence.
-  - Open the PR, inspect checks/review state, and resolve only current-head blockers if they appear.
+  - Re-check PR `#1509` review state after the doc-nit follow-up commit.
 
 ## Surprises & Discoveries
 - The current repo shell still has no `rg` binary installed, so wording audits had to fall back to PowerShell/native file inspection.
@@ -29,7 +30,7 @@
 - Decision: Keep Vercel as the authoritative web deployment target.
   - Rationale: The hosting target is still correct; only the frontend architecture truth was overstated around the placeholder.
   - Alternatives: Re-open hosting choice; reframe PRJ-02 around a non-Vercel target.
-  - Source (spec/domain/agent-ref): `DEPLOYMENT.md`, `docs/spec/07-architecture/07.6-adrs.md`, `D:\coloe\prdec\002-prj02-step-2-frontend-platform-and-sequencing-decision.md`
+  - Source (spec/domain/agent-ref): `DEPLOYMENT.md`, `docs/spec/07-architecture/07.6-adrs.md`, `#1507`
 - Decision: Treat the current `apps/web` static surface as temporary implementation truth only.
   - Rationale: This preserves honest docs for current `main` without freezing the architecture around `src/index.html`.
   - Alternatives: Keep the placeholder as the intended final frontend; pretend the Next.js transition is already done.
@@ -37,7 +38,7 @@
 - Decision: Record the long-term frontend target explicitly as Next.js App Router in `apps/web`.
   - Rationale: PRJ-02 story contracts already assume a real application frontend with app-shell and provider behavior that the placeholder cannot satisfy.
   - Alternatives: Leave the target unspecified; require every future baton to rediscover the same conclusion.
-  - Source (spec/domain/agent-ref): `docs/spec/07-architecture/07.2-tech-stack.md`, `docs/spec/07-architecture/07.6-adrs.md`, `D:\coloe\prdec\002-prj02-step-2-frontend-platform-and-sequencing-decision.md`
+  - Source (spec/domain/agent-ref): `docs/spec/07-architecture/07.2-tech-stack.md`, `docs/spec/07-architecture/07.6-adrs.md`, `#1507`
 - Decision: Create exactly one new prerequisite issue, `#1508`, for the actual web-platform transition.
   - Rationale: No existing open issue cleanly covered the transition from placeholder static surface to the real frontend foundation.
   - Alternatives: Reuse `#1507`; jump directly into `#29`-`#38`; leave the follow-up implicit.
