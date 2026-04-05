@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import test from "node:test";
 import path from "node:path";
 import {
@@ -8,6 +7,7 @@ import {
   getJson,
   repoRoot,
   runTsc,
+  runTsx,
   spawnBootstrap,
   stopChild,
   waitForStdoutMatch,
@@ -162,10 +162,7 @@ for (const service of serviceSpecs) {
 
   test(`built ${service.name} bootstrap artifact stays runnable without monorepo source imports`, async () => {
     runTsc(path.join(repoRoot, service.buildAppPath, "tsconfig.json"));
-    execFileSync(process.execPath, ["scripts/build-bootstrap-app.mjs", service.buildAppPath], {
-      cwd: repoRoot,
-      stdio: "inherit",
-    });
+    runTsx("scripts/build-bootstrap-app.ts", service.buildAppPath);
 
     await assertBootstrapHealthy({
       ...service,

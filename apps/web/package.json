@@ -5,6 +5,6 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/dev.ts",
-    "build": "pnpm exec tsc -p tsconfig.json --noEmit && node ../../scripts/build-static-web-app.mjs ."
+    "build": "pnpm exec tsc -p tsconfig.json --noEmit && tsx ../../scripts/build-static-web-app.ts ."
   }
 }

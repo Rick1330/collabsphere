@@ -61,7 +61,7 @@
 - Service manifests use `activeRevisionsMode: Single` so the latest ready revision becomes active after the migration hook succeeds.
 
 ## Bootstrap helper
-- Use `node scripts/bootstrap-aca-staging.mjs` for first-run ACA creation and secret provisioning.
+- Use `pnpm bootstrap:aca:staging` for first-run ACA creation and secret provisioning.
 - The helper expects:
   - Azure foundation resources to already exist
   - runtime values to be supplied as environment variables

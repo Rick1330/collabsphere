@@ -10,7 +10,8 @@ const envExamplePath = join(rootDir, ".env.example");
 const envPath = join(rootDir, ".env");
 const envLocalPath = join(rootDir, ".env.local");
 const composeFilePath = join(rootDir, "docker-compose.yml");
-const envAssignmentPattern = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/;
+const windowsTaskkillPath = String.raw`C:\Windows\System32\taskkill.exe`;
+const envKeyPattern = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 const portEnvKeys = new Set([
   "POSTGRES_PORT",
@@ -117,6 +118,22 @@ const unquoteEnvValue = (value) => {
   return value;
 };
 
+const skipLeadingSpaceOrTab = (value, startIndex) => {
+  let index = startIndex;
+
+  while (index < value.length) {
+    const char = value[index];
+
+    if (char !== " " && char !== "\t") {
+      break;
+    }
+
+    index += 1;
+  }
+
+  return index;
+};
+
 const parseEnvAssignment = (rawLine, lineNumber, label) => {
   const line = rawLine.trim();
 
@@ -124,13 +141,20 @@ const parseEnvAssignment = (rawLine, lineNumber, label) => {
     return null;
   }
 
-  const match = rawLine.match(envAssignmentPattern);
+  const separatorIndex = rawLine.indexOf("=");
 
-  if (!match) {
+  if (separatorIndex <= 0) {
     throw new Error(`${label} has an invalid assignment on line ${lineNumber}.`);
   }
 
-  const [, key, value] = match;
+  const key = rawLine.slice(0, separatorIndex).trim();
+  const valueStart = skipLeadingSpaceOrTab(rawLine, separatorIndex + 1);
+  const value = rawLine.slice(valueStart);
+
+  if (!envKeyPattern.test(key)) {
+    throw new Error(`${label} has an invalid assignment on line ${lineNumber}.`);
+  }
+
   return [key, unquoteEnvValue(value)];
 };
 
@@ -161,10 +185,6 @@ const parsePositiveIntegerValue = (key, value) => {
   }
 
   const parsed = Number.parseInt(value, 10);
-
-  if (!Number.isInteger(parsed)) {
-    throw new Error(`${key} must be a positive integer in .env or .env.local.`);
-  }
 
   if (parsed <= 0) {
     throw new Error(`${key} must be a positive integer in .env or .env.local.`);
@@ -320,7 +340,7 @@ const getRunnableDevScript = (manifest) => {
   }
 
   const devScript = manifest.scripts.dev.trim();
-  return devScript ? devScript : null;
+  return devScript || null;
 };
 
 const ensureAppSurfaces = () => {
@@ -355,7 +375,7 @@ const resolvePnpmRunner = () => {
 
 const terminateChild = (child, label) =>
   new Promise((resolve) => {
-    if (!child || child.exitCode !== null || child.signalCode !== null) {
+    if (child?.exitCode !== null || child?.signalCode !== null) {
       resolve();
       return;
     }
@@ -364,7 +384,7 @@ const terminateChild = (child, label) =>
     child.once("exit", finish);
 
     if (process.platform === "win32") {
-      const killer = spawn("taskkill", ["/PID", String(child.pid), "/T", "/F"], {
+      const killer = spawn(windowsTaskkillPath, ["/PID", String(child.pid), "/T", "/F"], {
         stdio: "ignore",
         windowsHide: true
       });
