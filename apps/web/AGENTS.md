@@ -1,13 +1,15 @@
 # AGENTS.md
 
 ## Purpose
-Local rules for the web client and static bootstrap surface.
+Local rules for the current `apps/web` placeholder surface and the product frontend that will replace it.
 
 ## Scope
-`apps/web` static entrypoint assets, client-side behavior, and deployment-facing web output.
+`apps/web` placeholder entrypoint assets, client-side behavior, and deployment-facing web output during the PRJ-02 transition.
 
 ## Must Follow
-- Keep `apps/web` deployable as a static artifact; do not introduce framework-specific server/runtime assumptions without an explicit spec/ADR change.
+- Preserve the current `src/index.html` -> `dist/index.html` placeholder contract unless the dedicated PRJ-02 web-platform transition baton explicitly changes it.
+- Treat the current static surface as a temporary placeholder, not the intended long-term frontend architecture.
+- The intended long-term target for `apps/web` is a Next.js App Router frontend on Vercel; do not claim that target is already implemented.
 - Every page must implement Loading, Empty, Error, and Loaded states.
 - Use TanStack Query for server state and mutations; follow optimistic update rules.
 - Respect auth/session boundaries; do not assume access outside API contracts.

@@ -10,7 +10,7 @@ Define repo-wide rules and guardrails for coding agents working in CollabSphere.
 - If any conflict exists, `docs/spec/` wins.
 
 ## Repo Identity
-CollabSphere is a realtime collaboration workspace platform built with a static web bootstrap/client (`apps/web`), NestJS (API), Hocuspocus (collab), BullMQ (workers), and PostgreSQL + Redis.
+CollabSphere is a realtime collaboration workspace platform built with NestJS (API), Hocuspocus (collab), BullMQ (workers), PostgreSQL + Redis, and a web frontend in `apps/web` that is currently a temporary static placeholder while PRJ-02 transitions toward the intended Next.js App Router product frontend on Vercel.
 
 ## ExecPlan Rule
 - Use an ExecPlan for complex features, major refactors, tier:S work, or any change touching collab/security/isolation core.

@@ -1,6 +1,6 @@
 # CollabSphere
 
-CollabSphere is a realtime collaboration workspace platform built with a static web bootstrap/client, NestJS, Hocuspocus, BullMQ, PostgreSQL, Redis, and local Docker-backed developer services.
+CollabSphere is a realtime collaboration workspace platform. Today `apps/web` is a temporary static placeholder surface used to keep local and Vercel deployment truth aligned, while the intended long-term product frontend remains a Next.js App Router application in `apps/web`. The backend stack remains NestJS, Hocuspocus, BullMQ, PostgreSQL, Redis, and local Docker-backed developer services.
 
 ## Local Development
 
@@ -13,7 +13,7 @@ CollabSphere is a realtime collaboration workspace platform built with a static 
 
 ### Current setup flow
 
-The current repo state uses Docker Compose for local infrastructure and `pnpm dev` for app processes.
+The current repo state uses Docker Compose for local infrastructure and `pnpm dev` for app processes. Today that still starts the placeholder `apps/web/src/index.html` surface alongside the backend services; the real PRJ-02 frontend platform transition is planned separately.
 
 1. Install dependencies:
 

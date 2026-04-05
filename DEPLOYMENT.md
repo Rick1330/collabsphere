@@ -43,7 +43,8 @@ The staging backend is bootstrapped and healthy in Azure, and the recovered GitH
 ### Web
 
 - Hosted on Vercel
-- Uses the static artifact produced in `apps/web/dist`
+- Current deployed web surface is the temporary placeholder artifact produced in `apps/web/dist`
+- The intended long-term frontend architecture for `apps/web` remains a real application frontend; this document does not claim that transition is already complete
 - Staging deploys from `main` use Vercel preview mode
 - Production deploys use `vercel build --prod` followed by `vercel deploy --prebuilt --prod`
 
