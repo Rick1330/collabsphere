@@ -1,3 +1,12 @@
+/**
+ * Intentionally retained as CommonJS JavaScript.
+ *
+ * This module is loaded directly by `actions/github-script` in
+ * `.github/workflows/story-project-gates.yml` via `require(...)` on a clean
+ * runner that does not install repo dependencies. Keeping this file as plain
+ * JS avoids introducing a TypeScript loader/bootstrap dependency into
+ * gate-enforcement automation.
+ */
 function labelNames(issue) {
   return (issue.labels || [])
     .map((label) => (typeof label === "string" ? label : label.name))
