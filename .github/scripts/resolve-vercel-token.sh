@@ -6,7 +6,7 @@ deploy_environment="${DEPLOY_ENVIRONMENT:-unknown}"
 vercel_cli_version="${VERCEL_CLI_VERSION:?VERCEL_CLI_VERSION is required.}"
 vercel_org_id="${VERCEL_ORG_ID:-}"
 vercel_project_id="${VERCEL_PROJECT_ID:-}"
-primary_token="${VERCEL_TOKEN_PRIMARY:-}"
+primary_token="${VERCEL_TOKEN_PRIMARY:-${VERCEL_TOKEN:-}}"
 rollover_token="${VERCEL_TOKEN_ROLLOVER:-}"
 
 mask_value() {
@@ -73,7 +73,10 @@ for index in "${!token_labels[@]}"; do
   : > "$response_file"
 
   if ! vercel_http_status="$(
-    curl --silent --show-error --output "$response_file" --write-out "%{http_code}" \
+    curl --silent --show-error \
+      --connect-timeout 10 \
+      --max-time 30 \
+      --output "$response_file" --write-out "%{http_code}" \
       --header "Authorization: Bearer ${token}" \
       "$vercel_project_api_url"
   )"; then
