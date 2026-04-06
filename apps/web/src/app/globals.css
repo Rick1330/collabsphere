@@ -1,5 +1,5 @@
-@import "../styles/theme.css";
-@import "../styles/tokens.css";
+@import url("../styles/theme.css");
+@import url("../styles/tokens.css");
 
 * {
   box-sizing: border-box;
@@ -76,9 +76,13 @@ button {
   background:
     linear-gradient(
       180deg,
-      color-mix(in srgb, var(--section-accent) 12%, var(--surface-card-subtle))
-        0%,
-      color-mix(in srgb, var(--section-accent) 4%, var(--surface-card)) 100%
+      color-mix(
+        in srgb,
+        var(--section-accent, var(--color-accent)) 12%,
+        var(--surface-card-subtle)
+      ) 0%,
+      color-mix(in srgb, var(--section-accent, var(--color-accent)) 4%, var(--surface-card))
+        100%
     );
   border-inline-end: 1px solid var(--border-subtle);
 }
@@ -94,8 +98,10 @@ button {
   background:
     linear-gradient(
       180deg,
-      color-mix(in srgb, var(--section-accent) 95%, var(--color-bg-primary)) 0%,
-      color-mix(in srgb, var(--section-accent) 42%, var(--color-bg-primary)) 100%
+      color-mix(in srgb, var(--section-accent, var(--color-accent)) 95%, var(--color-bg-primary))
+        0%,
+      color-mix(in srgb, var(--section-accent, var(--color-accent)) 42%, var(--color-bg-primary))
+        100%
     );
   opacity: 0.96;
 }
@@ -171,9 +177,9 @@ button {
 .shell__nav-link:hover,
 .shell__nav-link:focus-visible {
   background:
-    color-mix(in srgb, var(--section-accent) 7%, var(--surface-card));
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 7%, var(--surface-card));
   border-color:
-    color-mix(in srgb, var(--section-accent) 26%, var(--color-border));
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 26%, var(--color-border));
   transform: translateY(-1px);
 }
 
@@ -425,7 +431,7 @@ button {
   }
 }
 
-@media (max-width: 1279px) {
+@media (width <= 1279px) {
   .shell,
   .hero-grid,
   .placeholder-card__columns,
@@ -434,12 +440,9 @@ button {
   }
 }
 
-@media (max-width: 767px) {
+@media (width <= 767px) {
   .shell__rail::before {
-    top: 1rem;
-    bottom: auto;
-    left: 1rem;
-    right: 1rem;
+    inset: 1rem 1rem auto;
     width: auto;
     height: 0.25rem;
   }

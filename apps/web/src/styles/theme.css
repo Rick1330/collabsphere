@@ -1,6 +1,7 @@
 :root {
   color-scheme: light;
-  --color-bg-primary: #ffffff;
+
+  --color-bg-primary: #fff;
   --color-bg-secondary: #f9fafb;
   --color-bg-tertiary: #f3f4f6;
   --color-text-primary: #111827;

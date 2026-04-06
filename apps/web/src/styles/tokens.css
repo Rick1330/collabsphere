@@ -1,6 +1,6 @@
 :root {
   --font-sans: "Segoe UI Variable", "Segoe UI", "Helvetica Neue", sans-serif;
-  --font-mono: "Cascadia Code", Consolas, monospace;
+  --font-mono: "Cascadia Code", consolas, monospace;
   --radius-xl: 1.75rem;
   --radius-lg: 1.25rem;
   --radius-md: 0.9rem;
