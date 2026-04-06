@@ -1,0 +1,57 @@
+:root {
+  --font-sans: "Segoe UI Variable", "Segoe UI", "Helvetica Neue", sans-serif;
+  --font-mono: "Cascadia Code", Consolas, monospace;
+  --radius-xl: 1.75rem;
+  --radius-lg: 1.25rem;
+  --radius-md: 0.9rem;
+  --shadow-soft:
+    0 14px 34px color-mix(in srgb, var(--color-text-primary) 10%, transparent);
+  --shadow-elevated:
+    0 24px 60px color-mix(in srgb, var(--color-accent) 10%, transparent);
+  --surface-canvas:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-bg-primary) 92%, var(--color-bg-secondary))
+        0%,
+      color-mix(in srgb, var(--color-bg-secondary) 86%, var(--color-bg-tertiary))
+        100%
+    );
+  --surface-card: var(--color-bg-primary);
+  --surface-card-muted:
+    color-mix(in srgb, var(--color-bg-primary) 24%, var(--color-bg-secondary));
+  --surface-card-subtle:
+    color-mix(in srgb, var(--color-bg-secondary) 82%, var(--color-bg-primary));
+  --border-subtle:
+    color-mix(in srgb, var(--color-border) 88%, var(--color-bg-primary));
+  --border-strong:
+    color-mix(in srgb, var(--color-border) 96%, var(--color-text-secondary));
+  --focus-ring-color: var(--color-accent);
+  --focus-ring-offset-color: var(--color-bg-primary);
+  --page-orb-primary: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  --page-orb-secondary:
+    color-mix(in srgb, var(--color-success) 12%, transparent);
+  --page-orb-tertiary: color-mix(in srgb, var(--color-info) 10%, transparent);
+  --tone-public: var(--color-success);
+  --tone-global: var(--color-accent);
+  --tone-workspace: var(--color-warning);
+  --tone-admin:
+    color-mix(in srgb, var(--color-error) 74%, var(--color-accent));
+}
+
+[data-theme="dark"] {
+  --shadow-soft:
+    0 16px 44px color-mix(in srgb, black 42%, transparent);
+  --shadow-elevated:
+    0 28px 70px color-mix(in srgb, black 48%, transparent);
+  --surface-card:
+    color-mix(in srgb, var(--color-bg-primary) 88%, var(--color-bg-secondary));
+  --surface-card-muted:
+    color-mix(in srgb, var(--color-bg-secondary) 86%, var(--color-bg-tertiary));
+  --surface-card-subtle:
+    color-mix(in srgb, var(--color-bg-tertiary) 56%, var(--color-bg-secondary));
+  --border-subtle:
+    color-mix(in srgb, var(--color-border) 92%, var(--color-bg-primary));
+  --border-strong:
+    color-mix(in srgb, var(--color-border) 88%, var(--color-text-secondary));
+  --focus-ring-offset-color: var(--color-bg-secondary);
+}
