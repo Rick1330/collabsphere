@@ -25,8 +25,12 @@ test("escapeHtml: escapes greater-than", () => {
   assert.equal(escapeHtml("a > b"), "a &gt; b");
 });
 
+test("escapeHtml: escapes double quotes", () => {
+  assert.equal(escapeHtml('"hello"'), "&quot;hello&quot;");
+});
+
 test("escapeHtml: escapes all three in one string", () => {
-  assert.equal(escapeHtml("<div class=\"x\">&amp;</div>"), "&lt;div class=\"x\"&gt;&amp;amp;&lt;/div&gt;");
+  assert.equal(escapeHtml('<a href="x">&</a>'), "&lt;a href=&quot;x&quot;&gt;&amp;&lt;/a&gt;");
 });
 
 test("escapeHtml: returns empty string unchanged", () => {

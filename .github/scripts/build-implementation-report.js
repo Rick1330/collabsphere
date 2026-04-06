@@ -31,7 +31,8 @@ function escapeHtml(text) {
   return String(text)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 /**
@@ -244,14 +245,8 @@ async function buildPrMergeReport({ github, context, core, owner, repo }) {
       const labels = getLabelNames(issue);
       const typeLabel = labels.find((l) => l.startsWith("type:"));
       const statusLabel = labels.find((l) => l.startsWith("status:"));
-      const typeIcon =
-        typeLabel === "type:task"
-          ? "✔"
-          : typeLabel === "type:story"
-            ? "📖"
-            : typeLabel === "type:epic"
-              ? "📦"
-              : "•";
+      const TYPE_ICONS = { "type:task": "✔", "type:story": "📖", "type:epic": "📦" };
+      const typeIcon = (typeLabel && TYPE_ICONS[typeLabel]) || "•";
       const stateIcon = issue.state === "closed" ? "✅" : "🔄";
       const statusText = statusLabel ? ` [${statusLabel.replace("status:", "")}]` : "";
       message += `  ${typeIcon} ${stateIcon} <a href="${escapeHtml(issue.html_url)}">#${issue.number}</a> ${escapeHtml(issue.title)}${statusText}\n`;
@@ -331,9 +326,10 @@ async function buildPeriodicReport({ github, core, owner, repo }) {
     const displayed = mergedPrs.slice(0, 20);
     for (const pr of displayed) {
       const author = pr.user ? pr.user.login : "unknown";
-      const mergedAt = pr.pull_request && pr.pull_request.merged_at
-        ? formatDate(pr.pull_request.merged_at)
-        : "";
+      const prMergedAt = pr.pull_request && pr.pull_request.merged_at
+        ? pr.pull_request.merged_at
+        : null;
+      const mergedAt = prMergedAt ? formatDate(prMergedAt) : "";
       const dateStr = mergedAt ? ` (${mergedAt})` : "";
       message += `• <a href="${escapeHtml(pr.html_url)}">#${pr.number}</a> ${escapeHtml(pr.title)} — @${escapeHtml(author)}${dateStr}\n`;
     }
