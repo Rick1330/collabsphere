@@ -13,7 +13,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="en" data-theme="light">
+    <html lang="en">
       <body className="app-shell-root">
         <a className="skip-link" href="#main-content">
           Skip to main content

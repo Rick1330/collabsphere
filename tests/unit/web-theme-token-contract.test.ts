@@ -3,12 +3,14 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
+import { repoRoot } from "./bootstrap-test-helpers";
+
 const themeCss = fs.readFileSync(
-  path.join(process.cwd(), "apps/web/src/styles/theme.css"),
+  path.join(repoRoot, "apps/web/src/styles/theme.css"),
   "utf8",
 );
 const globalsCss = fs.readFileSync(
-  path.join(process.cwd(), "apps/web/src/app/globals.css"),
+  path.join(repoRoot, "apps/web/src/app/globals.css"),
   "utf8",
 );
 
@@ -28,17 +30,27 @@ const requiredThemeVariables = [
   "--color-info",
 ];
 
+const lightThemeBlock = themeCss.match(/:root\s*\{([\s\S]*?)\}/)?.[1];
+const darkThemeBlock = themeCss.match(/\[data-theme="dark"\]\s*\{([\s\S]*?)\}/)?.[1];
+
 test("theme.css defines the exact section 3.9.3 variable names for light and dark themes", () => {
   assert.match(themeCss, /:root\s*\{/);
   assert.match(themeCss, /\[data-theme="dark"\]\s*\{/);
+  assert.ok(lightThemeBlock, "expected :root theme block to exist");
+  assert.ok(darkThemeBlock, 'expected [data-theme="dark"] theme block to exist');
 
   for (const variableName of requiredThemeVariables) {
     const escapedName = variableName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const declarations = themeCss.match(new RegExp(`${escapedName}\\s*:`, "g"));
 
-    assert.ok(
-      declarations && declarations.length >= 2,
-      `${variableName} should be defined for light and dark themes`,
+    assert.match(
+      lightThemeBlock,
+      new RegExp(`${escapedName}\\s*:`),
+      `${variableName} should be defined in the light theme block`,
+    );
+    assert.match(
+      darkThemeBlock,
+      new RegExp(`${escapedName}\\s*:`),
+      `${variableName} should be defined in the dark theme block`,
     );
   }
 });
