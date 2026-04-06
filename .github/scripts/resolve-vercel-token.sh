@@ -15,11 +15,9 @@ mask_value() {
   fi
 }
 
-if [[ -n "$primary_token" && -n "$rollover_token" ]]; then
-  if [[ "$primary_token" == "$rollover_token" ]]; then
-    echo "::error::VERCEL_TOKEN_ROLLOVER matches VERCEL_TOKEN for ${deploy_environment}. Configure a distinct independently issued rollover token or remove VERCEL_TOKEN_ROLLOVER." >&2
-    exit 1
-  fi
+if [[ -n "$primary_token" && -n "$rollover_token" && "$primary_token" == "$rollover_token" ]]; then
+  echo "::error::VERCEL_TOKEN_ROLLOVER matches VERCEL_TOKEN for ${deploy_environment}. Configure a distinct independently issued rollover token or remove VERCEL_TOKEN_ROLLOVER." >&2
+  exit 1
 fi
 
 token_labels=()
