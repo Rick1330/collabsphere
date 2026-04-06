@@ -540,7 +540,6 @@ jobs:
 
       - name: Deploy web to Vercel
         id: deploy-web
-        working-directory: apps/web
         shell: bash
         env:
           VERCEL_TOKEN: ${{ steps.vercel-token.outputs.vercel_token }}
