@@ -1,0 +1,81 @@
+name: Implementation Report
+
+# Triggers
+# ─────────────────────────────────────────────────────────────────────────────
+# 1. Weekly cron  – every Monday at 09:00 UTC; covers the last 7 days.
+# 2. Manual       – workflow_dispatch with configurable look-back window.
+# 3. PR merge     – fires immediately when a PR is merged into main,
+#                   sending a concise per-PR notification.
+#
+# Required repository secrets
+# ─────────────────────────────────────────────────────────────────────────────
+#   TELEGRAM_BOT_TOKEN  Bot token obtained from @BotFather.
+#   TELEGRAM_CHAT_ID    Target channel or group chat ID
+#                       (e.g. -1001234567890 for a public channel,
+#                        or the numeric ID of a private chat).
+#
+# If either secret is absent the workflow still runs successfully and prints
+# the generated report to the workflow log instead.
+
+on:
+  schedule:
+    - cron: "0 9 * * 1" # Every Monday at 09:00 UTC
+
+  workflow_dispatch:
+    inputs:
+      since_days:
+        description: "Number of days to look back (default: 7)"
+        required: false
+        default: "7"
+        type: string
+
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  report:
+    name: Build and send implementation report
+    runs-on: ubuntu-latest
+
+    # For pull_request events only run when the PR was actually merged.
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.merged == true
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build and send report
+        uses: actions/github-script@v8
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # Number of days the periodic report should cover.
+          SINCE_DAYS: ${{ github.event.inputs.since_days || '7' }}
+          # Passed explicitly so the script can branch without inspecting
+          # github.context.eventName (which behaves differently in forks).
+          EVENT_NAME: ${{ github.event_name }}
+        with:
+          script: |
+            const {
+              buildReport,
+              sendToTelegram,
+            } = require(`${process.env.GITHUB_WORKSPACE}/.github/scripts/build-implementation-report`);
+
+            const message = await buildReport({ github, context, core });
+
+            if (!message) {
+              core.info("No report content to send. Exiting.");
+              return;
+            }
+
+            await sendToTelegram(message, core);
