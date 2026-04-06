@@ -9,12 +9,15 @@ vercel_project_id="${VERCEL_PROJECT_ID:-}"
 primary_token="${VERCEL_TOKEN_PRIMARY:-}"
 rollover_token="${VERCEL_TOKEN_ROLLOVER:-}"
 
-if [[ -n "$primary_token" && -n "$rollover_token" ]]; then
-  primary_digest="$(printf '%s' "$primary_token" | sha256sum | awk '{print $1}')"
-  rollover_digest="$(printf '%s' "$rollover_token" | sha256sum | awk '{print $1}')"
+mask_value() {
+  if [[ -n "${1:-}" && "${GITHUB_ACTIONS:-}" == "true" ]]; then
+    echo "::add-mask::$1"
+  fi
+}
 
-  if [[ "$primary_digest" == "$rollover_digest" ]]; then
-    echo "::error::VERCEL_TOKEN_ROLLOVER matches VERCEL_TOKEN for ${deploy_environment}. Configure a distinct independently issued rollover token or remove VERCEL_TOKEN_ROLLOVER."
+if [[ -n "$primary_token" && -n "$rollover_token" ]]; then
+  if [[ "$primary_token" == "$rollover_token" ]]; then
+    echo "::error::VERCEL_TOKEN_ROLLOVER matches VERCEL_TOKEN for ${deploy_environment}. Configure a distinct independently issued rollover token or remove VERCEL_TOKEN_ROLLOVER." >&2
     exit 1
   fi
 fi
@@ -23,52 +26,24 @@ token_labels=()
 token_values=()
 
 if [[ -n "$primary_token" ]]; then
+  mask_value "$primary_token"
   token_labels+=("VERCEL_TOKEN")
   token_values+=("$primary_token")
 fi
 
 if [[ -n "$rollover_token" ]]; then
+  mask_value "$rollover_token"
   token_labels+=("VERCEL_TOKEN_ROLLOVER")
   token_values+=("$rollover_token")
 fi
 
 if [[ "${#token_labels[@]}" -eq 0 ]]; then
-  echo "::error::Missing Vercel token secret. Set VERCEL_TOKEN (or VERCEL_TOKEN_ROLLOVER) in the ${deploy_environment} environment."
+  echo "::error::Missing Vercel token secret. Set VERCEL_TOKEN (or VERCEL_TOKEN_ROLLOVER) in the ${deploy_environment} environment." >&2
   exit 1
 fi
 
 selected_label=""
 selected_token=""
-
-for index in "${!token_labels[@]}"; do
-  label="${token_labels[$index]}"
-  token="${token_values[$index]}"
-
-  if auth_output="$(pnpm dlx "vercel@${vercel_cli_version}" whoami --token "$token" 2>&1)"; then
-    selected_label="$label"
-    selected_token="$token"
-    break
-  fi
-
-  if echo "$auth_output" | grep -Eiq "(not valid|invalid token|authentication failed|unauthorized|\\b401\\b)"; then
-    echo "::warning::${label} failed Vercel auth preflight for ${deploy_environment}; trying next configured token (if any)."
-    continue
-  fi
-
-  echo "::error::Vercel auth preflight encountered a non-token error while validating ${label} for ${deploy_environment}: ${auth_output}"
-  exit 1
-done
-
-if [[ -z "$selected_token" ]]; then
-  echo "::error::No configured Vercel token passed authentication preflight. Rotate or update all configured Vercel token secrets (for example, VERCEL_TOKEN and VERCEL_TOKEN_ROLLOVER) for the ${deploy_environment} environment."
-  exit 1
-fi
-
-if [[ -z "$vercel_org_id" || -z "$vercel_project_id" ]]; then
-  echo "::error::VERCEL_ORG_ID and VERCEL_PROJECT_ID are required for Vercel deploy preflight."
-  exit 1
-fi
-
 response_file="$(mktemp)"
 cleanup() {
   rm -f "$response_file"
@@ -76,18 +51,51 @@ cleanup() {
 trap cleanup EXIT
 
 vercel_project_api_url="https://api.vercel.com/v9/projects/${vercel_project_id}?teamId=${vercel_org_id}"
-if ! vercel_http_status="$(
-  curl --silent --show-error --output "$response_file" --write-out "%{http_code}" \
-    --header "Authorization: Bearer ${selected_token}" \
-    "$vercel_project_api_url"
-)"; then
-  echo "::error::Vercel project access preflight failed due to network/transport error while validating ${deploy_environment}."
+
+if [[ -z "$vercel_org_id" || -z "$vercel_project_id" ]]; then
+  echo "::error::VERCEL_ORG_ID and VERCEL_PROJECT_ID are required for Vercel deploy preflight." >&2
   exit 1
 fi
 
-if [[ "$vercel_http_status" != "200" ]]; then
-  response_preview="$(head -c 200 "$response_file" | tr '\n' ' ')"
-  echo "::error::Unable to access Vercel project ${vercel_project_id} in org/team ${vercel_org_id} (HTTP ${vercel_http_status}). ${response_preview}"
+for index in "${!token_labels[@]}"; do
+  label="${token_labels[$index]}"
+  token="${token_values[$index]}"
+
+  if auth_output="$(pnpm dlx "vercel@${vercel_cli_version}" whoami --token "$token" 2>&1)"; then
+    :
+  elif echo "$auth_output" | grep -Eiq "(not valid|invalid token|authentication failed|unauthorized|\\b401\\b)"; then
+    echo "::warning::${label} failed Vercel auth preflight for ${deploy_environment}; trying next configured token (if any)." >&2
+    continue
+  else
+    echo "::debug::${label} auth preflight output: $auth_output"
+    echo "::error::Vercel auth preflight encountered a non-token error while validating ${label} for ${deploy_environment}." >&2
+    exit 1
+  fi
+
+  : > "$response_file"
+
+  if ! vercel_http_status="$(
+    curl --silent --show-error --output "$response_file" --write-out "%{http_code}" \
+      --header "Authorization: Bearer ${token}" \
+      "$vercel_project_api_url"
+  )"; then
+    echo "::error::Vercel project access preflight failed due to network/transport error while validating ${label} for ${deploy_environment}." >&2
+    exit 1
+  fi
+
+  if [[ "$vercel_http_status" != "200" ]]; then
+    echo "::warning::${label} authenticated but could not access Vercel project ${vercel_project_id} in ${deploy_environment}; trying next configured token (if any)." >&2
+    continue
+  fi
+
+  selected_label="$label"
+  selected_token="$token"
+  mask_value "$selected_token"
+  break
+done
+
+if [[ -z "$selected_token" ]]; then
+  echo "::error::No configured Vercel token passed authentication and project-access preflight. Rotate or update the configured Vercel token secrets for the ${deploy_environment} environment." >&2
   exit 1
 fi
 
@@ -98,8 +106,6 @@ elif [[ -z "$primary_token" && -n "$rollover_token" ]]; then
 else
   echo "Using ${deploy_environment} Vercel token source: ${selected_label} (distinct primary/rollover pair configured)."
 fi
-
-echo "::add-mask::$selected_token"
 
 if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
   {
