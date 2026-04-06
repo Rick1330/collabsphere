@@ -29,7 +29,7 @@ test("escapeHtml: escapes double quotes", () => {
   assert.equal(escapeHtml('"hello"'), "&quot;hello&quot;");
 });
 
-test("escapeHtml: escapes all three in one string", () => {
+test("escapeHtml: escapes all four entities in one string", () => {
   assert.equal(escapeHtml('<a href="x">&</a>'), "&lt;a href=&quot;x&quot;&gt;&amp;&lt;/a&gt;");
 });
 

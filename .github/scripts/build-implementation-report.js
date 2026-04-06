@@ -210,8 +210,8 @@ async function buildPrMergeReport({ github, context, core, owner, repo }) {
   const mergedAt = pr.merged_at ? formatDate(pr.merged_at) : "unknown";
 
   // Extract issue numbers referenced with closing keywords or refs in the PR body.
-  const closingRe = /(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)/gi;
-  const refRe = /(?:ref(?:s|erences)?)\s+#(\d+)/gi;
+  const closingRe = /(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s*#(\d+)/gi;
+  const refRe = /(?:ref(?:s|erences)?)\s*#(\d+)/gi;
   const linkedNumbers = new Set([
     ...[...prBody.matchAll(closingRe)].map((m) => Number(m[1])),
     ...[...prBody.matchAll(refRe)].map((m) => Number(m[1])),
@@ -326,10 +326,7 @@ async function buildPeriodicReport({ github, core, owner, repo }) {
     const displayed = mergedPrs.slice(0, 20);
     for (const pr of displayed) {
       const author = pr.user ? pr.user.login : "unknown";
-      const prMergedAt = pr.pull_request && pr.pull_request.merged_at
-        ? pr.pull_request.merged_at
-        : null;
-      const mergedAt = prMergedAt ? formatDate(prMergedAt) : "";
+      const mergedAt = pr.merged_at ? formatDate(pr.merged_at) : "";
       const dateStr = mergedAt ? ` (${mergedAt})` : "";
       message += `• <a href="${escapeHtml(pr.html_url)}">#${pr.number}</a> ${escapeHtml(pr.title)} — @${escapeHtml(author)}${dateStr}\n`;
     }
