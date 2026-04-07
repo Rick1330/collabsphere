@@ -32,6 +32,8 @@ const requiredThemeVariables = [
 
 const lightThemeBlock = themeCss.match(/:root\s*\{([\s\S]*?)\}/)?.[1];
 const darkThemeBlock = themeCss.match(/\[data-theme="dark"\]\s*\{([\s\S]*?)\}/)?.[1];
+const importThemePattern = /^\s*@import\s+(?:url\()?['"]\.\.\/styles\/theme\.css['"]\)?;?/m;
+const importTokensPattern = /^\s*@import\s+(?:url\()?['"]\.\.\/styles\/tokens\.css['"]\)?;?/m;
 
 test("theme.css defines the exact section 3.9.3 variable names for light and dark themes", () => {
   assert.match(themeCss, /:root\s*\{/);
@@ -40,30 +42,24 @@ test("theme.css defines the exact section 3.9.3 variable names for light and dar
   assert.ok(darkThemeBlock, 'expected [data-theme="dark"] theme block to exist');
 
   for (const variableName of requiredThemeVariables) {
-    const escapedName = variableName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const escapedName = variableName.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 
     assert.match(
       lightThemeBlock,
-      new RegExp(`${escapedName}\\s*:`),
+      new RegExp(String.raw`${escapedName}\s*:`),
       `${variableName} should be defined in the light theme block`,
     );
     assert.match(
       darkThemeBlock,
-      new RegExp(`${escapedName}\\s*:`),
+      new RegExp(String.raw`${escapedName}\s*:`),
       `${variableName} should be defined in the dark theme block`,
     );
   }
 });
 
 test("globals.css imports the canonical theme/token styles and removes the old ad hoc root palette", () => {
-  assert.match(
-    globalsCss,
-    /^\s*@import\s+(?:url\()?['"]\.\.\/styles\/theme\.css['"]\)?;?/m,
-  );
-  assert.match(
-    globalsCss,
-    /^\s*@import\s+(?:url\()?['"]\.\.\/styles\/tokens\.css['"]\)?;?/m,
-  );
+  assert.match(globalsCss, importThemePattern);
+  assert.match(globalsCss, importTokensPattern);
 
   for (const removedVariable of [
     "--page-bg",
