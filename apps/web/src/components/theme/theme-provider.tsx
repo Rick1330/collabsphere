@@ -32,12 +32,29 @@ type ThemeProviderState = {
   systemTheme: ResolvedTheme;
 };
 
+type ThemeMediaQueryListLike = {
+  matches: boolean;
+  addEventListener?: (
+    type: "change",
+    listener: (event: ThemeMediaQueryChangeEventLike) => void,
+  ) => void;
+  removeEventListener?: (
+    type: "change",
+    listener: (event: ThemeMediaQueryChangeEventLike) => void,
+  ) => void;
+  addListener?: (listener: (event: ThemeMediaQueryChangeEventLike) => void) => void;
+  removeListener?: (listener: (event: ThemeMediaQueryChangeEventLike) => void) => void;
+};
+
+type ThemeMediaQueryChangeEventLike = Pick<ThemeMediaQueryListLike, "matches">;
+type ThemeMediaQueryWindow = Pick<Window, "matchMedia">;
 type ThemeToggleTimer = ReturnType<typeof setTimeout>;
 type ThemeToggleScheduler = typeof setTimeout;
 type ThemeToggleCanceller = typeof clearTimeout;
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
+export const systemThemeMediaQuery = "(prefers-color-scheme: dark)";
 export const themeToggleDebounceMs = 200;
 
 const getSafeLocalStorage = (): Storage | null => {
@@ -54,6 +71,60 @@ const getSafeLocalStorage = (): Storage | null => {
 
 const getInitialThemePreference = (): ThemePreference => {
   return readStoredThemePreference(getSafeLocalStorage());
+};
+
+export const resolveSystemTheme = (
+  mediaQueryList: ThemeMediaQueryChangeEventLike | null | undefined,
+): ResolvedTheme => (mediaQueryList?.matches ? "dark" : "light");
+
+export const readSystemTheme = (
+  windowLike: ThemeMediaQueryWindow | null | undefined,
+): ResolvedTheme => {
+  if (!windowLike) {
+    return defaultResolvedTheme;
+  }
+
+  try {
+    return resolveSystemTheme(windowLike.matchMedia(systemThemeMediaQuery));
+  } catch {
+    return defaultResolvedTheme;
+  }
+};
+
+export const subscribeToSystemTheme = (
+  windowLike: ThemeMediaQueryWindow | null | undefined,
+  onSystemThemeChange: (theme: ResolvedTheme) => void,
+) => {
+  if (!windowLike) {
+    return () => {};
+  }
+
+  try {
+    const mediaQueryList = windowLike.matchMedia(systemThemeMediaQuery);
+    const handleChange = (event: ThemeMediaQueryChangeEventLike) => {
+      onSystemThemeChange(resolveSystemTheme(event));
+    };
+
+    if (typeof mediaQueryList.addEventListener === "function") {
+      mediaQueryList.addEventListener("change", handleChange);
+
+      return () => {
+        mediaQueryList.removeEventListener?.("change", handleChange);
+      };
+    }
+
+    if (typeof mediaQueryList.addListener === "function") {
+      mediaQueryList.addListener(handleChange);
+
+      return () => {
+        mediaQueryList.removeListener?.(handleChange);
+      };
+    }
+  } catch {
+    return () => {};
+  }
+
+  return () => {};
 };
 
 export const queueThemeToggle = (
@@ -73,15 +144,37 @@ export const ThemeProvider = ({ children }: PropsWithChildren) => {
   const toggleTimerRef = useRef<ThemeToggleTimer | null>(null);
   const [themeState, setThemeState] = useState<ThemeProviderState>(() => ({
     preference: getInitialThemePreference(),
-    systemTheme: defaultResolvedTheme,
+    systemTheme:
+      typeof window === "undefined" ? defaultResolvedTheme : readSystemTheme(window),
   }));
   const { preference, systemTheme } = themeState;
   const resolvedTheme = resolveThemePreference(preference, systemTheme);
 
   useEffect(() => {
     applyThemePreference(document, preference, systemTheme);
-    writeStoredThemePreference(getSafeLocalStorage(), preference);
   }, [preference, systemTheme]);
+
+  useEffect(() => {
+    writeStoredThemePreference(getSafeLocalStorage(), preference);
+  }, [preference]);
+
+  useEffect(() => {
+    return subscribeToSystemTheme(
+      typeof window === "undefined" ? null : window,
+      (nextSystemTheme) => {
+        setThemeState((currentState) => {
+          if (currentState.systemTheme === nextSystemTheme) {
+            return currentState;
+          }
+
+          return {
+            ...currentState,
+            systemTheme: nextSystemTheme,
+          };
+        });
+      },
+    );
+  }, []);
 
   useEffect(() => {
     return () => {
