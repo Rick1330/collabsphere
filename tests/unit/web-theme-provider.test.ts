@@ -3,6 +3,9 @@ import test from "node:test";
 
 import {
   queueThemeToggle,
+  readSystemTheme,
+  subscribeToSystemTheme,
+  systemThemeMediaQuery,
   themeToggleDebounceMs,
 } from "../../apps/web/src/components/theme/theme-provider";
 import {
@@ -26,6 +29,54 @@ class MemoryStorage {
 
   setItem(key: string, value: string) {
     this.#store.set(key, value);
+  }
+}
+
+class ModernMediaQueryList {
+  matches: boolean;
+  listener: ((event: { matches: boolean }) => void) | null = null;
+
+  constructor(matches: boolean) {
+    this.matches = matches;
+  }
+
+  addEventListener(_type: "change", listener: (event: { matches: boolean }) => void) {
+    this.listener = listener;
+  }
+
+  removeEventListener(_type: "change", listener: (event: { matches: boolean }) => void) {
+    if (this.listener === listener) {
+      this.listener = null;
+    }
+  }
+
+  dispatch(matches: boolean) {
+    this.matches = matches;
+    this.listener?.({ matches });
+  }
+}
+
+class LegacyMediaQueryList {
+  matches: boolean;
+  listener: ((event: { matches: boolean }) => void) | null = null;
+
+  constructor(matches: boolean) {
+    this.matches = matches;
+  }
+
+  addListener(listener: (event: { matches: boolean }) => void) {
+    this.listener = listener;
+  }
+
+  removeListener(listener: (event: { matches: boolean }) => void) {
+    if (this.listener === listener) {
+      this.listener = null;
+    }
+  }
+
+  dispatch(matches: boolean) {
+    this.matches = matches;
+    this.listener?.({ matches });
   }
 }
 
@@ -66,6 +117,81 @@ test("resolveThemePreference keeps explicit choices and falls back to light for 
   assert.equal(resolveThemePreference("dark"), "dark");
   assert.equal(resolveThemePreference("system"), defaultResolvedTheme);
   assert.equal(resolveThemePreference("system", "dark"), "dark");
+  assert.equal(resolveThemePreference("light", "dark"), "light");
+  assert.equal(resolveThemePreference("dark", "light"), "dark");
+});
+
+test("readSystemTheme reads the current OS preference and falls back safely", () => {
+  const darkWindow = {
+    matchMedia(query: string) {
+      assert.equal(query, systemThemeMediaQuery);
+      return new ModernMediaQueryList(true);
+    },
+  };
+
+  const lightWindow = {
+    matchMedia(query: string) {
+      assert.equal(query, systemThemeMediaQuery);
+      return new ModernMediaQueryList(false);
+    },
+  };
+
+  const throwingWindow = {
+    matchMedia() {
+      throw new Error("unsupported");
+    },
+  };
+
+  assert.equal(readSystemTheme(darkWindow), "dark");
+  assert.equal(readSystemTheme(lightWindow), "light");
+  assert.equal(readSystemTheme(throwingWindow), defaultResolvedTheme);
+  assert.equal(readSystemTheme(null), defaultResolvedTheme);
+});
+
+test("subscribeToSystemTheme initializes from matchMedia and reacts to modern change events", () => {
+  const observedThemes: string[] = [];
+  const mediaQueryList = new ModernMediaQueryList(true);
+  const windowLike = {
+    matchMedia(query: string) {
+      assert.equal(query, systemThemeMediaQuery);
+      return mediaQueryList;
+    },
+  };
+
+  const cleanup = subscribeToSystemTheme(windowLike, (theme) => {
+    observedThemes.push(theme);
+  });
+
+  assert.deepEqual(observedThemes, ["dark"]);
+
+  mediaQueryList.dispatch(false);
+  assert.deepEqual(observedThemes, ["dark", "light"]);
+
+  cleanup();
+  assert.equal(mediaQueryList.listener, null);
+});
+
+test("subscribeToSystemTheme supports legacy media-query listeners and removes them on cleanup", () => {
+  const observedThemes: string[] = [];
+  const mediaQueryList = new LegacyMediaQueryList(false);
+  const windowLike = {
+    matchMedia(query: string) {
+      assert.equal(query, systemThemeMediaQuery);
+      return mediaQueryList;
+    },
+  };
+
+  const cleanup = subscribeToSystemTheme(windowLike, (theme) => {
+    observedThemes.push(theme);
+  });
+
+  assert.deepEqual(observedThemes, ["light"]);
+
+  mediaQueryList.dispatch(true);
+  assert.deepEqual(observedThemes, ["light", "dark"]);
+
+  cleanup();
+  assert.equal(mediaQueryList.listener, null);
 });
 
 test("getNextThemePreference uses a stable light-dark-system cycle for downstream toggle UIs", () => {
