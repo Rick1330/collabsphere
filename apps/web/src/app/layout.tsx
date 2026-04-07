@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
+import { ThemeProvider } from "@/components/theme/theme-provider";
+
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -15,10 +17,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="app-shell-root">
-        <a className="skip-link" href="#main-content">
-          Skip to main content
-        </a>
-        {children}
+        <ThemeProvider>
+          <a className="skip-link" href="#main-content">
+            Skip to main content
+          </a>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );
