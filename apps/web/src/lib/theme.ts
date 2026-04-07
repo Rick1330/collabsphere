@@ -17,9 +17,14 @@ type ThemeDocument = {
 
 export const defaultThemePreference: ThemePreference = "system";
 export const defaultResolvedTheme: ResolvedTheme = "light";
+export const systemThemeMediaQuery = "(prefers-color-scheme: dark)";
 
 export const isThemePreference = (value: string | null | undefined): value is ThemePreference =>
   value === "light" || value === "dark" || value === "system";
+
+export const readThemePreferenceValue = (
+  value: string | null | undefined,
+): ThemePreference => (isThemePreference(value) ? value : defaultThemePreference);
 
 export const readStoredThemePreference = (storage?: ThemeStorage | null): ThemePreference => {
   if (!storage) {
@@ -27,8 +32,7 @@ export const readStoredThemePreference = (storage?: ThemeStorage | null): ThemeP
   }
 
   try {
-    const storedValue = storage.getItem(themePreferenceStorageKey);
-    return isThemePreference(storedValue) ? storedValue : defaultThemePreference;
+    return readThemePreferenceValue(storage.getItem(themePreferenceStorageKey));
   } catch {
     return defaultThemePreference;
   }
