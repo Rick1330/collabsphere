@@ -14,7 +14,9 @@ import {
   defaultThemePreference,
   getNextThemePreference,
   readStoredThemePreference,
+  readThemePreferenceValue,
   resolveThemePreference,
+  systemThemeMediaQuery,
   themePreferenceStorageKey,
   writeStoredThemePreference,
   type ThemePreference,
@@ -144,6 +146,14 @@ test("readStoredThemePreference defaults to system when storage is empty or inva
 
   storage.setItem(themePreferenceStorageKey, "unexpected");
   assert.equal(readStoredThemePreference(storage), defaultThemePreference);
+});
+
+test("readThemePreferenceValue normalizes unknown values to the default preference", () => {
+  assert.equal(readThemePreferenceValue("light"), themeValues.light);
+  assert.equal(readThemePreferenceValue("dark"), themeValues.dark);
+  assert.equal(readThemePreferenceValue("system"), themeValues.system);
+  assert.equal(readThemePreferenceValue("unexpected"), defaultThemePreference);
+  assert.equal(readThemePreferenceValue(null), defaultThemePreference);
 });
 
 test("writeStoredThemePreference persists supported theme values for later reads", () => {

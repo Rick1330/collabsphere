@@ -16,6 +16,7 @@ import {
   getNextThemePreference,
   readStoredThemePreference,
   resolveThemePreference,
+  systemThemeMediaQuery,
   writeStoredThemePreference,
   type ResolvedTheme,
   type ThemePreference,
@@ -54,8 +55,6 @@ type ThemeToggleScheduler = typeof setTimeout;
 type ThemeToggleCanceller = typeof clearTimeout;
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
-
-export const systemThemeMediaQuery = "(prefers-color-scheme: dark)";
 export const themeToggleDebounceMs = 200;
 
 const getSafeLocalStorage = (): Storage | null => {
