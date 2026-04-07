@@ -14,7 +14,7 @@ export default function RootLayout({
 }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="en">
-      <body>
+      <body className="app-shell-root">
         <a className="skip-link" href="#main-content">
           Skip to main content
         </a>
