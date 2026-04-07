@@ -36,16 +36,17 @@ type ThemeMediaQueryListLike = {
   matches: boolean;
   addEventListener?: (
     type: "change",
-    listener: (event: ThemeMediaQueryListLike) => void,
+    listener: (event: ThemeMediaQueryChangeEventLike) => void,
   ) => void;
   removeEventListener?: (
     type: "change",
-    listener: (event: ThemeMediaQueryListLike) => void,
+    listener: (event: ThemeMediaQueryChangeEventLike) => void,
   ) => void;
-  addListener?: (listener: (event: ThemeMediaQueryListLike) => void) => void;
-  removeListener?: (listener: (event: ThemeMediaQueryListLike) => void) => void;
+  addListener?: (listener: (event: ThemeMediaQueryChangeEventLike) => void) => void;
+  removeListener?: (listener: (event: ThemeMediaQueryChangeEventLike) => void) => void;
 };
 
+type ThemeMediaQueryChangeEventLike = Pick<ThemeMediaQueryListLike, "matches">;
 type ThemeMediaQueryWindow = Pick<Window, "matchMedia">;
 type ThemeToggleTimer = ReturnType<typeof setTimeout>;
 type ThemeToggleScheduler = typeof setTimeout;
@@ -73,7 +74,7 @@ const getInitialThemePreference = (): ThemePreference => {
 };
 
 export const resolveSystemTheme = (
-  mediaQueryList: Pick<ThemeMediaQueryListLike, "matches"> | null | undefined,
+  mediaQueryList: ThemeMediaQueryChangeEventLike | null | undefined,
 ): ResolvedTheme => (mediaQueryList?.matches ? "dark" : "light");
 
 export const readSystemTheme = (
@@ -100,11 +101,9 @@ export const subscribeToSystemTheme = (
 
   try {
     const mediaQueryList = windowLike.matchMedia(systemThemeMediaQuery);
-    const handleChange = (event: ThemeMediaQueryListLike) => {
+    const handleChange = (event: ThemeMediaQueryChangeEventLike) => {
       onSystemThemeChange(resolveSystemTheme(event));
     };
-
-    onSystemThemeChange(resolveSystemTheme(mediaQueryList));
 
     if (typeof mediaQueryList.addEventListener === "function") {
       mediaQueryList.addEventListener("change", handleChange);
@@ -145,15 +144,19 @@ export const ThemeProvider = ({ children }: PropsWithChildren) => {
   const toggleTimerRef = useRef<ThemeToggleTimer | null>(null);
   const [themeState, setThemeState] = useState<ThemeProviderState>(() => ({
     preference: getInitialThemePreference(),
-    systemTheme: defaultResolvedTheme,
+    systemTheme:
+      typeof window === "undefined" ? defaultResolvedTheme : readSystemTheme(window),
   }));
   const { preference, systemTheme } = themeState;
   const resolvedTheme = resolveThemePreference(preference, systemTheme);
 
   useEffect(() => {
     applyThemePreference(document, preference, systemTheme);
-    writeStoredThemePreference(getSafeLocalStorage(), preference);
   }, [preference, systemTheme]);
+
+  useEffect(() => {
+    writeStoredThemePreference(getSafeLocalStorage(), preference);
+  }, [preference]);
 
   useEffect(() => {
     return subscribeToSystemTheme(

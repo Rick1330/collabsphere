@@ -20,6 +20,15 @@ import {
   type ThemePreference,
 } from "../../apps/web/src/lib/theme";
 
+const themeValues = {
+  light: "light",
+  dark: "dark",
+  system: "system",
+} as const;
+
+type ThemeMode = keyof typeof themeValues;
+type MediaQueryApi = "modern" | "legacy";
+
 class MemoryStorage {
   #store = new Map<string, string>();
 
@@ -32,51 +41,46 @@ class MemoryStorage {
   }
 }
 
-class ModernMediaQueryList {
+class FakeMediaQueryList {
   matches: boolean;
   listener: ((event: { matches: boolean }) => void) | null = null;
+  addEventListener?:
+    | ((_type: "change", listener: (event: { matches: boolean }) => void) => void)
+    | undefined;
+  removeEventListener?:
+    | ((_type: "change", listener: (event: { matches: boolean }) => void) => void)
+    | undefined;
+  addListener?: ((listener: (event: { matches: boolean }) => void) => void) | undefined;
+  removeListener?: ((listener: (event: { matches: boolean }) => void) => void) | undefined;
 
-  constructor(matches: boolean) {
+  constructor(api: MediaQueryApi, matches: boolean) {
     this.matches = matches;
-  }
 
-  addEventListener(_type: "change", listener: (event: { matches: boolean }) => void) {
-    this.listener = listener;
-  }
-
-  removeEventListener(_type: "change", listener: (event: { matches: boolean }) => void) {
-    if (this.listener === listener) {
-      this.listener = null;
+    if (api === "modern") {
+      this.addEventListener = (_type, listener) => {
+        this.listener = listener;
+      };
+      this.removeEventListener = (_type, listener) => {
+        if (this.listener === listener) {
+          this.listener = null;
+        }
+      };
+      return;
     }
+
+    this.addListener = (listener) => {
+      this.listener = listener;
+    };
+    this.removeListener = (listener) => {
+      if (this.listener === listener) {
+        this.listener = null;
+      }
+    };
   }
 
-  dispatch(matches: boolean) {
-    this.matches = matches;
-    this.listener?.({ matches });
-  }
-}
-
-class LegacyMediaQueryList {
-  matches: boolean;
-  listener: ((event: { matches: boolean }) => void) | null = null;
-
-  constructor(matches: boolean) {
-    this.matches = matches;
-  }
-
-  addListener(listener: (event: { matches: boolean }) => void) {
-    this.listener = listener;
-  }
-
-  removeListener(listener: (event: { matches: boolean }) => void) {
-    if (this.listener === listener) {
-      this.listener = null;
-    }
-  }
-
-  dispatch(matches: boolean) {
-    this.matches = matches;
-    this.listener?.({ matches });
+  dispatch(nextMatches: boolean) {
+    this.matches = nextMatches;
+    this.listener?.({ matches: nextMatches });
   }
 }
 
@@ -94,6 +98,45 @@ const createThemeDocument = () => ({
   },
 });
 
+const createWindowLike = (mediaQueryList: FakeMediaQueryList) => ({
+  matchMedia(query: string) {
+    assert.equal(query, systemThemeMediaQuery);
+    return mediaQueryList;
+  },
+});
+
+const createSubscriptionHarness = ({
+  api,
+  initialTheme,
+}: {
+  api: MediaQueryApi;
+  initialTheme: ThemeMode;
+}) => {
+  const observedThemes: ThemeMode[] = [];
+  const mediaQueryList = new FakeMediaQueryList(api, initialTheme === themeValues.dark);
+  const cleanup = subscribeToSystemTheme(createWindowLike(mediaQueryList), (theme) => {
+    observedThemes.push(theme);
+  });
+
+  return {
+    cleanup,
+    mediaQueryList,
+    observedThemes,
+  };
+};
+
+const assertResolvedTheme = ({
+  preference,
+  expected,
+  systemTheme,
+}: {
+  preference: ThemePreference;
+  expected: ThemeMode;
+  systemTheme?: "light" | "dark";
+}) => {
+  assert.equal(resolveThemePreference(preference, systemTheme), expected);
+};
+
 test("readStoredThemePreference defaults to system when storage is empty or invalid", () => {
   const storage = new MemoryStorage();
 
@@ -106,35 +149,39 @@ test("readStoredThemePreference defaults to system when storage is empty or inva
 test("writeStoredThemePreference persists supported theme values for later reads", () => {
   const storage = new MemoryStorage();
 
-  for (const preference of ["light", "dark", "system"] satisfies ThemePreference[]) {
+  for (const preference of Object.values(themeValues)) {
     writeStoredThemePreference(storage, preference);
     assert.equal(readStoredThemePreference(storage), preference);
   }
 });
 
 test("resolveThemePreference keeps explicit choices and falls back to light for system", () => {
-  assert.equal(resolveThemePreference("light"), "light");
-  assert.equal(resolveThemePreference("dark"), "dark");
-  assert.equal(resolveThemePreference("system"), defaultResolvedTheme);
-  assert.equal(resolveThemePreference("system", "dark"), "dark");
-  assert.equal(resolveThemePreference("light", "dark"), "light");
-  assert.equal(resolveThemePreference("dark", "light"), "dark");
+  assertResolvedTheme({ preference: themeValues.light, expected: themeValues.light });
+  assertResolvedTheme({ preference: themeValues.dark, expected: themeValues.dark });
+  assertResolvedTheme({
+    preference: themeValues.system,
+    expected: defaultResolvedTheme,
+  });
+  assertResolvedTheme({
+    preference: themeValues.system,
+    systemTheme: themeValues.dark,
+    expected: themeValues.dark,
+  });
+  assertResolvedTheme({
+    preference: themeValues.light,
+    systemTheme: themeValues.dark,
+    expected: themeValues.light,
+  });
+  assertResolvedTheme({
+    preference: themeValues.dark,
+    systemTheme: themeValues.light,
+    expected: themeValues.dark,
+  });
 });
 
 test("readSystemTheme reads the current OS preference and falls back safely", () => {
-  const darkWindow = {
-    matchMedia(query: string) {
-      assert.equal(query, systemThemeMediaQuery);
-      return new ModernMediaQueryList(true);
-    },
-  };
-
-  const lightWindow = {
-    matchMedia(query: string) {
-      assert.equal(query, systemThemeMediaQuery);
-      return new ModernMediaQueryList(false);
-    },
-  };
+  const darkWindow = createWindowLike(new FakeMediaQueryList("modern", true));
+  const lightWindow = createWindowLike(new FakeMediaQueryList("modern", false));
 
   const throwingWindow = {
     matchMedia() {
@@ -142,69 +189,53 @@ test("readSystemTheme reads the current OS preference and falls back safely", ()
     },
   };
 
-  assert.equal(readSystemTheme(darkWindow), "dark");
-  assert.equal(readSystemTheme(lightWindow), "light");
+  assert.equal(readSystemTheme(darkWindow), themeValues.dark);
+  assert.equal(readSystemTheme(lightWindow), themeValues.light);
   assert.equal(readSystemTheme(throwingWindow), defaultResolvedTheme);
   assert.equal(readSystemTheme(null), defaultResolvedTheme);
 });
 
-test("subscribeToSystemTheme initializes from matchMedia and reacts to modern change events", () => {
-  const observedThemes: string[] = [];
-  const mediaQueryList = new ModernMediaQueryList(true);
-  const windowLike = {
-    matchMedia(query: string) {
-      assert.equal(query, systemThemeMediaQuery);
-      return mediaQueryList;
-    },
-  };
+for (const scenario of [
+  {
+    api: "modern",
+    changeTheme: themeValues.light,
+    initialTheme: themeValues.dark,
+    name: "subscribeToSystemTheme reacts to modern change events and removes listeners on cleanup",
+  },
+  {
+    api: "legacy",
+    changeTheme: themeValues.dark,
+    initialTheme: themeValues.light,
+    name: "subscribeToSystemTheme supports legacy media-query listeners and removes them on cleanup",
+  },
+] as const) {
+  test(scenario.name, () => {
+    const { cleanup, mediaQueryList, observedThemes } = createSubscriptionHarness(scenario);
 
-  const cleanup = subscribeToSystemTheme(windowLike, (theme) => {
-    observedThemes.push(theme);
+    assert.deepEqual(observedThemes, []);
+
+    mediaQueryList.dispatch(scenario.changeTheme === themeValues.dark);
+    assert.deepEqual(observedThemes, [scenario.changeTheme]);
+
+    cleanup();
+    assert.equal(mediaQueryList.listener, null);
+
+    mediaQueryList.dispatch(scenario.initialTheme === themeValues.dark);
+    assert.deepEqual(observedThemes, [scenario.changeTheme]);
   });
-
-  assert.deepEqual(observedThemes, ["dark"]);
-
-  mediaQueryList.dispatch(false);
-  assert.deepEqual(observedThemes, ["dark", "light"]);
-
-  cleanup();
-  assert.equal(mediaQueryList.listener, null);
-});
-
-test("subscribeToSystemTheme supports legacy media-query listeners and removes them on cleanup", () => {
-  const observedThemes: string[] = [];
-  const mediaQueryList = new LegacyMediaQueryList(false);
-  const windowLike = {
-    matchMedia(query: string) {
-      assert.equal(query, systemThemeMediaQuery);
-      return mediaQueryList;
-    },
-  };
-
-  const cleanup = subscribeToSystemTheme(windowLike, (theme) => {
-    observedThemes.push(theme);
-  });
-
-  assert.deepEqual(observedThemes, ["light"]);
-
-  mediaQueryList.dispatch(true);
-  assert.deepEqual(observedThemes, ["light", "dark"]);
-
-  cleanup();
-  assert.equal(mediaQueryList.listener, null);
-});
+}
 
 test("getNextThemePreference uses a stable light-dark-system cycle for downstream toggle UIs", () => {
-  assert.equal(getNextThemePreference("system"), "light");
-  assert.equal(getNextThemePreference("light"), "dark");
-  assert.equal(getNextThemePreference("dark"), "system");
+  assert.equal(getNextThemePreference(themeValues.system), themeValues.light);
+  assert.equal(getNextThemePreference(themeValues.light), themeValues.dark);
+  assert.equal(getNextThemePreference(themeValues.dark), themeValues.system);
 });
 
 test("queueThemeToggle debounces rapid theme toggles and only keeps the latest pending commit", () => {
   let nextTimerId = 0;
   const pendingCommits = new Map<number, () => void>();
   const cancelledTimerIds: number[] = [];
-  let committedPreference = "system";
+  let committedPreference: ThemeMode = themeValues.system;
 
   const scheduleToggle = ((callback: () => void, delay?: number) => {
     assert.equal(delay, themeToggleDebounceMs);
@@ -241,35 +272,35 @@ test("queueThemeToggle debounces rapid theme toggles and only keeps the latest p
 
   assert.deepEqual(cancelledTimerIds, [1]);
   assert.deepEqual([...pendingCommits.keys()], [2]);
-  assert.equal(committedPreference, "system");
+  assert.equal(committedPreference, themeValues.system);
 
   pendingCommits.get(2)?.();
 
-  assert.equal(committedPreference, "light");
+  assert.equal(committedPreference, themeValues.light);
 });
 
 test("applyThemePreference sets dark mode attributes and color scheme explicitly", () => {
   const themeDocument = createThemeDocument();
 
-  const resolvedTheme = applyThemePreference(themeDocument, "dark");
+  const resolvedTheme = applyThemePreference(themeDocument, themeValues.dark);
 
-  assert.equal(resolvedTheme, "dark");
-  assert.equal(themeDocument.documentElement.dataset.theme, "dark");
-  assert.equal(themeDocument.documentElement.style.colorScheme, "dark");
+  assert.equal(resolvedTheme, themeValues.dark);
+  assert.equal(themeDocument.documentElement.dataset.theme, themeValues.dark);
+  assert.equal(themeDocument.documentElement.style.colorScheme, themeValues.dark);
 });
 
 test("applyThemePreference clears the dark attribute for light and system fallback", () => {
   const themeDocument = createThemeDocument();
-  themeDocument.documentElement.dataset.theme = "dark";
+  themeDocument.documentElement.dataset.theme = themeValues.dark;
 
-  const resolvedLightTheme = applyThemePreference(themeDocument, "light");
-  assert.equal(resolvedLightTheme, "light");
+  const resolvedLightTheme = applyThemePreference(themeDocument, themeValues.light);
+  assert.equal(resolvedLightTheme, themeValues.light);
   assert.equal(themeDocument.documentElement.dataset.theme, undefined);
-  assert.equal(themeDocument.documentElement.style.colorScheme, "light");
+  assert.equal(themeDocument.documentElement.style.colorScheme, themeValues.light);
 
-  themeDocument.documentElement.dataset.theme = "dark";
-  const resolvedSystemTheme = applyThemePreference(themeDocument, "system");
-  assert.equal(resolvedSystemTheme, "light");
+  themeDocument.documentElement.dataset.theme = themeValues.dark;
+  const resolvedSystemTheme = applyThemePreference(themeDocument, themeValues.system);
+  assert.equal(resolvedSystemTheme, themeValues.light);
   assert.equal(themeDocument.documentElement.dataset.theme, undefined);
-  assert.equal(themeDocument.documentElement.style.colorScheme, "light");
+  assert.equal(themeDocument.documentElement.style.colorScheme, themeValues.light);
 });
