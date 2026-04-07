@@ -212,6 +212,28 @@ button {
   padding: 1.25rem 1.4rem;
 }
 
+.shell__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem 1.5rem;
+  align-items: start;
+}
+
+.shell__header-intro {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.shell__header-copy {
+  margin: 0;
+  max-width: 54ch;
+}
+
+.shell__header-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .shell__main {
   display: grid;
   gap: 1.5rem;
@@ -419,6 +441,191 @@ button {
   background: var(--color-accent-hover);
 }
 
+.shell-user-menu {
+  position: relative;
+}
+
+.shell-user-menu__trigger {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.8rem;
+  min-width: min(21rem, calc(100vw - 4rem));
+  padding: 0.8rem 0.95rem;
+  border-radius: 1.15rem;
+  border: 1px solid
+    color-mix(in srgb, var(--color-border) 78%, var(--color-accent) 22%);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-card) 92%, var(--color-bg-secondary)) 0%,
+      color-mix(
+          in srgb,
+          var(--surface-card-subtle) 84%,
+          var(--section-accent, var(--color-accent))
+        )
+        100%
+    );
+  box-shadow: var(--shadow-soft);
+  color: var(--color-text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.shell-user-menu__trigger:hover,
+.shell-user-menu__trigger:focus-visible {
+  transform: translateY(-1px);
+  border-color:
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 32%, var(--color-border));
+  box-shadow: var(--shadow-elevated);
+}
+
+.shell-user-menu__trigger:focus-visible,
+.shell-user-menu__option:focus-visible {
+  outline: 2px solid var(--focus-ring-color);
+  outline-offset: 2px;
+}
+
+.shell-user-menu__avatar,
+.shell-user-menu__identity-avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 2.55rem;
+  height: 2.55rem;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--section-accent, var(--color-accent)) 80%, white),
+      color-mix(in srgb, var(--section-accent, var(--color-accent)) 28%, transparent)
+    );
+  color: var(--color-bg-primary);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 34%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--section-accent, var(--color-accent)) 24%, transparent);
+}
+
+.shell-user-menu__trigger-copy,
+.shell-user-menu__identity-copy,
+.shell-user-menu__option-copy {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.shell-user-menu__trigger-label,
+.shell-user-menu__identity-name,
+.shell-user-menu__option-label {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.shell-user-menu__trigger-state,
+.shell-user-menu__identity-meta,
+.shell-user-menu__option-description {
+  color: var(--color-text-secondary);
+  font-size: 0.88rem;
+}
+
+.shell-user-menu__trigger-caret {
+  font-size: 0.88rem;
+  color: var(--color-text-tertiary);
+}
+
+.shell-user-menu__panel {
+  position: absolute;
+  inset: calc(100% + 0.7rem) 0 auto auto;
+  z-index: 8;
+  width: min(22rem, calc(100vw - 2rem));
+  padding: 1rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid
+    color-mix(in srgb, var(--color-border) 82%, var(--section-accent, var(--color-accent)) 18%);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-card) 96%, var(--color-bg-secondary)) 0%,
+      color-mix(in srgb, var(--surface-card-subtle) 92%, var(--surface-card)) 100%
+    );
+  box-shadow: var(--shadow-elevated);
+}
+
+.shell-user-menu__identity {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.shell-user-menu__divider {
+  height: 1px;
+  margin: 0.9rem 0;
+  background: var(--border-subtle);
+}
+
+.shell-user-menu__theme-group {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.shell-user-menu__section-label {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.shell-user-menu__options {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.shell-user-menu__option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.85rem;
+  align-items: start;
+  padding: 0.9rem 0.95rem;
+  border-radius: 1rem;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-card);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.shell-user-menu__option:hover,
+.shell-user-menu__option:focus-visible,
+.shell-user-menu__option[data-selected="true"] {
+  border-color:
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 28%, var(--color-border));
+  background:
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 7%, var(--surface-card));
+}
+
+.shell-user-menu__option-indicator {
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.2rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-card-subtle);
+  box-shadow: inset 0 0 0 0.2rem transparent;
+}
+
+.shell-user-menu__option[data-selected="true"] .shell-user-menu__option-indicator {
+  border-color: var(--section-accent, var(--color-accent));
+  background: var(--section-accent, var(--color-accent));
+  box-shadow: inset 0 0 0 0.2rem var(--surface-card);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -456,5 +663,24 @@ button {
   .hero-panel,
   .error-card {
     padding: 1rem;
+  }
+
+  .shell__header {
+    grid-template-columns: 1fr;
+  }
+
+  .shell__header-actions,
+  .shell-user-menu__trigger {
+    width: 100%;
+  }
+
+  .shell-user-menu__panel {
+    position: static;
+    width: 100%;
+    margin-top: 0.75rem;
+  }
+
+  .shell-user-menu__trigger-label {
+    font-size: 0.95rem;
   }
 }

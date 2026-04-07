@@ -1,7 +1,8 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
+import * as React from "react";
 
 import type { NavItem } from "./navigation";
+import { ThemeUserMenu } from "./user-theme-menu";
 
 type ShellTone = "public" | "global" | "workspace" | "admin";
 
@@ -11,7 +12,8 @@ type ShellFrameProps = {
   title: string;
   description: string;
   navItems: NavItem[];
-  children: ReactNode;
+  headerAction?: React.ReactNode;
+  children: React.ReactNode;
 };
 
 export function ShellFrame({
@@ -20,6 +22,7 @@ export function ShellFrame({
   title,
   description,
   navItems,
+  headerAction,
   children,
 }: ShellFrameProps) {
   return (
@@ -43,11 +46,16 @@ export function ShellFrame({
       </aside>
       <div className="shell__content">
         <header className="shell__header">
-          <span className="shell__eyebrow">Next.js App Router foundation</span>
-          <p className="shell__header-copy">
-            Route/layout architecture is live. Feature stories still need to
-            layer in auth, navigation behavior, data fetching, and final UI.
-          </p>
+          <div className="shell__header-intro">
+            <span className="shell__eyebrow">Next.js App Router foundation</span>
+            <p className="shell__header-copy">
+              Route/layout architecture is live. Feature stories still need to
+              layer in auth, navigation behavior, data fetching, and final UI.
+            </p>
+          </div>
+          <div className="shell__header-actions">
+            {headerAction ?? <ThemeUserMenu />}
+          </div>
         </header>
         <main id="main-content" className="shell__main">
           {children}
