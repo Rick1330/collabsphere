@@ -27,6 +27,11 @@ type ThemeContextValue = {
   toggleTheme: () => void;
 };
 
+type ThemeProviderState = {
+  preference: ThemePreference;
+  systemTheme: ResolvedTheme;
+};
+
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 const getSafeLocalStorage = (): Storage | null => {
@@ -46,8 +51,11 @@ const getInitialThemePreference = (): ThemePreference => {
 };
 
 export const ThemeProvider = ({ children }: PropsWithChildren) => {
-  const [preference, setThemePreference] = useState<ThemePreference>(getInitialThemePreference);
-  const [systemTheme] = useState<ResolvedTheme>(defaultResolvedTheme);
+  const [themeState, setThemeState] = useState<ThemeProviderState>(() => ({
+    preference: getInitialThemePreference(),
+    systemTheme: defaultResolvedTheme,
+  }));
+  const { preference, systemTheme } = themeState;
   const resolvedTheme = resolveThemePreference(preference, systemTheme);
 
   useEffect(() => {
@@ -55,8 +63,18 @@ export const ThemeProvider = ({ children }: PropsWithChildren) => {
     writeStoredThemePreference(getSafeLocalStorage(), preference);
   }, [preference, systemTheme]);
 
+  const setThemePreference = (nextPreference: ThemePreference) => {
+    setThemeState((currentState) => ({
+      ...currentState,
+      preference: nextPreference,
+    }));
+  };
+
   const toggleTheme = () => {
-    setThemePreference((currentPreference) => getNextThemePreference(currentPreference));
+    setThemeState((currentState) => ({
+      ...currentState,
+      preference: getNextThemePreference(currentState.preference),
+    }));
   };
 
   return (
