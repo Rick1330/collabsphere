@@ -2,7 +2,6 @@ import Link from "next/link";
 import * as React from "react";
 
 import type { NavItem } from "./navigation";
-import { ThemeUserMenu } from "./user-theme-menu";
 
 type ShellTone = "public" | "global" | "workspace" | "admin";
 
@@ -53,9 +52,9 @@ export function ShellFrame({
               layer in auth, navigation behavior, data fetching, and final UI.
             </p>
           </div>
-          <div className="shell__header-actions">
-            {headerAction ?? <ThemeUserMenu />}
-          </div>
+          {headerAction == null ? null : (
+            <div className="shell__header-actions">{headerAction}</div>
+          )}
         </header>
         <main id="main-content" className="shell__main">
           {children}

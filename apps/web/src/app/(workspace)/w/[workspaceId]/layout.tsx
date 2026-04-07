@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { workspaceNavItems } from "../../../../components/foundation/navigation";
 import { ShellFrame } from "../../../../components/foundation/shell-frame";
+import { ThemeUserMenu } from "../../../../components/foundation/user-theme-menu";
 
 type WorkspaceLayoutProps = {
   children: ReactNode;
@@ -23,6 +24,7 @@ export default async function WorkspaceLayout({
       title={`Workspace ${workspaceId}`}
       description="Workspace-scoped routes now live under a dedicated dynamic layout boundary ready for membership-aware features."
       navItems={workspaceNavItems(workspaceId)}
+      headerAction={<ThemeUserMenu />}
     >
       {children}
     </ShellFrame>

@@ -4,7 +4,6 @@ import * as React from "react";
 import {
   useEffect,
   useId,
-  useMemo,
   useRef,
   useState,
   type KeyboardEvent,
@@ -56,8 +55,21 @@ export const themeMenuOptions: readonly ThemeMenuOption[] = [
   },
 ] as const;
 
+const themeMenuNavigationKeys = new Set<ThemeMenuOptionKey>([
+  "ArrowDown",
+  "ArrowUp",
+  "Home",
+  "End",
+  "PageUp",
+  "PageDown",
+]);
+
 export const isThemeMenuOpenKey = (key: string) =>
   key === "Enter" || key === " " || key === "ArrowDown" || key === "ArrowUp";
+
+export const isThemeMenuNavigationKey = (
+  key: string,
+): key is ThemeMenuOptionKey => themeMenuNavigationKeys.has(key as ThemeMenuOptionKey);
 
 export const getThemeMenuNextIndex = (
   currentIndex: number,
@@ -97,19 +109,26 @@ export const getThemeMenuStatusLabel = (
 export function ThemeUserMenu({ initialOpen = false }: ThemeUserMenuProps) {
   const { preference, resolvedTheme, setThemePreference } = useTheme();
   const menuId = useId();
+  const themeLabelId = `${menuId}-theme-label`;
   const triggerId = `${menuId}-trigger`;
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const [hasMounted, setHasMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(initialOpen);
   const [activeIndex, setActiveIndex] = useState(() =>
     themeMenuOptions.findIndex((option) => option.value === preference),
   );
-
-  const selectedIndex = useMemo(
-    () => themeMenuOptions.findIndex((option) => option.value === preference),
-    [preference],
+  const selectedIndex = themeMenuOptions.findIndex(
+    (option) => option.value === preference,
   );
+  const statusLabel = hasMounted
+    ? getThemeMenuStatusLabel(preference, resolvedTheme)
+    : "Theme preference";
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!isOpen) {
@@ -187,14 +206,7 @@ export function ThemeUserMenu({ initialOpen = false }: ThemeUserMenuProps) {
       return;
     }
 
-    if (
-      event.key !== "ArrowDown" &&
-      event.key !== "ArrowUp" &&
-      event.key !== "Home" &&
-      event.key !== "End" &&
-      event.key !== "PageUp" &&
-      event.key !== "PageDown"
-    ) {
+    if (!isThemeMenuNavigationKey(event.key)) {
       return;
     }
 
@@ -251,8 +263,11 @@ export function ThemeUserMenu({ initialOpen = false }: ThemeUserMenuProps) {
           <span className="shell-user-menu__trigger-label">
             {placeholderIdentity.name}
           </span>
-          <span className="shell-user-menu__trigger-state">
-            {getThemeMenuStatusLabel(preference, resolvedTheme)}
+          <span
+            className="shell-user-menu__trigger-state"
+            suppressHydrationWarning
+          >
+            {statusLabel}
           </span>
         </span>
         <span className="shell-user-menu__trigger-caret" aria-hidden="true">
@@ -263,9 +278,6 @@ export function ThemeUserMenu({ initialOpen = false }: ThemeUserMenuProps) {
         <div
           id={menuId}
           className="shell-user-menu__panel"
-          role="menu"
-          aria-labelledby={triggerId}
-          onKeyDown={handleMenuKeyDown}
         >
           <div className="shell-user-menu__identity" role="presentation">
             <span className="shell-user-menu__identity-avatar" aria-hidden="true">
@@ -281,13 +293,20 @@ export function ThemeUserMenu({ initialOpen = false }: ThemeUserMenuProps) {
             </div>
           </div>
           <div className="shell-user-menu__divider" role="presentation" />
+          <p id={themeLabelId} className="shell-user-menu__section-label">
+            Display theme
+          </p>
           <div
             className="shell-user-menu__theme-group"
-            role="presentation"
-            aria-label="Theme options"
+            role="menu"
+            aria-labelledby={triggerId}
+            onKeyDown={handleMenuKeyDown}
           >
-            <p className="shell-user-menu__section-label">Display theme</p>
-            <div className="shell-user-menu__options" role="presentation">
+            <div
+              className="shell-user-menu__options"
+              role="group"
+              aria-labelledby={themeLabelId}
+            >
               {themeMenuOptions.map((option, index) => {
                 const checked = option.value === preference;
 
