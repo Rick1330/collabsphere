@@ -10,7 +10,9 @@ import {
 
 import {
   applyThemePreference,
+  defaultResolvedTheme,
   defaultThemePreference,
+  getNextThemePreference,
   readStoredThemePreference,
   resolveThemePreference,
   writeStoredThemePreference,
@@ -27,27 +29,34 @@ type ThemeContextValue = {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-const getInitialThemePreference = (): ThemePreference => {
+const getSafeLocalStorage = (): Storage | null => {
   if (typeof window === "undefined") {
-    return defaultThemePreference;
+    return null;
   }
 
-  return readStoredThemePreference(window.localStorage);
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+};
+
+const getInitialThemePreference = (): ThemePreference => {
+  return readStoredThemePreference(getSafeLocalStorage());
 };
 
 export const ThemeProvider = ({ children }: PropsWithChildren) => {
   const [preference, setThemePreference] = useState<ThemePreference>(getInitialThemePreference);
-  const resolvedTheme = resolveThemePreference(preference);
+  const [systemTheme] = useState<ResolvedTheme>(defaultResolvedTheme);
+  const resolvedTheme = resolveThemePreference(preference, systemTheme);
 
   useEffect(() => {
-    applyThemePreference(document, preference);
-    writeStoredThemePreference(window.localStorage, preference);
-  }, [preference]);
+    applyThemePreference(document, preference, systemTheme);
+    writeStoredThemePreference(getSafeLocalStorage(), preference);
+  }, [preference, systemTheme]);
 
   const toggleTheme = () => {
-    setThemePreference((currentPreference) =>
-      resolveThemePreference(currentPreference) === "dark" ? "light" : "dark",
-    );
+    setThemePreference((currentPreference) => getNextThemePreference(currentPreference));
   };
 
   return (

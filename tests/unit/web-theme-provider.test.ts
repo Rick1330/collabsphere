@@ -5,6 +5,7 @@ import {
   applyThemePreference,
   defaultResolvedTheme,
   defaultThemePreference,
+  getNextThemePreference,
   readStoredThemePreference,
   resolveThemePreference,
   themePreferenceStorageKey,
@@ -29,6 +30,11 @@ const createThemeDocument = () => ({
     dataset: {} as Record<string, string | undefined>,
     style: {
       colorScheme: "",
+    },
+    removeAttribute(name: string) {
+      if (name === "data-theme") {
+        delete this.dataset.theme;
+      }
     },
   },
 });
@@ -56,6 +62,12 @@ test("resolveThemePreference keeps explicit choices and falls back to light for 
   assert.equal(resolveThemePreference("dark"), "dark");
   assert.equal(resolveThemePreference("system"), defaultResolvedTheme);
   assert.equal(resolveThemePreference("system", "dark"), "dark");
+});
+
+test("getNextThemePreference uses a stable light-dark-system cycle for downstream toggle UIs", () => {
+  assert.equal(getNextThemePreference("system"), "light");
+  assert.equal(getNextThemePreference("light"), "dark");
+  assert.equal(getNextThemePreference("dark"), "system");
 });
 
 test("applyThemePreference sets dark mode attributes and color scheme explicitly", () => {

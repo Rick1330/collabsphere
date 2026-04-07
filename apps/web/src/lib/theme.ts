@@ -9,6 +9,7 @@ type ThemeRootElement = {
   style: {
     colorScheme: string;
   };
+  removeAttribute: (name: string) => void;
 };
 type ThemeDocument = {
   documentElement: ThemeRootElement;
@@ -53,6 +54,18 @@ export const resolveThemePreference = (
   systemTheme: ResolvedTheme = defaultResolvedTheme,
 ): ResolvedTheme => (preference === "system" ? systemTheme : preference);
 
+export const getNextThemePreference = (preference: ThemePreference): ThemePreference => {
+  if (preference === "system") {
+    return "light";
+  }
+
+  if (preference === "light") {
+    return "dark";
+  }
+
+  return "system";
+};
+
 export const applyThemePreference = (
   documentLike: ThemeDocument | null | undefined,
   preference: ThemePreference,
@@ -68,7 +81,7 @@ export const applyThemePreference = (
   if (resolvedTheme === "dark") {
     root.dataset.theme = "dark";
   } else {
-    delete root.dataset.theme;
+    root.removeAttribute("data-theme");
   }
 
   root.style.colorScheme = resolvedTheme;
