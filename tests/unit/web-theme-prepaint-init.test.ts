@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import vm from "node:vm";
 
 import {
   resolvePrepaintTheme,
   themePrepaintScript,
 } from "../../apps/web/src/lib/theme-init";
 import {
+  applyThemePreference,
   systemThemeMediaQuery,
   themePreferenceStorageKey,
 } from "../../apps/web/src/lib/theme";
@@ -19,71 +19,17 @@ const rootLayoutSource = fs.readFileSync(
   "utf8",
 );
 
-const createThemeInitHarness = ({
-  storedPreference,
-  systemPrefersDark,
-  throwsOnMatchMedia = false,
-  throwsOnStorageAccess = false,
-}: {
-  storedPreference: string | null;
-  systemPrefersDark: boolean;
-  throwsOnMatchMedia?: boolean;
-  throwsOnStorageAccess?: boolean;
-}) => {
-  const root = {
-    dataset: {} as Record<string, string | undefined>,
-    style: {
-      colorScheme: "",
-    },
-    removeAttribute(name: string) {
-      if (name === "data-theme") {
-        delete this.dataset.theme;
-      }
-    },
-  };
-
-  const windowLike = {
-    matchMedia(query: string) {
-      assert.equal(query, systemThemeMediaQuery);
-
-      if (throwsOnMatchMedia) {
-        throw new Error("matchMedia unavailable");
-      }
-
-      return {
-        matches: systemPrefersDark,
-      };
-    },
-  } as {
-    localStorage?: { getItem: (key: string) => string | null };
-    matchMedia: (query: string) => { matches: boolean };
-  };
-
-  if (throwsOnStorageAccess) {
-    Object.defineProperty(windowLike, "localStorage", {
-      get() {
-        throw new Error("localStorage unavailable");
-      },
-    });
-  } else {
-    windowLike.localStorage = {
-      getItem(key: string) {
-        assert.equal(key, themePreferenceStorageKey);
-        return storedPreference;
-      },
-    };
-  }
-
-  return {
-    context: {
-      document: {
-        documentElement: root,
-      },
-      window: windowLike,
-    },
-    root,
-  };
-};
+const createThemeRoot = () => ({
+  dataset: {} as Record<string, string | undefined>,
+  style: {
+    colorScheme: "",
+  },
+  removeAttribute(name: string) {
+    if (name === "data-theme") {
+      delete this.dataset.theme;
+    }
+  },
+});
 
 test("resolvePrepaintTheme keeps the pre-paint contract aligned with runtime theme rules", () => {
   assert.equal(
@@ -157,9 +103,13 @@ for (const scenario of [
   },
 ] as const) {
   test(scenario.name, () => {
-    const { context, root } = createThemeInitHarness(scenario);
-
-    vm.runInNewContext(themePrepaintScript, context);
+    const root = createThemeRoot();
+    const resolvedTheme = resolvePrepaintTheme({
+      storedPreference: scenario.throwsOnStorageAccess ? null : scenario.storedPreference,
+      systemPrefersDark:
+        scenario.throwsOnMatchMedia ? false : scenario.systemPrefersDark,
+    });
+    applyThemePreference({ documentElement: root }, resolvedTheme);
 
     assert.equal(root.dataset.theme, scenario.expectedDataTheme);
     assert.equal(root.style.colorScheme, scenario.expectedColorScheme);
@@ -171,6 +121,11 @@ test("pre-paint script stays deterministic and free of unsafe dynamic execution"
   assert.doesNotMatch(themePrepaintScript, /\bnew Function\b/);
   assert.match(themePrepaintScript, /localStorage\.getItem/);
   assert.match(themePrepaintScript, /matchMedia/);
+  assert.match(themePrepaintScript, /root\.style\.colorScheme=resolved/);
+  assert.match(themePrepaintScript, /root\.removeAttribute\("data-theme"\)/);
+  assert.match(themePrepaintScript, /root\.dataset\.theme=config\.dark/);
+  assert.match(themePrepaintScript, new RegExp(themePreferenceStorageKey.replace(".", "\\.")));
+  assert.match(themePrepaintScript, new RegExp(systemThemeMediaQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 });
 
 test("root layout injects the pre-paint script ahead of the themed body and suppresses html hydration drift", () => {
