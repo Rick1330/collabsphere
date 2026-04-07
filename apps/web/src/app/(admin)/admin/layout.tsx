@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { adminNavItems } from "../../../components/foundation/navigation";
 import { ShellFrame } from "../../../components/foundation/shell-frame";
+import { ThemeUserMenu } from "../../../components/foundation/user-theme-menu";
 
 export default function AdminLayout({
   children,
@@ -13,6 +14,7 @@ export default function AdminLayout({
       title="Platform administration"
       description="Administrative routes now have a dedicated layout boundary without claiming the full admin feature set already exists."
       navItems={adminNavItems}
+      headerAction={<ThemeUserMenu />}
     >
       {children}
     </ShellFrame>
