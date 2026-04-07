@@ -4,6 +4,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   type PropsWithChildren,
 } from "react";
@@ -11,14 +12,13 @@ import {
 import {
   applyThemePreference,
   defaultResolvedTheme,
-  defaultThemePreference,
   getNextThemePreference,
   readStoredThemePreference,
   resolveThemePreference,
   writeStoredThemePreference,
   type ResolvedTheme,
   type ThemePreference,
-} from "@/lib/theme";
+} from "../../lib/theme";
 
 type ThemeContextValue = {
   preference: ThemePreference;
@@ -32,7 +32,13 @@ type ThemeProviderState = {
   systemTheme: ResolvedTheme;
 };
 
+type ThemeToggleTimer = ReturnType<typeof setTimeout>;
+type ThemeToggleScheduler = typeof setTimeout;
+type ThemeToggleCanceller = typeof clearTimeout;
+
 const ThemeContext = createContext<ThemeContextValue | null>(null);
+
+export const themeToggleDebounceMs = 200;
 
 const getSafeLocalStorage = (): Storage | null => {
   if (typeof window === "undefined") {
@@ -50,7 +56,21 @@ const getInitialThemePreference = (): ThemePreference => {
   return readStoredThemePreference(getSafeLocalStorage());
 };
 
+export const queueThemeToggle = (
+  activeTimer: ThemeToggleTimer | null,
+  commitToggle: () => void,
+  scheduleToggle: ThemeToggleScheduler = setTimeout,
+  cancelToggle: ThemeToggleCanceller = clearTimeout,
+) => {
+  if (activeTimer) {
+    cancelToggle(activeTimer);
+  }
+
+  return scheduleToggle(commitToggle, themeToggleDebounceMs);
+};
+
 export const ThemeProvider = ({ children }: PropsWithChildren) => {
+  const toggleTimerRef = useRef<ThemeToggleTimer | null>(null);
   const [themeState, setThemeState] = useState<ThemeProviderState>(() => ({
     preference: getInitialThemePreference(),
     systemTheme: defaultResolvedTheme,
@@ -63,6 +83,14 @@ export const ThemeProvider = ({ children }: PropsWithChildren) => {
     writeStoredThemePreference(getSafeLocalStorage(), preference);
   }, [preference, systemTheme]);
 
+  useEffect(() => {
+    return () => {
+      if (toggleTimerRef.current) {
+        clearTimeout(toggleTimerRef.current);
+      }
+    };
+  }, []);
+
   const setThemePreference = (nextPreference: ThemePreference) => {
     setThemeState((currentState) => ({
       ...currentState,
@@ -71,10 +99,13 @@ export const ThemeProvider = ({ children }: PropsWithChildren) => {
   };
 
   const toggleTheme = () => {
-    setThemeState((currentState) => ({
-      ...currentState,
-      preference: getNextThemePreference(currentState.preference),
-    }));
+    toggleTimerRef.current = queueThemeToggle(toggleTimerRef.current, () => {
+      setThemeState((currentState) => ({
+        ...currentState,
+        preference: getNextThemePreference(currentState.preference),
+      }));
+      toggleTimerRef.current = null;
+    });
   };
 
   return (

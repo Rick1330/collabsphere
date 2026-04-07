@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  queueThemeToggle,
+  themeToggleDebounceMs,
+} from "../../apps/web/src/components/theme/theme-provider";
+import {
   applyThemePreference,
   defaultResolvedTheme,
   defaultThemePreference,
@@ -68,6 +72,54 @@ test("getNextThemePreference uses a stable light-dark-system cycle for downstrea
   assert.equal(getNextThemePreference("system"), "light");
   assert.equal(getNextThemePreference("light"), "dark");
   assert.equal(getNextThemePreference("dark"), "system");
+});
+
+test("queueThemeToggle debounces rapid theme toggles and only keeps the latest pending commit", () => {
+  let nextTimerId = 0;
+  const pendingCommits = new Map<number, () => void>();
+  const cancelledTimerIds: number[] = [];
+  let committedPreference = "system";
+
+  const scheduleToggle = ((callback: () => void, delay?: number) => {
+    assert.equal(delay, themeToggleDebounceMs);
+
+    nextTimerId += 1;
+    pendingCommits.set(nextTimerId, callback);
+
+    return nextTimerId as ReturnType<typeof setTimeout>;
+  }) as typeof setTimeout;
+
+  const cancelToggle = ((timer: ReturnType<typeof setTimeout>) => {
+    const timerId = timer as unknown as number;
+    cancelledTimerIds.push(timerId);
+    pendingCommits.delete(timerId);
+  }) as typeof clearTimeout;
+
+  let activeTimer = queueThemeToggle(
+    null,
+    () => {
+      committedPreference = getNextThemePreference(committedPreference);
+    },
+    scheduleToggle,
+    cancelToggle,
+  );
+
+  activeTimer = queueThemeToggle(
+    activeTimer,
+    () => {
+      committedPreference = getNextThemePreference(committedPreference);
+    },
+    scheduleToggle,
+    cancelToggle,
+  );
+
+  assert.deepEqual(cancelledTimerIds, [1]);
+  assert.deepEqual([...pendingCommits.keys()], [2]);
+  assert.equal(committedPreference, "system");
+
+  pendingCommits.get(2)?.();
+
+  assert.equal(committedPreference, "light");
 });
 
 test("applyThemePreference sets dark mode attributes and color scheme explicitly", () => {
