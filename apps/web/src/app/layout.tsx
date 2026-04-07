@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import type { ReactNode } from "react";
 
 import { ThemeProvider } from "@/components/theme/theme-provider";
@@ -16,12 +17,11 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+      <html lang="en" suppressHydrationWarning>
       <head>
-        <script
-          id="theme-prepaint-init"
-          dangerouslySetInnerHTML={{ __html: themePrepaintScript }}
-        />
+        <Script id="theme-prepaint-init" strategy="beforeInteractive">
+          {themePrepaintScript}
+        </Script>
       </head>
       <body className="app-shell-root">
         <ThemeProvider>
