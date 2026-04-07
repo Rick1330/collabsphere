@@ -7,18 +7,17 @@
 
 html {
   font-family: var(--font-sans);
-  background:
-    radial-gradient(circle at top left, var(--page-orb-primary), transparent 26%),
-    radial-gradient(circle at top right, var(--page-orb-secondary), transparent 30%),
-    radial-gradient(circle at 50% 100%, var(--page-orb-tertiary), transparent 22%),
-    var(--surface-canvas);
 }
 
 body {
   margin: 0;
   min-height: 100vh;
   color: var(--color-text-primary);
-  background: transparent;
+  background:
+    radial-gradient(circle at top left, var(--page-orb-primary), transparent 26%),
+    radial-gradient(circle at top right, var(--page-orb-secondary), transparent 30%),
+    radial-gradient(circle at 50% 100%, var(--page-orb-tertiary), transparent 22%),
+    var(--surface-canvas);
 }
 
 a {

@@ -56,8 +56,14 @@ test("theme.css defines the exact section 3.9.3 variable names for light and dar
 });
 
 test("globals.css imports the canonical theme/token styles and removes the old ad hoc root palette", () => {
-  assert.match(globalsCss, /@import url\("\.\.\/styles\/theme\.css"\);/);
-  assert.match(globalsCss, /@import url\("\.\.\/styles\/tokens\.css"\);/);
+  assert.match(
+    globalsCss,
+    /^\s*@import\s+(?:url\()?['"]\.\.\/styles\/theme\.css['"]\)?;?/m,
+  );
+  assert.match(
+    globalsCss,
+    /^\s*@import\s+(?:url\()?['"]\.\.\/styles\/tokens\.css['"]\)?;?/m,
+  );
 
   for (const removedVariable of [
     "--page-bg",
