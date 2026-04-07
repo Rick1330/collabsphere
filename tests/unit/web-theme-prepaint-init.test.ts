@@ -22,10 +22,12 @@ const rootLayoutSource = fs.readFileSync(
 const createThemeInitHarness = ({
   storedPreference,
   systemPrefersDark,
+  throwsOnMatchMedia = false,
   throwsOnStorageAccess = false,
 }: {
   storedPreference: string | null;
   systemPrefersDark: boolean;
+  throwsOnMatchMedia?: boolean;
   throwsOnStorageAccess?: boolean;
 }) => {
   const root = {
@@ -43,6 +45,10 @@ const createThemeInitHarness = ({
   const windowLike = {
     matchMedia(query: string) {
       assert.equal(query, systemThemeMediaQuery);
+
+      if (throwsOnMatchMedia) {
+        throw new Error("matchMedia unavailable");
+      }
 
       return {
         matches: systemPrefersDark,
@@ -125,11 +131,28 @@ for (const scenario of [
     systemPrefersDark: true,
   },
   {
-    expectedColorScheme: "light",
-    expectedDataTheme: undefined,
-    name: "pre-paint script falls back safely when storage access throws",
+    expectedColorScheme: "dark",
+    expectedDataTheme: "dark",
+    name: "pre-paint script follows OS preference when storage access throws",
     storedPreference: null,
     systemPrefersDark: true,
+    throwsOnStorageAccess: true,
+  },
+  {
+    expectedColorScheme: "dark",
+    expectedDataTheme: "dark",
+    name: "pre-paint script preserves stored dark preference when matchMedia throws",
+    storedPreference: "dark",
+    systemPrefersDark: false,
+    throwsOnMatchMedia: true,
+  },
+  {
+    expectedColorScheme: "light",
+    expectedDataTheme: undefined,
+    name: "pre-paint script falls back to light when both storage and matchMedia are unavailable",
+    storedPreference: null,
+    systemPrefersDark: false,
+    throwsOnMatchMedia: true,
     throwsOnStorageAccess: true,
   },
 ] as const) {

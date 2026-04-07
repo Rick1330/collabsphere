@@ -5,7 +5,6 @@ import {
   queueThemeToggle,
   readSystemTheme,
   subscribeToSystemTheme,
-  systemThemeMediaQuery,
   themeToggleDebounceMs,
 } from "../../apps/web/src/components/theme/theme-provider";
 import {
