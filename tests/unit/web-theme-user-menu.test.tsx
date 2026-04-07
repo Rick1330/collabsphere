@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { ShellFrame } from "../../apps/web/src/components/foundation/shell-frame";
 import {
+  getThemeMenuOpenIndex,
   getThemeMenuNextIndex,
   getThemeMenuStatusLabel,
   isThemeMenuNavigationKey,
@@ -27,6 +28,12 @@ test("theme user menu navigation wraps predictably across menu options", () => {
   assert.equal(getThemeMenuNextIndex(1, "Home", themeMenuOptions.length), 0);
   assert.equal(getThemeMenuNextIndex(1, "End", themeMenuOptions.length), 2);
   assert.equal(getThemeMenuNextIndex(0, "PageDown", themeMenuOptions.length), 2);
+});
+
+test("theme user menu trigger opening respects selected item and arrow-up last-item behavior", () => {
+  assert.equal(getThemeMenuOpenIndex("Enter", 1, themeMenuOptions.length), 1);
+  assert.equal(getThemeMenuOpenIndex("ArrowUp", 1, themeMenuOptions.length), 2);
+  assert.equal(getThemeMenuOpenIndex("ArrowDown", -1, themeMenuOptions.length), 0);
 });
 
 test("theme user menu navigation-key guard narrows supported roving keys", () => {

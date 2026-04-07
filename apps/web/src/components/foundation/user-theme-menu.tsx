@@ -31,6 +31,8 @@ type ThemeMenuOptionKey =
   | "PageUp"
   | "PageDown";
 
+type ThemeMenuOpenKey = "Enter" | " " | "ArrowDown" | "ArrowUp";
+
 const placeholderIdentity = {
   initials: "CS",
   name: "CollabSphere member",
@@ -64,7 +66,7 @@ const themeMenuNavigationKeys = new Set<ThemeMenuOptionKey>([
   "PageDown",
 ]);
 
-export const isThemeMenuOpenKey = (key: string) =>
+export const isThemeMenuOpenKey = (key: string): key is ThemeMenuOpenKey =>
   key === "Enter" || key === " " || key === "ArrowDown" || key === "ArrowUp";
 
 export const isThemeMenuNavigationKey = (
@@ -93,6 +95,22 @@ export const getThemeMenuNextIndex = (
   }
 
   return currentIndex >= itemCount - 1 ? 0 : currentIndex + 1;
+};
+
+export const getThemeMenuOpenIndex = (
+  key: ThemeMenuOpenKey,
+  selectedIndex: number,
+  itemCount: number,
+) => {
+  if (itemCount <= 0) {
+    return -1;
+  }
+
+  if (key === "ArrowUp") {
+    return itemCount - 1;
+  }
+
+  return selectedIndex >= 0 ? selectedIndex : 0;
 };
 
 export const getThemeMenuStatusLabel = (
@@ -129,14 +147,6 @@ export function ThemeUserMenu({ initialOpen = false }: ThemeUserMenuProps) {
   useEffect(() => {
     setHasMounted(true);
   }, []);
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    setActiveIndex(selectedIndex);
-  }, [isOpen, selectedIndex]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -185,13 +195,9 @@ export function ThemeUserMenu({ initialOpen = false }: ThemeUserMenuProps) {
     }
 
     event.preventDefault();
-
-    if (event.key === "ArrowUp") {
-      openMenu(themeMenuOptions.length - 1);
-      return;
-    }
-
-    openMenu(selectedIndex);
+    openMenu(
+      getThemeMenuOpenIndex(event.key, selectedIndex, themeMenuOptions.length),
+    );
   };
 
   const handleMenuKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
