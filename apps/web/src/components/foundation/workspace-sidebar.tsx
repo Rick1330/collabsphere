@@ -42,6 +42,21 @@ type WorkspaceSidebarSectionProps = {
   label: string;
 };
 
+type WorkspaceSidebarStatusState = {
+  title: string;
+  copy: string;
+  requestId?: string | null;
+};
+
+type WorkspaceSidebarPresentation = {
+  currentRole: WorkspaceRole | null;
+  description: string;
+  mark: string;
+  roleLabel: string | null;
+  status: WorkspaceSidebarStatusState | null;
+  title: string;
+};
+
 const getWorkspaceSidebarDataState = ({
   error,
   workspaces,
@@ -103,6 +118,80 @@ const isItemAccessible = (
 
   return isWorkspaceRoleAllowed(currentRole, item.requiredRole);
 };
+
+const getWorkspaceSidebarPresentation = (
+  dataState: WorkspaceSidebarDataState,
+  workspaceId: string,
+): WorkspaceSidebarPresentation => {
+  if (dataState.kind === "loaded") {
+    return {
+      currentRole: dataState.workspace.myRole,
+      title: dataState.workspace.name,
+      description:
+        dataState.workspace.description ??
+        "Workspace-scoped routes now live under a dedicated navigation boundary.",
+      mark: getWorkspaceInitials(dataState.workspace),
+      roleLabel: dataState.workspace.roleLabel,
+      status: null,
+    };
+  }
+
+  if (dataState.kind === "loading") {
+    return {
+      currentRole: null,
+      title: `Workspace ${workspaceId}`,
+      description: "Workspace navigation remains available while membership context is loading.",
+      mark: "WS",
+      roleLabel: null,
+      status: {
+        title: "Checking workspace membership",
+        copy: "Role-gated routes stay locked until the current workspace context resolves.",
+      },
+    };
+  }
+
+  if (dataState.kind === "error") {
+    return {
+      currentRole: null,
+      title: `Workspace ${workspaceId}`,
+      description: "Workspace navigation remains available while membership context is loading.",
+      mark: "WS",
+      roleLabel: null,
+      status: {
+        title: "Workspace context unavailable",
+        copy: dataState.message,
+        requestId: dataState.requestId,
+      },
+    };
+  }
+
+  return {
+    currentRole: null,
+    title: `Workspace ${workspaceId}`,
+    description: "Workspace navigation remains available while membership context is loading.",
+    mark: "WS",
+    roleLabel: null,
+    status: {
+      title: "Workspace membership not confirmed",
+      copy:
+        "The current workspace was not present in the active member workspace list, so elevated routes remain locked.",
+    },
+  };
+};
+
+function WorkspaceSidebarStatus({
+  status,
+}: Readonly<{ status: WorkspaceSidebarStatusState }>) {
+  return (
+    <div className="workspace-sidebar__status" role="status" aria-live="polite">
+      <strong className="workspace-sidebar__status-title">{status.title}</strong>
+      <p className="workspace-sidebar__status-copy">{status.copy}</p>
+      {status.requestId ? (
+        <p className="workspace-sidebar__status-meta">Request ID: {status.requestId}</p>
+      ) : null}
+    </div>
+  );
+}
 
 function WorkspaceSidebarSection({
   currentPathname,
@@ -193,22 +282,21 @@ export function WorkspaceSidebarView({
   dataState,
   workspaceId,
 }: Readonly<WorkspaceSidebarViewProps>) {
-  const currentRole =
-    dataState.kind === "loaded" ? dataState.workspace.myRole : null;
-
-  const title =
-    dataState.kind === "loaded"
-      ? dataState.workspace.name
-      : `Workspace ${workspaceId}`;
-  const description =
-    dataState.kind === "loaded"
-      ? dataState.workspace.description ??
-        "Workspace-scoped routes now live under a dedicated navigation boundary."
-      : "Workspace navigation remains available while membership context is loading.";
-  const mark =
-    dataState.kind === "loaded"
-      ? getWorkspaceInitials(dataState.workspace)
-      : "WS";
+  const presentation = getWorkspaceSidebarPresentation(dataState, workspaceId);
+  const sections = [
+    {
+      items: workspaceSidebarPrimaryItems(workspaceId),
+      label: "Workspace",
+    },
+    {
+      items: workspaceSidebarSecondaryItems(workspaceId),
+      label: "Elevated routes",
+    },
+    {
+      items: workspaceSidebarQuickActionItems(workspaceId),
+      label: "Quick actions",
+    },
+  ] as const;
 
   return (
     <aside className="shell__rail workspace-sidebar" aria-label="Workspace navigation">
@@ -219,76 +307,32 @@ export function WorkspaceSidebarView({
         </Link>
         <div className="workspace-sidebar__identity">
           <span className="workspace-sidebar__identity-mark" aria-hidden="true">
-            {mark}
+            {presentation.mark}
           </span>
           <div className="workspace-sidebar__identity-copy">
-            <p className="workspace-sidebar__title">{title}</p>
-            <p className="workspace-sidebar__description">{description}</p>
+            <p className="workspace-sidebar__title">{presentation.title}</p>
+            <p className="workspace-sidebar__description">{presentation.description}</p>
           </div>
-          {dataState.kind === "loaded" ? (
+          {presentation.roleLabel ? (
             <span className="workspace-sidebar__role-badge">
-              {dataState.workspace.roleLabel}
+              {presentation.roleLabel}
             </span>
           ) : null}
         </div>
       </div>
 
-      {dataState.kind === "loading" ? (
-        <div className="workspace-sidebar__status" role="status" aria-live="polite">
-          <strong className="workspace-sidebar__status-title">
-            Checking workspace membership
-          </strong>
-          <p className="workspace-sidebar__status-copy">
-            Role-gated routes stay locked until the current workspace context resolves.
-          </p>
-        </div>
-      ) : null}
-
-      {dataState.kind === "error" ? (
-        <div className="workspace-sidebar__status" role="status" aria-live="polite">
-          <strong className="workspace-sidebar__status-title">
-            Workspace context unavailable
-          </strong>
-          <p className="workspace-sidebar__status-copy">{dataState.message}</p>
-          {dataState.requestId ? (
-            <p className="workspace-sidebar__status-meta">
-              Request ID: {dataState.requestId}
-            </p>
-          ) : null}
-        </div>
-      ) : null}
-
-      {dataState.kind === "missing" ? (
-        <div className="workspace-sidebar__status" role="status" aria-live="polite">
-          <strong className="workspace-sidebar__status-title">
-            Workspace membership not confirmed
-          </strong>
-          <p className="workspace-sidebar__status-copy">
-            The current workspace was not present in the active member workspace list, so
-            elevated routes remain locked.
-          </p>
-        </div>
-      ) : null}
+      {presentation.status ? <WorkspaceSidebarStatus status={presentation.status} /> : null}
 
       <nav className="workspace-sidebar__nav" aria-label="Workspace route groups">
-        <WorkspaceSidebarSection
-          currentPathname={currentPathname}
-          currentRole={currentRole}
-          items={workspaceSidebarPrimaryItems(workspaceId)}
-          label="Workspace"
-        />
-        <WorkspaceSidebarSection
-          currentPathname={currentPathname}
-          currentRole={currentRole}
-          items={workspaceSidebarSecondaryItems(workspaceId)}
-          label="Elevated routes"
-        />
-        <WorkspaceSidebarSection
-          currentPathname={currentPathname}
-          currentRole={currentRole}
-          items={workspaceSidebarQuickActionItems(workspaceId)}
-          label="Quick actions"
-        />
+        {sections.map((section) => (
+          <WorkspaceSidebarSection
+            key={section.label}
+            currentPathname={currentPathname}
+            currentRole={presentation.currentRole}
+            items={section.items}
+            label={section.label}
+          />
+        ))}
       </nav>
     </aside>
   );
