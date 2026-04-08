@@ -76,3 +76,21 @@ test("globals.css imports the canonical theme/token styles and removes the old a
   assert.match(globalsCss, /var\(--color-text-primary\)/);
   assert.match(globalsCss, /var\(--color-accent\)/);
 });
+
+test("globals.css keeps grid sidebar layout scoped to the concrete sidebar variants", () => {
+  const shellRailRule = globalsCss.match(/\.shell__rail\s*\{([\s\S]*?)\}/)?.[1];
+  const globalSidebarRule = globalsCss.match(/\.global-sidebar\s*\{([\s\S]*?)\}/)?.[1];
+  const workspaceSidebarRule = globalsCss.match(/\.workspace-sidebar\s*\{([\s\S]*?)\}/)?.[1];
+
+  assert.ok(shellRailRule, "expected .shell__rail rule to exist");
+  assert.ok(globalSidebarRule, "expected .global-sidebar rule to exist");
+  assert.ok(workspaceSidebarRule, "expected .workspace-sidebar rule to exist");
+
+  assert.doesNotMatch(shellRailRule, /display:\s*grid/);
+  assert.doesNotMatch(shellRailRule, /gap:\s*1\.5rem/);
+  assert.doesNotMatch(shellRailRule, /align-content:\s*start/);
+  assert.match(globalSidebarRule, /display:\s*grid/);
+  assert.match(globalSidebarRule, /align-content:\s*start/);
+  assert.match(workspaceSidebarRule, /display:\s*grid/);
+  assert.match(workspaceSidebarRule, /align-content:\s*start/);
+});

@@ -70,9 +70,6 @@ button {
 }
 
 .shell__rail {
-  display: grid;
-  gap: 1.5rem;
-  align-content: start;
   position: relative;
   color: var(--color-text-primary);
   background:
@@ -213,6 +210,7 @@ button {
 .global-sidebar {
   display: grid;
   gap: 1.35rem;
+  align-content: start;
 }
 
 .global-sidebar__header,
@@ -346,6 +344,7 @@ button {
 .workspace-sidebar {
   display: grid;
   gap: 1.35rem;
+  align-content: start;
 }
 
 .workspace-sidebar__header,
