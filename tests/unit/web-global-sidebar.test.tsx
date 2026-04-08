@@ -43,7 +43,6 @@ test("global sidebar renders required global routes, action CTA, and active-stat
   assert.match(markup, /href="\/settings"/);
   assert.match(markup, /href="\/workspaces\/new"/);
   assert.match(markup, /Recent workspaces/);
-  assert.match(markup, /href="\/settings"/);
   assert.match(markup, /aria-current="page"/);
   assert.match(markup, /data-active="true"/);
 });

@@ -211,6 +211,7 @@ button {
 }
 
 .global-sidebar {
+  display: grid;
   gap: 1.35rem;
 }
 
@@ -245,10 +246,12 @@ button {
 }
 
 .global-sidebar__list {
+  display: grid;
   gap: 0.75rem;
 }
 
 .global-sidebar__link {
+  display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 0.8rem;
   align-items: center;
