@@ -269,8 +269,21 @@ export const getWorkspaceSwitcherDataState = ({
   workspaces: WorkspaceSummary[] | undefined;
   pending: boolean;
 }): WorkspaceSwitcherDataState => {
-  if (pending) {
+  const hasWorkspaceData = Array.isArray(workspaces);
+
+  if (pending && !hasWorkspaceData) {
     return { kind: "loading" };
+  }
+
+  if (hasWorkspaceData) {
+    if (workspaces.length === 0) {
+      return { kind: "empty" };
+    }
+
+    return {
+      kind: "loaded",
+      workspaces,
+    };
   }
 
   if (error) {
@@ -281,14 +294,7 @@ export const getWorkspaceSwitcherDataState = ({
     };
   }
 
-  if (!workspaces || workspaces.length === 0) {
-    return { kind: "empty" };
-  }
-
-  return {
-    kind: "loaded",
-    workspaces,
-  };
+  return { kind: "empty" };
 };
 
 const coerceWorkspaceQueryError = (error: unknown) => {
@@ -663,6 +669,7 @@ export function WorkspaceSwitcher({
   const query = useQuery({
     queryKey: workspaceListQueryKey,
     queryFn: ({ signal }) => listWorkspaces({ signal }),
+    retry: false,
     staleTime: 60_000,
   });
 

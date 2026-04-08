@@ -10,6 +10,7 @@ import {
   getCurrentWorkspaceIdFromPathname,
   getWorkspaceMenuNextIndex,
   getWorkspaceMenuOpenIndex,
+  getWorkspaceSwitcherDataState,
   getWorkspaceTriggerCopy,
   isWorkspaceMenuNavigationKey,
   isWorkspaceMenuOpenKey,
@@ -218,6 +219,41 @@ test("workspace switcher renders empty and error states truthfully", () => {
   assert.match(errorMarkup, /Workspace list unavailable/);
   assert.match(errorMarkup, /Retry workspace list/);
   assert.match(errorMarkup, /req_workspace_switcher/);
+});
+
+test("getWorkspaceSwitcherDataState keeps loaded data visible when background refetch errors", () => {
+  const state = getWorkspaceSwitcherDataState({
+    error: new WorkspaceApiError(
+      "server",
+      "The workspace service failed to respond. Retry in a moment.",
+    ),
+    workspaces: workspaceFixtures,
+    pending: false,
+  });
+
+  assert.equal(state.kind, "loaded");
+  if (state.kind !== "loaded") {
+    assert.fail("Expected loaded state when cached workspaces exist.");
+  }
+  assert.equal(state.workspaces.length, workspaceFixtures.length);
+});
+
+test("getWorkspaceSwitcherDataState returns error when no cached workspace list exists", () => {
+  const state = getWorkspaceSwitcherDataState({
+    error: new WorkspaceApiError(
+      "server",
+      "The workspace service failed to respond. Retry in a moment.",
+      { requestId: "req_no_cache" },
+    ),
+    workspaces: undefined,
+    pending: false,
+  });
+
+  assert.equal(state.kind, "error");
+  if (state.kind !== "error") {
+    assert.fail("Expected error state when no cached workspaces exist.");
+  }
+  assert.equal(state.requestId, "req_no_cache");
 });
 
 test("listWorkspaces classifies malformed response payloads as non-network errors", async () => {
