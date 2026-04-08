@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { globalNavItems } from "../../components/foundation/navigation";
+import { NotificationBell } from "../../components/foundation/notification-bell";
 import { ShellFrame } from "../../components/foundation/shell-frame";
 import { TopNavBar } from "../../components/foundation/top-nav-bar";
 import { ThemeUserMenu } from "../../components/foundation/user-theme-menu";
@@ -18,6 +19,7 @@ export default function AuthenticatedLayout({
       navItems={globalNavItems}
       topNav={
         <TopNavBar
+          notificationBell={<NotificationBell />}
           workspaceSwitcher={<WorkspaceSwitcher />}
           userMenu={<ThemeUserMenu />}
         />
