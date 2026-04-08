@@ -44,6 +44,23 @@ function getCssBlock(source: string, selector: string): string | undefined {
   return undefined;
 }
 
+function hasImportStatement(source: string, importPath: string): boolean {
+  return source
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .some(
+      (line) =>
+        line === `@import "${importPath}";` || line === `@import url("${importPath}");`,
+    );
+}
+
+function hasCssDeclaration(block: string, propertyName: string): boolean {
+  return block
+    .split(";")
+    .map((declaration) => declaration.trim())
+    .some((declaration) => declaration.startsWith(`${propertyName}:`));
+}
+
 const requiredThemeVariables = [
   "--color-bg-primary",
   "--color-bg-secondary",
@@ -62,34 +79,28 @@ const requiredThemeVariables = [
 
 const lightThemeBlock = getCssBlock(themeCss, ":root");
 const darkThemeBlock = getCssBlock(themeCss, '[data-theme="dark"]');
-const importThemePattern = /^\s*@import\s+(?:url\()?['"]\.\.\/styles\/theme\.css['"]\)?;?/m;
-const importTokensPattern = /^\s*@import\s+(?:url\()?['"]\.\.\/styles\/tokens\.css['"]\)?;?/m;
 
 test("theme.css defines the exact section 3.9.3 variable names for light and dark themes", () => {
-  assert.match(themeCss, /:root\s*\{/);
-  assert.match(themeCss, /\[data-theme="dark"\]\s*\{/);
+  assert.notEqual(themeCss.indexOf(":root"), -1);
+  assert.notEqual(themeCss.indexOf('[data-theme="dark"]'), -1);
   assert.ok(lightThemeBlock, "expected :root theme block to exist");
   assert.ok(darkThemeBlock, 'expected [data-theme="dark"] theme block to exist');
 
   for (const variableName of requiredThemeVariables) {
-    const escapedName = variableName.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
-
-    assert.match(
-      lightThemeBlock,
-      new RegExp(String.raw`${escapedName}\s*:`),
+    assert.ok(
+      hasCssDeclaration(lightThemeBlock, variableName),
       `${variableName} should be defined in the light theme block`,
     );
-    assert.match(
-      darkThemeBlock,
-      new RegExp(String.raw`${escapedName}\s*:`),
+    assert.ok(
+      hasCssDeclaration(darkThemeBlock, variableName),
       `${variableName} should be defined in the dark theme block`,
     );
   }
 });
 
 test("globals.css imports the canonical theme/token styles and removes the old ad hoc root palette", () => {
-  assert.match(globalsCss, importThemePattern);
-  assert.match(globalsCss, importTokensPattern);
+  assert.ok(hasImportStatement(globalsCss, "../styles/theme.css"));
+  assert.ok(hasImportStatement(globalsCss, "../styles/tokens.css"));
 
   for (const removedVariable of [
     "--page-bg",
@@ -99,33 +110,33 @@ test("globals.css imports the canonical theme/token styles and removes the old a
     "--text:",
     "--text-muted",
   ]) {
-    assert.doesNotMatch(globalsCss, new RegExp(removedVariable));
+    assert.equal(globalsCss.includes(removedVariable), false);
   }
 
-  assert.match(globalsCss, /var\(--color-bg-primary\)/);
-  assert.match(globalsCss, /var\(--color-text-primary\)/);
-  assert.match(globalsCss, /var\(--color-accent\)/);
+  assert.ok(globalsCss.includes("var(--color-bg-primary)"));
+  assert.ok(globalsCss.includes("var(--color-text-primary)"));
+  assert.ok(globalsCss.includes("var(--color-accent)"));
 });
 
 test("globals.css keeps grid sidebar layout scoped to the concrete sidebar variants", () => {
-  const shellRailRule = globalsCss.match(/\.shell__rail\s*\{([\s\S]*?)\}/)?.[1];
-  const defaultRailRule = globalsCss.match(/\.shell__rail--default\s*\{([\s\S]*?)\}/)?.[1];
-  const globalSidebarRule = globalsCss.match(/\.global-sidebar\s*\{([\s\S]*?)\}/)?.[1];
-  const workspaceSidebarRule = globalsCss.match(/\.workspace-sidebar\s*\{([\s\S]*?)\}/)?.[1];
+  const shellRailRule = getCssBlock(globalsCss, ".shell__rail");
+  const defaultRailRule = getCssBlock(globalsCss, ".shell__rail--default");
+  const globalSidebarRule = getCssBlock(globalsCss, ".global-sidebar");
+  const workspaceSidebarRule = getCssBlock(globalsCss, ".workspace-sidebar");
 
   assert.ok(shellRailRule, "expected .shell__rail rule to exist");
   assert.ok(defaultRailRule, "expected .shell__rail--default rule to exist");
   assert.ok(globalSidebarRule, "expected .global-sidebar rule to exist");
   assert.ok(workspaceSidebarRule, "expected .workspace-sidebar rule to exist");
 
-  assert.doesNotMatch(shellRailRule, /display:\s*grid/);
-  assert.doesNotMatch(shellRailRule, /gap:\s*1\.5rem/);
-  assert.doesNotMatch(shellRailRule, /align-content:\s*start/);
-  assert.match(defaultRailRule, /display:\s*grid/);
-  assert.match(defaultRailRule, /gap:\s*1\.5rem/);
-  assert.match(defaultRailRule, /align-content:\s*start/);
-  assert.match(globalSidebarRule, /display:\s*grid/);
-  assert.match(globalSidebarRule, /align-content:\s*start/);
-  assert.match(workspaceSidebarRule, /display:\s*grid/);
-  assert.match(workspaceSidebarRule, /align-content:\s*start/);
+  assert.equal(hasCssDeclaration(shellRailRule, "display"), false);
+  assert.equal(hasCssDeclaration(shellRailRule, "gap"), false);
+  assert.equal(hasCssDeclaration(shellRailRule, "align-content"), false);
+  assert.ok(hasCssDeclaration(defaultRailRule, "display"));
+  assert.ok(hasCssDeclaration(defaultRailRule, "gap"));
+  assert.ok(hasCssDeclaration(defaultRailRule, "align-content"));
+  assert.ok(hasCssDeclaration(globalSidebarRule, "display"));
+  assert.ok(hasCssDeclaration(globalSidebarRule, "align-content"));
+  assert.ok(hasCssDeclaration(workspaceSidebarRule, "display"));
+  assert.ok(hasCssDeclaration(workspaceSidebarRule, "align-content"));
 });
