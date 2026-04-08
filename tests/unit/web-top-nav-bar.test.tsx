@@ -5,6 +5,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { AppProviders } from "../../apps/web/src/components/providers/app-providers";
+import { NotificationBellMenu } from "../../apps/web/src/components/foundation/notification-bell";
 import { ShellFrame } from "../../apps/web/src/components/foundation/shell-frame";
 import { globalNavItems } from "../../apps/web/src/components/foundation/navigation";
 import { TopNavBar } from "../../apps/web/src/components/foundation/top-nav-bar";
@@ -32,6 +33,26 @@ test("top nav renders authenticated shell regions with a live workspace switcher
   const markup = renderToStaticMarkup(
     <AppProviders>
       <TopNavBar
+        notificationBell={
+          <NotificationBellMenu
+            unreadCount={12}
+            dataState={{
+              kind: "loaded",
+              notifications: [
+                {
+                  id: "notif-alpha",
+                  type: "task.assigned",
+                  workspaceId: "workspace-alpha",
+                  title: "Task assigned to you",
+                  body: "Implement the notification bell dropdown.",
+                  url: "/w/workspace-alpha/tasks/notif-alpha",
+                  isRead: false,
+                  createdAt: "2025-07-17T12:00:00Z",
+                },
+              ],
+            }}
+          />
+        }
         workspaceSwitcher={
           <WorkspaceSwitcherMenu
             currentWorkspaceId="workspace-alpha"
@@ -49,10 +70,10 @@ test("top nav renders authenticated shell regions with a live workspace switcher
   assert.match(markup, /Project Alpha/);
   assert.match(markup, /Current workspace · Tech Lead/);
   assert.match(markup, /Search placeholder/);
-  assert.match(markup, /Notifications placeholder/);
+  assert.match(markup, /Notifications/);
+  assert.match(markup, /12 unread in your recent feed/);
   assert.match(markup, /role="search"/);
   assert.match(markup, /Ctrl/);
-  assert.match(markup, /Feed soon/);
   assert.match(markup, /aria-haspopup="menu"/);
 });
 
@@ -67,6 +88,12 @@ test("shell frame renders the top nav before the supporting header copy", () => 
         navItems={globalNavItems}
         topNav={
           <TopNavBar
+            notificationBell={
+              <NotificationBellMenu
+                unreadCount={0}
+                dataState={{ kind: "empty" }}
+              />
+            }
             workspaceSwitcher={
               <WorkspaceSwitcherMenu
                 currentWorkspaceId={null}

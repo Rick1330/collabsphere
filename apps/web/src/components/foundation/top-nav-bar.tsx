@@ -2,6 +2,7 @@ import Link from "next/link";
 import * as React from "react";
 
 type TopNavBarProps = {
+  notificationBell: React.ReactNode;
   workspaceSwitcher: React.ReactNode;
   userMenu: React.ReactNode;
 };
@@ -75,7 +76,11 @@ function TopNavPlaceholderControl({
   );
 }
 
-export function TopNavBar({ workspaceSwitcher, userMenu }: TopNavBarProps) {
+export function TopNavBar({
+  notificationBell,
+  workspaceSwitcher,
+  userMenu,
+}: TopNavBarProps) {
   return (
     <nav className="top-nav" aria-label="Authenticated top navigation">
       <div className="top-nav__brand-cluster">
@@ -108,13 +113,7 @@ export function TopNavBar({ workspaceSwitcher, userMenu }: TopNavBarProps) {
       />
 
       <div className="top-nav__actions" role="group" aria-label="Notification and account controls">
-        <TopNavPlaceholderControl
-          accentLabel="NT"
-          ariaLabel="Notifications placeholder. Notification data is not implemented in this story."
-          description="Notification center staged for later data wiring"
-          label="Notifications"
-          tag="Feed soon"
-        />
+        {notificationBell}
         <div className="top-nav__user-slot">{userMenu}</div>
       </div>
     </nav>
