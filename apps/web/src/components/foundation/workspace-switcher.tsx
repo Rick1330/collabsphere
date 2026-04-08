@@ -687,7 +687,7 @@ export function WorkspaceSwitcher({
       dataState={dataState}
       initialOpen={initialOpen}
       onRetry={() => {
-        void query.refetch();
+        query.refetch().catch(() => undefined);
       }}
       onSelectWorkspace={(workspaceId) => {
         router.push(`/w/${workspaceId}`);
