@@ -42,6 +42,14 @@ type WorkspaceSidebarSectionProps = {
   label: string;
 };
 
+type WorkspaceSidebarItemState = {
+  gateLabel: string;
+  gateMeta: string;
+  hasAccess: boolean;
+  isActive: boolean;
+  isLiveLink: boolean;
+};
+
 type WorkspaceSidebarStatusState = {
   title: string;
   copy: string;
@@ -119,6 +127,52 @@ const isItemAccessible = (
   return isWorkspaceRoleAllowed(currentRole, item.requiredRole);
 };
 
+const getWorkspaceSidebarItemState = ({
+  currentPathname,
+  currentRole,
+  item,
+}: {
+  currentPathname: string | null;
+  currentRole: WorkspaceRole | null;
+  item: WorkspaceSidebarItem;
+}): WorkspaceSidebarItemState => {
+  const isActive = isWorkspaceSidebarItemActive(currentPathname, item);
+  const hasAccess = isItemAccessible(currentRole, item);
+  const isLiveLink = item.status !== "staged" && hasAccess;
+
+  if (isLiveLink) {
+    return {
+      gateLabel: "",
+      gateMeta: "",
+      hasAccess,
+      isActive,
+      isLiveLink,
+    };
+  }
+
+  const gateLabel =
+    item.requiredRole == null
+      ? "Staged"
+      : hasAccess
+        ? "Soon"
+        : getWorkspaceRoleGateLabel(item.requiredRole);
+
+  const gateMeta =
+    item.requiredRole == null
+      ? "Route foundation is staged in a later baton."
+      : hasAccess
+        ? "Your role allows this route, but the page is not implemented yet."
+        : `${gateLabel} access is required before this route becomes available.`;
+
+  return {
+    gateLabel,
+    gateMeta,
+    hasAccess,
+    isActive,
+    isLiveLink,
+  };
+};
+
 const getWorkspaceSidebarPresentation = (
   dataState: WorkspaceSidebarDataState,
   workspaceId: string,
@@ -193,6 +247,98 @@ function WorkspaceSidebarStatus({
   );
 }
 
+function WorkspaceSidebarLinkContent({
+  description,
+  gateLabel,
+  label,
+  meta,
+}: Readonly<{
+  description: string;
+  gateLabel?: string;
+  label: string;
+  meta?: string;
+}>) {
+  if (gateLabel) {
+    return (
+      <span className="workspace-sidebar__link-copy">
+        <span className="workspace-sidebar__link-label-row">
+          <span className="workspace-sidebar__link-label">{label}</span>
+          <span className="workspace-sidebar__gate-tag">{gateLabel}</span>
+        </span>
+        <span className="workspace-sidebar__link-description">{meta}</span>
+      </span>
+    );
+  }
+
+  return (
+    <span className="workspace-sidebar__link-copy">
+      <span className="workspace-sidebar__link-label">{label}</span>
+      <span className="workspace-sidebar__link-description">{description}</span>
+    </span>
+  );
+}
+
+function WorkspaceSidebarItemRow({
+  currentPathname,
+  currentRole,
+  item,
+}: Readonly<{
+  currentPathname: string | null;
+  currentRole: WorkspaceRole | null;
+  item: WorkspaceSidebarItem;
+}>) {
+  const itemState = getWorkspaceSidebarItemState({
+    currentPathname,
+    currentRole,
+    item,
+  });
+
+  if (itemState.isLiveLink) {
+    return (
+      <li className="shell__nav-item">
+        <Link
+          className="shell__nav-link workspace-sidebar__link"
+          data-active={itemState.isActive}
+          aria-current={itemState.isActive ? "page" : undefined}
+          href={item.href}
+        >
+          <span className="workspace-sidebar__link-mark" aria-hidden="true">
+            {item.mark}
+          </span>
+          <WorkspaceSidebarLinkContent
+            description={item.description}
+            label={item.label}
+          />
+        </Link>
+      </li>
+    );
+  }
+
+  const ariaLabel = itemState.hasAccess
+    ? `${item.label}. Route staged.`
+    : `${item.label}. ${itemState.gateLabel} required.`;
+
+  return (
+    <li className="shell__nav-item">
+      <div
+        className="workspace-sidebar__locked"
+        data-locked={!itemState.hasAccess}
+        aria-label={ariaLabel}
+      >
+        <span className="workspace-sidebar__link-mark" aria-hidden="true">
+          {itemState.hasAccess ? item.mark : "🔒"}
+        </span>
+        <WorkspaceSidebarLinkContent
+          description={item.description}
+          gateLabel={itemState.gateLabel}
+          label={item.label}
+          meta={itemState.gateMeta}
+        />
+      </div>
+    </li>
+  );
+}
+
 function WorkspaceSidebarSection({
   currentPathname,
   currentRole,
@@ -205,73 +351,14 @@ function WorkspaceSidebarSection({
         {label}
       </p>
       <ul className="shell__nav-list workspace-sidebar__list">
-        {items.map((item) => {
-          const isActive = isWorkspaceSidebarItemActive(currentPathname, item);
-          const hasAccess = isItemAccessible(currentRole, item);
-          const isLiveLink = item.status !== "staged" && hasAccess;
-
-          if (isLiveLink) {
-            return (
-              <li key={item.href} className="shell__nav-item">
-                <Link
-                  className="shell__nav-link workspace-sidebar__link"
-                  data-active={isActive}
-                  aria-current={isActive ? "page" : undefined}
-                  href={item.href}
-                >
-                  <span className="workspace-sidebar__link-mark" aria-hidden="true">
-                    {item.mark}
-                  </span>
-                  <span className="workspace-sidebar__link-copy">
-                    <span className="workspace-sidebar__link-label">{item.label}</span>
-                    <span className="workspace-sidebar__link-description">
-                      {item.description}
-                    </span>
-                  </span>
-                </Link>
-              </li>
-            );
-          }
-
-          const gateLabel =
-            item.requiredRole == null
-              ? "Staged"
-              : hasAccess
-                ? "Soon"
-                : getWorkspaceRoleGateLabel(item.requiredRole);
-
-          const gateMeta =
-            item.requiredRole == null
-              ? "Route foundation is staged in a later baton."
-              : hasAccess
-                ? "Your role allows this route, but the page is not implemented yet."
-                : `${gateLabel} access is required before this route becomes available.`;
-
-          return (
-            <li key={item.href} className="shell__nav-item">
-              <div
-                className="workspace-sidebar__locked"
-                data-locked={!hasAccess}
-                aria-label={
-                  hasAccess
-                    ? `${item.label}. Route staged.`
-                    : `${item.label}. ${gateLabel} required.`
-                }
-              >
-                <span className="workspace-sidebar__link-mark" aria-hidden="true">
-                  {hasAccess ? item.mark : "🔒"}
-                </span>
-                <span className="workspace-sidebar__link-copy">
-                  <span className="workspace-sidebar__link-label-row">
-                    <span className="workspace-sidebar__link-label">{item.label}</span>
-                    <span className="workspace-sidebar__gate-tag">{gateLabel}</span>
-                  </span>
-                  <span className="workspace-sidebar__link-description">{gateMeta}</span>
-                </span>
-              </div>
-            </li>
-          );
-        })}
+        {items.map((item) => (
+          <WorkspaceSidebarItemRow
+            key={item.href}
+            currentPathname={currentPathname}
+            currentRole={currentRole}
+            item={item}
+          />
+        ))}
       </ul>
     </section>
   );
