@@ -181,35 +181,63 @@ const getWorkspaceInitials = (workspace: Pick<WorkspaceSummary, "icon" | "name">
 const getWorkspaceMeta = (workspace: WorkspaceSummary) =>
   `${workspace.roleLabel} · ${workspaceTypeLabels[workspace.type]}`;
 
+const getWorkspaceContextLabel = (
+  currentWorkspaceId: string | null,
+  fallbackLabel: string,
+) => (currentWorkspaceId ? "Current workspace" : fallbackLabel);
+
+const createWorkspaceAction = (
+  description: string,
+): WorkspaceSwitcherAction => ({
+  kind: "create",
+  key: "create",
+  label: "Create workspace",
+  description,
+});
+
+const retryWorkspaceAction = (): WorkspaceSwitcherAction => ({
+  kind: "retry",
+  key: "retry",
+  label: "Retry workspace list",
+  description: "Retry the current workspace request without leaving the page.",
+});
+
+const getLoadedWorkspaceTriggerCopy = (
+  workspaces: WorkspaceSummary[],
+  currentWorkspaceId: string | null,
+) => {
+  const currentWorkspace =
+    currentWorkspaceId == null
+      ? null
+      : workspaces.find((workspace) => workspace.id === currentWorkspaceId) ?? null;
+
+  if (!currentWorkspace) {
+    return {
+      icon: "WS",
+      label: "Select Workspace",
+      meta: `${workspaces.length} member workspaces`,
+    };
+  }
+
+  return {
+    icon: getWorkspaceInitials(currentWorkspace),
+    label: currentWorkspace.name,
+    meta: `Current workspace · ${currentWorkspace.roleLabel}`,
+  };
+};
+
 export const getWorkspaceTriggerCopy = (
   dataState: WorkspaceSwitcherDataState,
   currentWorkspaceId: string | null,
 ) => {
   if (dataState.kind === "loaded") {
-    const currentWorkspace =
-      currentWorkspaceId == null
-        ? null
-        : dataState.workspaces.find((workspace) => workspace.id === currentWorkspaceId) ?? null;
-
-    if (currentWorkspace) {
-      return {
-        icon: getWorkspaceInitials(currentWorkspace),
-        label: currentWorkspace.name,
-        meta: `Current workspace · ${currentWorkspace.roleLabel}`,
-      };
-    }
-
-    return {
-      icon: "WS",
-      label: "Select Workspace",
-      meta: `${dataState.workspaces.length} member workspaces`,
-    };
+    return getLoadedWorkspaceTriggerCopy(dataState.workspaces, currentWorkspaceId);
   }
 
   if (dataState.kind === "loading") {
     return {
       icon: "WS",
-      label: currentWorkspaceId ? "Current workspace" : "Loading workspaces",
+      label: getWorkspaceContextLabel(currentWorkspaceId, "Loading workspaces"),
       meta: "Fetching member contexts",
     };
   }
@@ -217,7 +245,7 @@ export const getWorkspaceTriggerCopy = (
   if (dataState.kind === "error") {
     return {
       icon: "WS",
-      label: currentWorkspaceId ? "Current workspace" : "Select Workspace",
+      label: getWorkspaceContextLabel(currentWorkspaceId, "Select Workspace"),
       meta: "Workspace list unavailable",
     };
   }
@@ -284,51 +312,22 @@ const getWorkspaceSwitcherActions = (
         workspace,
         current: workspace.id === currentWorkspaceId,
       })),
-      {
-        kind: "create" as const,
-        key: "create",
-        label: "Create workspace",
-        description: "Open the workspace creation flow.",
-      },
+      createWorkspaceAction("Open the workspace creation flow."),
     ];
   }
 
   if (dataState.kind === "error") {
     return [
-      {
-        kind: "retry" as const,
-        key: "retry",
-        label: "Retry workspace list",
-        description: "Retry the current workspace request without leaving the page.",
-      },
-      {
-        kind: "create" as const,
-        key: "create",
-        label: "Create workspace",
-        description: "Start a new workspace while the list service recovers.",
-      },
+      retryWorkspaceAction(),
+      createWorkspaceAction("Start a new workspace while the list service recovers."),
     ];
   }
 
   if (dataState.kind === "empty") {
-    return [
-      {
-        kind: "create" as const,
-        key: "create",
-        label: "Create workspace",
-        description: "Set up the first workspace for this account.",
-      },
-    ];
+    return [createWorkspaceAction("Set up the first workspace for this account.")];
   }
 
-  return [
-    {
-      kind: "create" as const,
-      key: "create",
-      label: "Create workspace",
-      description: "Start a new workspace while member contexts load.",
-    },
-  ];
+  return [createWorkspaceAction("Start a new workspace while member contexts load.")];
 };
 
 const LoadingWorkspaceSkeleton = () => (

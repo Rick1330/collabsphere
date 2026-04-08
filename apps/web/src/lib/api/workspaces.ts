@@ -203,23 +203,27 @@ const readWorkspaceErrorCode = (payload: unknown) => {
   return readNonEmptyString(payload.error.code);
 };
 
+const workspaceErrorKindsByStatus: Record<number, WorkspaceApiErrorKind> = {
+  401: "auth",
+  403: "auth",
+  404: "not-found",
+};
+
 const getWorkspaceErrorKindFromStatus = (
   status: number,
   errorCode: string | null,
 ): WorkspaceApiErrorKind => {
-  if (status === 401 || status === 403 || errorCode === "UNAUTHORIZED") {
+  if (errorCode === "UNAUTHORIZED") {
     return "auth";
   }
 
-  if (status === 404) {
-    return "not-found";
+  const exactStatusKind = workspaceErrorKindsByStatus[status];
+
+  if (exactStatusKind) {
+    return exactStatusKind;
   }
 
-  if (status >= 500) {
-    return "server";
-  }
-
-  return "unknown";
+  return status >= 500 ? "server" : "unknown";
 };
 
 const getWorkspaceErrorMessage = (kind: WorkspaceApiErrorKind) => {
