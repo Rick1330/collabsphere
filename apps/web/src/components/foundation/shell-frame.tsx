@@ -28,12 +28,19 @@ export function ShellFrame({
   topNav,
   children,
 }: ShellFrameProps) {
+  const isRailOmitted = sidebar === null;
   const contentClassName =
     topNav == null ? "shell__content" : "shell__content shell__content--with-top-nav";
-  const shellClassName =
-    topNav == null ? `shell shell--${tone}` : `shell shell--${tone} shell--has-top-nav`;
+  const shellClassName = [
+    "shell",
+    `shell--${tone}`,
+    topNav == null ? null : "shell--has-top-nav",
+    isRailOmitted ? "shell--no-rail" : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
   const rail = (
-    <aside className="shell__rail" aria-label={`${sectionLabel} navigation`}>
+    <aside className="shell__rail shell__rail--default" aria-label={`${sectionLabel} navigation`}>
       <p className="shell__eyebrow">{sectionLabel}</p>
       <h1 className="shell__title">{title}</h1>
       <p className="shell__description">{description}</p>

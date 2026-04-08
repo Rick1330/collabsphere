@@ -64,9 +64,19 @@ button {
   min-height: 100vh;
 }
 
+.shell--no-rail {
+  grid-template-columns: 1fr;
+}
+
 .shell__rail,
 .shell__content {
   padding: 1.5rem;
+}
+
+.shell__rail--default {
+  display: grid;
+  gap: 1.5rem;
+  align-content: start;
 }
 
 .shell__rail {

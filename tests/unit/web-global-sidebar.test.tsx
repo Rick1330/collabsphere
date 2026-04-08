@@ -84,5 +84,29 @@ test("shell frame honors an explicit null sidebar instead of falling back to the
   );
 
   assert.doesNotMatch(markup, /class="shell__rail"/);
+  assert.match(markup, /class="shell shell--global shell--no-rail"/);
   assert.doesNotMatch(markup, /Authenticated global context navigation/);
+});
+
+test("shell frame keeps the structured default rail layout when no custom sidebar is supplied", () => {
+  const markup = renderToStaticMarkup(
+    <ShellFrame
+      tone="public"
+      sectionLabel="Public context"
+      title="CollabSphere"
+      description="Public shell"
+      navItems={[
+        {
+          href: "/",
+          hint: "Landing route",
+          label: "Landing",
+        },
+      ]}
+    >
+      <div>Public content</div>
+    </ShellFrame>,
+  );
+
+  assert.match(markup, /class="shell__rail shell__rail--default"/);
+  assert.doesNotMatch(markup, /shell--no-rail/);
 });
