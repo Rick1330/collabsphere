@@ -423,6 +423,13 @@ export async function markNotificationAsRead(
   notificationId: string,
   { accessToken, fetchFn = fetch, signal }: NotificationFetchOptions = {},
 ) {
+  if (typeof notificationId !== "string" || notificationId.trim().length === 0) {
+    throw new NotificationApiError(
+      "validation",
+      notificationOperationMessages.update.validation,
+    );
+  }
+
   try {
     const response = await fetchFn(
       `/api/v1/notifications/${encodeURIComponent(notificationId)}/read`,

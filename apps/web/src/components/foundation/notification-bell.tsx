@@ -270,6 +270,10 @@ const coerceNotificationQueryError = (error: unknown) => {
     return new NotificationApiError("unknown", "Failed to load notifications.");
   }
 
+  if (error != null) {
+    return new NotificationApiError("unknown", "Failed to load notifications.");
+  }
+
   return null;
 };
 

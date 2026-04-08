@@ -21,6 +21,7 @@ import {
 import {
   NotificationApiError,
   listRecentNotifications,
+  markNotificationAsRead,
   parseNotificationListResponse,
   parseNotificationUnreadCountResponse,
   readNotificationUnreadCount,
@@ -240,5 +241,15 @@ test("listRecentNotifications classifies malformed responses as non-network fail
       error instanceof NotificationApiError &&
       error.kind === "unknown" &&
       error.message === "The notifications response was malformed.",
+  );
+});
+
+test("markNotificationAsRead rejects blank notification ids before issuing a request", async () => {
+  await assert.rejects(
+    () => markNotificationAsRead(""),
+    (error) =>
+      error instanceof NotificationApiError &&
+      error.kind === "validation" &&
+      error.message === "The notification update could not be completed.",
   );
 });
