@@ -221,39 +221,35 @@ test("workspace switcher renders empty and error states truthfully", () => {
   assert.match(errorMarkup, /req_workspace_switcher/);
 });
 
-test("getWorkspaceSwitcherDataState keeps loaded data visible when background refetch errors", () => {
-  const state = getWorkspaceSwitcherDataState({
-    error: new WorkspaceApiError(
+test("getWorkspaceSwitcherDataState preserves cached data and exposes uncached errors", () => {
+  const makeServerError = (requestId?: string) =>
+    new WorkspaceApiError(
       "server",
       "The workspace service failed to respond. Retry in a moment.",
-    ),
+      requestId ? { requestId } : undefined,
+    );
+
+  const loadedState = getWorkspaceSwitcherDataState({
+    error: makeServerError(),
     workspaces: workspaceFixtures,
     pending: false,
   });
-
-  assert.equal(state.kind, "loaded");
-  if (state.kind !== "loaded") {
+  assert.equal(loadedState.kind, "loaded");
+  if (loadedState.kind !== "loaded") {
     assert.fail("Expected loaded state when cached workspaces exist.");
   }
-  assert.equal(state.workspaces.length, workspaceFixtures.length);
-});
+  assert.equal(loadedState.workspaces.length, workspaceFixtures.length);
 
-test("getWorkspaceSwitcherDataState returns error when no cached workspace list exists", () => {
-  const state = getWorkspaceSwitcherDataState({
-    error: new WorkspaceApiError(
-      "server",
-      "The workspace service failed to respond. Retry in a moment.",
-      { requestId: "req_no_cache" },
-    ),
+  const uncachedErrorState = getWorkspaceSwitcherDataState({
+    error: makeServerError("req_no_cache"),
     workspaces: undefined,
     pending: false,
   });
-
-  assert.equal(state.kind, "error");
-  if (state.kind !== "error") {
+  assert.equal(uncachedErrorState.kind, "error");
+  if (uncachedErrorState.kind !== "error") {
     assert.fail("Expected error state when no cached workspaces exist.");
   }
-  assert.equal(state.requestId, "req_no_cache");
+  assert.equal(uncachedErrorState.requestId, "req_no_cache");
 });
 
 test("listWorkspaces classifies malformed response payloads as non-network errors", async () => {
