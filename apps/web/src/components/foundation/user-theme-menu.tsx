@@ -35,6 +35,7 @@ type ThemeMenuOptionKey =
   | "PageDown";
 
 type ThemeMenuOpenKey = "Enter" | " " | "ArrowDown" | "ArrowUp";
+type ThemeMenuLinkActivationKey = " ";
 
 type UserMenuLinkAction = {
   kind: "link";
@@ -143,6 +144,10 @@ export const isThemeMenuOpenKey = (key: string): key is ThemeMenuOpenKey =>
 export const isThemeMenuNavigationKey = (
   key: string,
 ): key is ThemeMenuOptionKey => themeMenuNavigationKeys.has(key as ThemeMenuOptionKey);
+
+export const isThemeMenuLinkActivationKey = (
+  key: string,
+): key is ThemeMenuLinkActivationKey => key === " ";
 
 export const getThemeMenuNextIndex = (
   currentIndex: number,
@@ -467,6 +472,14 @@ export function ThemeUserMenu({ initialOpen = false }: ThemeUserMenuProps) {
                   }}
                   onFocus={() => {
                     setActiveIndex(index);
+                  }}
+                  onKeyDown={(event) => {
+                    if (!isThemeMenuLinkActivationKey(event.key)) {
+                      return;
+                    }
+
+                    event.preventDefault();
+                    event.currentTarget.click();
                   }}
                   onPointerMove={(event) => {
                     handleActionPointerMove(event, index);

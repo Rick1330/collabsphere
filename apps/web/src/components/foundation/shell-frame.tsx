@@ -32,28 +32,29 @@ export function ShellFrame({
     topNav == null ? "shell__content" : "shell__content shell__content--with-top-nav";
   const shellClassName =
     topNav == null ? `shell shell--${tone}` : `shell shell--${tone} shell--has-top-nav`;
+  const rail = (
+    <aside className="shell__rail" aria-label={`${sectionLabel} navigation`}>
+      <p className="shell__eyebrow">{sectionLabel}</p>
+      <h1 className="shell__title">{title}</h1>
+      <p className="shell__description">{description}</p>
+      <nav className="shell__nav">
+        <ul className="shell__nav-list">
+          {(navItems ?? []).map((item) => (
+            <li key={item.href} className="shell__nav-item">
+              <Link className="shell__nav-link" href={item.href}>
+                <span>{item.label}</span>
+                <span className="shell__nav-hint">{item.hint}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </aside>
+  );
 
   return (
     <div className={shellClassName}>
-      {sidebar ?? (
-        <aside className="shell__rail" aria-label={`${sectionLabel} navigation`}>
-          <p className="shell__eyebrow">{sectionLabel}</p>
-          <h1 className="shell__title">{title}</h1>
-          <p className="shell__description">{description}</p>
-          <nav className="shell__nav">
-            <ul className="shell__nav-list">
-              {(navItems ?? []).map((item) => (
-                <li key={item.href} className="shell__nav-item">
-                  <Link className="shell__nav-link" href={item.href}>
-                    <span>{item.label}</span>
-                    <span className="shell__nav-hint">{item.hint}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        </aside>
-      )}
+      {sidebar !== undefined ? sidebar : rail}
       <div className={contentClassName}>
         {topNav == null ? null : topNav}
         <header className="shell__header">

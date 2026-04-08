@@ -64,3 +64,25 @@ test("shell frame can render a custom sidebar in place of the generic rail", () 
   assert.match(markup, /aria-current="page" href="\/dashboard"/);
   assert.doesNotMatch(markup, /Authenticated global context navigation/);
 });
+
+test("shell frame honors an explicit null sidebar instead of falling back to the default rail", () => {
+  const markup = renderToStaticMarkup(
+    <ShellFrame
+      tone="global"
+      sectionLabel="Authenticated global context"
+      title="Personal workspace shell"
+      description="Global post-login routes now have a stable App Router layout boundary ready for navigation, theming, and account features."
+      navItems={globalSidebarPrimaryItems.map((item) => ({
+        href: item.href,
+        hint: item.description,
+        label: item.label,
+      }))}
+      sidebar={null}
+    >
+      <div>Example content</div>
+    </ShellFrame>,
+  );
+
+  assert.doesNotMatch(markup, /class="shell__rail"/);
+  assert.doesNotMatch(markup, /Authenticated global context navigation/);
+});

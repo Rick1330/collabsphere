@@ -8,6 +8,7 @@ import { AppProviders } from "../../apps/web/src/components/providers/app-provid
 import { ShellFrame } from "../../apps/web/src/components/foundation/shell-frame";
 import {
   getThemeUserMenuSignOutState,
+  isThemeMenuLinkActivationKey,
   getThemeMenuOpenIndex,
   getThemeMenuNextIndex,
   getThemeMenuStatusLabel,
@@ -46,6 +47,12 @@ test("theme user menu navigation-key guard narrows supported roving keys", () =>
   assert.equal(isThemeMenuNavigationKey("ArrowDown"), true);
   assert.equal(isThemeMenuNavigationKey("PageUp"), true);
   assert.equal(isThemeMenuNavigationKey("Tab"), false);
+});
+
+test("theme user menu link activation guard only treats Space as synthetic link activation", () => {
+  assert.equal(isThemeMenuLinkActivationKey(" "), true);
+  assert.equal(isThemeMenuLinkActivationKey("Enter"), false);
+  assert.equal(isThemeMenuLinkActivationKey("ArrowDown"), false);
 });
 
 test("theme user menu sign-out state preserves request ids on API errors", () => {
