@@ -58,6 +58,7 @@ Review input may come from:
 
 - human reviewers
 - local IDE review agents
+- local CodeRabbit CLI runs
 - Devin Review
 - CodeScene
 
@@ -85,6 +86,7 @@ For each meaningful review comment:
 After review-driven changes:
 
 - re-run affected validation
+- re-run local CodeRabbit CLI review (`pnpm review:coderabbit`) when touched files changed materially
 - update the PR summary if behavior changed
 - update the handoff if risks or follow-ups changed
 
