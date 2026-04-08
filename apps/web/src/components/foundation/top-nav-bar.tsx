@@ -2,6 +2,7 @@ import Link from "next/link";
 import * as React from "react";
 
 type TopNavBarProps = {
+  workspaceSwitcher: React.ReactNode;
   userMenu: React.ReactNode;
 };
 
@@ -74,7 +75,7 @@ function TopNavPlaceholderControl({
   );
 }
 
-export function TopNavBar({ userMenu }: TopNavBarProps) {
+export function TopNavBar({ workspaceSwitcher, userMenu }: TopNavBarProps) {
   return (
     <nav className="top-nav" aria-label="Authenticated top navigation">
       <div className="top-nav__brand-cluster">
@@ -93,14 +94,7 @@ export function TopNavBar({ userMenu }: TopNavBarProps) {
       </div>
 
       <div className="top-nav__workspace-slot" role="group" aria-label="Workspace controls">
-        <TopNavPlaceholderControl
-          accentLabel="WS"
-          ariaLabel="Workspace switcher placeholder. Workspace switching is not wired in this story."
-          description="Select or create workspace"
-          label="All workspaces"
-          shortcut={["Ctrl", "W"]}
-          tag="Soon"
-        />
+        {workspaceSwitcher}
       </div>
 
       <TopNavPlaceholderControl
