@@ -4,6 +4,7 @@ import test from "node:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
+import { GlobalSidebarView } from "../../apps/web/src/components/foundation/global-sidebar";
 import { AppProviders } from "../../apps/web/src/components/providers/app-providers";
 import { globalNavItems } from "../../apps/web/src/components/foundation/navigation";
 import { NotificationBellMenu } from "../../apps/web/src/components/foundation/notification-bell";
@@ -90,7 +91,7 @@ test("shell frame renders the top nav before the supporting header copy", () => 
         sectionLabel="Authenticated global context"
         title="Personal workspace shell"
         description="Global post-login routes now have a stable App Router layout boundary ready for navigation, theming, and account features."
-        navItems={globalNavItems}
+        sidebar={<GlobalSidebarView currentPathname="/dashboard" />}
         topNav={
           <TopNavBar
             mobileMenuDescription="Global post-login routes now have a stable App Router layout boundary ready for navigation, theming, and account features."
@@ -123,6 +124,7 @@ test("shell frame renders the top nav before the supporting header copy", () => 
   assert.ok(topNavIndex !== -1 && headerIndex !== -1 && topNavIndex < headerIndex);
   assert.match(markup, /class="shell__content shell__content--with-top-nav"/);
   assert.match(markup, /class="shell shell--global shell--has-top-nav"/);
+  assert.match(markup, /class="shell__rail global-sidebar"/);
   assert.match(markup, /role="group" aria-label="Notification and account controls"/);
 });
 

@@ -70,6 +70,9 @@ button {
 }
 
 .shell__rail {
+  display: grid;
+  gap: 1.5rem;
+  align-content: start;
   position: relative;
   color: var(--color-text-primary);
   background:
@@ -182,6 +185,21 @@ button {
   transform: translateY(-1px);
 }
 
+.shell__nav-link[data-active="true"] {
+  border-color:
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 36%, var(--color-border));
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--section-accent, var(--color-accent)) 11%, var(--surface-card)) 0%,
+      color-mix(in srgb, var(--section-accent, var(--color-accent)) 4%, var(--surface-card)) 100%
+    );
+  box-shadow:
+    var(--shadow-elevated),
+    inset 0 0 0 1px
+      color-mix(in srgb, var(--section-accent, var(--color-accent)) 14%, transparent);
+}
+
 .shell__nav-link:focus-visible {
   outline: 2px solid var(--focus-ring-color);
   outline-offset: 2px;
@@ -190,6 +208,139 @@ button {
 .shell__nav-hint {
   font-size: 0.9rem;
   color: var(--color-text-secondary);
+}
+
+.global-sidebar {
+  display: grid;
+  gap: 1.35rem;
+}
+
+.global-sidebar__header,
+.global-sidebar__nav {
+  display: grid;
+  gap: 1rem;
+}
+
+.global-sidebar__title {
+  font-size: clamp(1.9rem, 2.4vw, 2.6rem);
+}
+
+.global-sidebar__description {
+  margin: 0;
+  max-width: 30ch;
+}
+
+.global-sidebar__section {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.global-sidebar__section-label,
+.global-sidebar__supplement-label {
+  margin: 0;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.global-sidebar__list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.global-sidebar__link {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.8rem;
+  align-items: center;
+  text-decoration: none;
+}
+
+.global-sidebar__link:hover,
+.global-sidebar__link:focus-visible {
+  background:
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 7%, var(--surface-card));
+  border-color:
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 26%, var(--color-border));
+  transform: translateY(-1px);
+}
+
+.global-sidebar__link:focus-visible {
+  outline: 2px solid var(--focus-ring-color);
+  outline-offset: 2px;
+}
+
+.global-sidebar__link-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 2.4rem;
+  min-height: 2.4rem;
+  border-radius: 0.9rem;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--section-accent, var(--color-accent)) 20%, var(--surface-card)),
+      color-mix(in srgb, var(--surface-card-subtle) 92%, var(--surface-card))
+    );
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-border) 62%, transparent);
+}
+
+.global-sidebar__link-copy {
+  display: grid;
+  gap: 0.16rem;
+  min-width: 0;
+}
+
+.global-sidebar__link-label {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.global-sidebar__link-description {
+  color: var(--color-text-secondary);
+  font-size: 0.88rem;
+}
+
+.global-sidebar__link-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: start;
+  min-width: 3.4rem;
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  background:
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 14%, var(--surface-card));
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.global-sidebar__supplement {
+  display: grid;
+  gap: 0.55rem;
+  padding: 1rem 1.05rem;
+  border-radius: 1.05rem;
+  border: 1px solid var(--border-subtle);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-card) 94%, var(--color-bg-secondary)) 0%,
+      color-mix(in srgb, var(--surface-card-subtle) 88%, var(--surface-card)) 100%
+    );
+  box-shadow: var(--shadow-soft);
+}
+
+.global-sidebar__supplement-copy {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
 }
 
 .shell__content {
