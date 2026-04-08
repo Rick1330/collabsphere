@@ -40,6 +40,7 @@ type WorkspaceSidebarSectionProps = {
   currentRole: WorkspaceRole | null;
   items: readonly WorkspaceSidebarItem[];
   label: string;
+  sectionId: string;
 };
 
 type WorkspaceSidebarItemState = {
@@ -344,10 +345,14 @@ function WorkspaceSidebarSection({
   currentRole,
   items,
   label,
+  sectionId,
 }: Readonly<WorkspaceSidebarSectionProps>) {
   return (
-    <section className="workspace-sidebar__section" aria-labelledby={`workspace-sidebar-${label}`}>
-      <p id={`workspace-sidebar-${label}`} className="workspace-sidebar__section-label">
+    <section
+      className="workspace-sidebar__section"
+      aria-labelledby={`workspace-sidebar-${sectionId}`}
+    >
+      <p id={`workspace-sidebar-${sectionId}`} className="workspace-sidebar__section-label">
         {label}
       </p>
       <ul className="shell__nav-list workspace-sidebar__list">
@@ -374,14 +379,17 @@ export function WorkspaceSidebarView({
     {
       items: workspaceSidebarPrimaryItems(workspaceId),
       label: "Workspace",
+      sectionId: "workspace",
     },
     {
       items: workspaceSidebarSecondaryItems(workspaceId),
       label: "Elevated routes",
+      sectionId: "elevated-routes",
     },
     {
       items: workspaceSidebarQuickActionItems(workspaceId),
       label: "Quick actions",
+      sectionId: "quick-actions",
     },
   ] as const;
 
@@ -418,6 +426,7 @@ export function WorkspaceSidebarView({
             currentRole={presentation.currentRole}
             items={section.items}
             label={section.label}
+            sectionId={section.sectionId}
           />
         ))}
       </nav>

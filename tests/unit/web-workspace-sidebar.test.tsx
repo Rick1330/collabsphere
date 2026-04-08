@@ -51,6 +51,9 @@ test("workspace sidebar renders core workspace routes and locked elevated routes
   );
 
   assert.match(markup, /aria-label="Workspace navigation"/);
+  assert.match(markup, /aria-labelledby="workspace-sidebar-workspace"/);
+  assert.match(markup, /aria-labelledby="workspace-sidebar-elevated-routes"/);
+  assert.match(markup, /aria-labelledby="workspace-sidebar-quick-actions"/);
   assert.match(markup, /Back to dashboard/);
   assert.match(markup, /Project Alpha/);
   assert.match(markup, /Building the future/);
