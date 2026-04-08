@@ -54,8 +54,13 @@ const assertIntegrationServices = (jobs: Record<string, WorkflowJob>) => {
   assert.equal(jobs["integration-tests"]?.services?.redis?.image, "redis:7-alpine");
 };
 
+const setupNodeActionPattern =
+  /^actions\/setup-node@(?:v4|49933ea5288caeca8642d1e84afbd3f7d6820020)(?:\s+#.*)?$/;
+
 const getSetupNodeStep = (steps: Array<Record<string, unknown>>) =>
-  steps.find((step) => step.uses === "actions/setup-node@v4") as
+  steps.find(
+    (step) => typeof step.uses === "string" && setupNodeActionPattern.test(step.uses),
+  ) as
     | { uses?: string; with?: Record<string, string> }
     | undefined;
 
