@@ -1311,9 +1311,24 @@ button {
 
 .shell-user-menu__identity {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 0.8rem;
   align-items: center;
+}
+
+.shell-user-menu__identity-badge {
+  display: inline-flex;
+  align-items: center;
+  align-self: start;
+  padding: 0.28rem 0.6rem;
+  border-radius: 999px;
+  background:
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 12%, var(--surface-card));
+  color: var(--color-text-secondary);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .shell-user-menu__divider {
@@ -1322,7 +1337,7 @@ button {
   background: var(--border-subtle);
 }
 
-.shell-user-menu__theme-group {
+.shell-user-menu__menu {
   display: grid;
   gap: 0.7rem;
 }
@@ -1356,6 +1371,11 @@ button {
   cursor: pointer;
 }
 
+.shell-user-menu__option:disabled {
+  cursor: wait;
+  opacity: 0.9;
+}
+
 .shell-user-menu__option:hover,
 .shell-user-menu__option:focus-visible,
 .shell-user-menu__option[data-selected="true"] {
@@ -1363,6 +1383,36 @@ button {
     color-mix(in srgb, var(--section-accent, var(--color-accent)) 28%, var(--color-border));
   background:
     color-mix(in srgb, var(--section-accent, var(--color-accent)) 7%, var(--surface-card));
+}
+
+.shell-user-menu__option--signout {
+  border-color:
+    color-mix(in srgb, #d97706 32%, var(--border-subtle));
+}
+
+.shell-user-menu__option--signout:hover,
+.shell-user-menu__option--signout:focus-visible {
+  border-color: color-mix(in srgb, #b45309 44%, var(--border-subtle));
+  background: color-mix(in srgb, #f59e0b 8%, var(--surface-card));
+}
+
+.shell-user-menu__action-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 1.8rem;
+  min-height: 1.8rem;
+  border-radius: 0.7rem;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--section-accent, var(--color-accent)) 18%, var(--surface-card)),
+      color-mix(in srgb, var(--color-bg-secondary) 84%, var(--surface-card))
+    );
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-border) 58%, transparent);
 }
 
 .shell-user-menu__option-indicator {
@@ -1379,6 +1429,18 @@ button {
   border-color: var(--section-accent, var(--color-accent));
   background: var(--section-accent, var(--color-accent));
   box-shadow: inset 0 0 0 0.2rem var(--surface-card);
+}
+
+.shell-user-menu__status {
+  margin: 0;
+  padding: 0.8rem 0.9rem;
+  border-radius: 0.9rem;
+  border: 1px solid
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 14%, var(--border-subtle));
+  background:
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 6%, var(--surface-card));
+  color: var(--color-text-secondary);
+  font-size: 0.88rem;
 }
 
 .top-nav__user-slot .shell-user-menu__trigger {
