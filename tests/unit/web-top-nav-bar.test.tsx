@@ -27,6 +27,7 @@ test("top nav renders the authenticated shell control regions with truthful plac
   assert.match(markup, /Ctrl/);
   assert.match(markup, /Feed soon/);
   assert.match(markup, /aria-haspopup="menu"/);
+  assert.match(markup, /disabled=""/);
 });
 
 test("shell frame renders the top nav before the supporting header copy", () => {
@@ -49,5 +50,25 @@ test("shell frame renders the top nav before the supporting header copy", () => 
   const headerIndex = markup.indexOf('class="shell__header');
 
   assert.ok(topNavIndex !== -1 && headerIndex !== -1 && topNavIndex < headerIndex);
+  assert.match(markup, /class="shell__content shell__content--with-top-nav"/);
   assert.match(markup, /role="group" aria-label="Notification and account controls"/);
+});
+
+test("shell frame keeps the default content layout class when no top nav is provided", () => {
+  const markup = renderToStaticMarkup(
+    <ThemeProvider>
+      <ShellFrame
+        tone="global"
+        sectionLabel="Authenticated global context"
+        title="Personal workspace shell"
+        description="Global post-login routes now have a stable App Router layout boundary ready for navigation, theming, and account features."
+        navItems={globalNavItems}
+      >
+        <div>Example content</div>
+      </ShellFrame>
+    </ThemeProvider>,
+  );
+
+  assert.match(markup, /class="shell__content"/);
+  assert.doesNotMatch(markup, /shell__content--with-top-nav/);
 });

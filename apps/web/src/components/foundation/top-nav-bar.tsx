@@ -53,6 +53,7 @@ function TopNavPlaceholderControl({
           className="top-nav__search-trigger"
           aria-label={ariaLabel}
           aria-disabled="true"
+          disabled
         >
           {content}
         </button>
@@ -66,6 +67,7 @@ function TopNavPlaceholderControl({
       className="top-nav__control"
       aria-label={ariaLabel}
       aria-disabled="true"
+      disabled
     >
       {content}
     </button>

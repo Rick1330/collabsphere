@@ -198,6 +198,10 @@ button {
   gap: 1.5rem;
 }
 
+.shell__content--with-top-nav {
+  grid-template-rows: auto auto 1fr;
+}
+
 .top-nav {
   position: sticky;
   top: 1rem;
@@ -343,6 +347,11 @@ button {
   cursor: pointer;
 }
 
+.top-nav__control:disabled,
+.top-nav__search-trigger:disabled {
+  cursor: default;
+}
+
 .top-nav__control:hover,
 .top-nav__control:focus-visible,
 .top-nav__search-trigger:hover,
@@ -355,6 +364,30 @@ button {
 .top-nav__control[aria-disabled="true"],
 .top-nav__search-trigger[aria-disabled="true"] {
   opacity: 1;
+}
+
+.top-nav__control:disabled:hover,
+.top-nav__control:disabled:focus-visible,
+.top-nav__search-trigger:disabled:hover,
+.top-nav__search-trigger:disabled:focus-visible {
+  transform: none;
+  border-color:
+    color-mix(in srgb, var(--color-border) 82%, var(--section-accent, var(--color-accent)) 18%);
+}
+
+.top-nav__control:disabled .top-nav__control-mark,
+.top-nav__search-trigger:disabled .top-nav__control-mark {
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 22%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--color-border) 48%, transparent);
+  filter: saturate(0.85);
+}
+
+.top-nav__control:disabled .top-nav__control-description,
+.top-nav__control:disabled .top-nav__control-tag,
+.top-nav__search-trigger:disabled .top-nav__control-description,
+.top-nav__search-trigger:disabled .top-nav__shortcut {
+  color: var(--color-text-tertiary);
 }
 
 .top-nav__control-tag,
