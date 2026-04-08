@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "tsx scripts/dev.ts",
     "bootstrap:aca:staging": "tsx scripts/bootstrap-aca-staging.ts",
+    "review:coderabbit": "tsx scripts/review-coderabbit.ts",
     "lint": "pnpm exec eslint . --max-warnings=0",
     "typecheck": "pnpm exec tsc -p packages/shared/tsconfig.json --noEmit && pnpm --filter @collabsphere/web run typecheck",
     "test": "pnpm exec turbo run //#test:unit && pnpm exec turbo run //#test:integration --env-mode=loose",

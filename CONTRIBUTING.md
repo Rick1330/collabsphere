@@ -211,6 +211,7 @@ For delivery gate automation, `status:done` and `status:cancelled` are terminal 
 - confirm the branch was created from `main`
 - confirm the issue scope is met
 - run the relevant validation commands
+- run local CodeRabbit CLI review (`pnpm review:coderabbit`)
 - capture validation evidence and any waivers
 - prepare a parent-story handoff if the issue is a delivery task
 
@@ -236,6 +237,7 @@ PR review may come from:
 
 - human reviewers
 - local IDE review agents
+- local CodeRabbit CLI runs
 - Devin Review
 - CodeScene
 
@@ -255,6 +257,8 @@ The PR inherits the highest required review tier from its linked issues through 
 
 Re-run affected validation after review-driven edits.
 
+Re-run `pnpm review:coderabbit` after meaningful code changes from review feedback, then summarize outcome in the PR body or issue handoff comment.
+
 ## Local Validation
 
 Use the task or story issue as the primary validation source. Common commands include:
@@ -266,6 +270,7 @@ pnpm test
 pnpm test:unit
 pnpm test:integration
 pnpm build
+pnpm review:coderabbit
 ```
 
 For docs-only changes, validate by checking the expected files and key sections exist and match the referenced workflows.

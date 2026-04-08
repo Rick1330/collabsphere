@@ -16,6 +16,7 @@ CollabSphere uses separate layers for:
 
 - working-agent implementation
 - review routing and policy enforcement
+- local CLI review tools
 - automated PR review tools
 - human approval where required
 
@@ -27,7 +28,7 @@ The working agent owns the branch and resolves review comments. Review agents an
 
 - working agent self-review
 - at least one additional review source before merge
-- review source may be human, local IDE review agent, Devin Review, or CodeScene
+- review source may be human, local IDE review agent, local CodeRabbit CLI run, Devin Review, or CodeScene
 
 ### `review:elevated`
 
@@ -44,6 +45,26 @@ The working agent owns the branch and resolves review comments. Review agents an
 - no auto-merge based only on bot comments or automated review output
 
 ## Automated Review Tools
+
+### CodeRabbit CLI (local-first)
+
+Best fit:
+
+- pre-push local diff review
+- fast issue discovery before PR check cycles
+- implementing "review-left" feedback without waiting for PR comments
+
+Repository policy:
+
+- run `pnpm review:coderabbit` before push and before final merge-readiness confirmation
+- attach a short summary of findings/outcome in PR body or issue handoff comment
+- keep required branch-protection checks as the merge gate source of truth
+- `.coderabbit.yaml` disables CodeRabbit PR auto-review and review status checks for this repository
+
+Prerequisites:
+
+- CodeRabbit CLI installed (native Linux/macOS, or WSL on Windows)
+- authenticated session via `coderabbit auth login`
 
 ### Devin Review
 
