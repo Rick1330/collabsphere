@@ -7,6 +7,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { AppProviders } from "../../apps/web/src/components/providers/app-providers";
 import { ShellFrame } from "../../apps/web/src/components/foundation/shell-frame";
 import {
+  getThemeUserMenuSignOutState,
   getThemeMenuOpenIndex,
   getThemeMenuNextIndex,
   getThemeMenuStatusLabel,
@@ -14,6 +15,7 @@ import {
   ThemeUserMenu,
   themeMenuOptions,
 } from "../../apps/web/src/components/foundation/user-theme-menu";
+import { AuthApiError } from "../../apps/web/src/lib/api/auth";
 import { globalNavItems } from "../../apps/web/src/components/foundation/navigation";
 
 test("theme user menu status label reflects system and manual preferences", () => {
@@ -44,6 +46,26 @@ test("theme user menu navigation-key guard narrows supported roving keys", () =>
   assert.equal(isThemeMenuNavigationKey("ArrowDown"), true);
   assert.equal(isThemeMenuNavigationKey("PageUp"), true);
   assert.equal(isThemeMenuNavigationKey("Tab"), false);
+});
+
+test("theme user menu sign-out state preserves request ids on API errors", () => {
+  const error = new AuthApiError("server", "Sign out could not be completed. Retry in a moment.", {
+    requestId: "req_123",
+    status: 503,
+  });
+
+  assert.deepEqual(
+    getThemeUserMenuSignOutState({
+      error,
+      isError: true,
+      isPending: false,
+    }),
+    {
+      kind: "error",
+      message: "Sign out could not be completed. Retry in a moment.",
+      requestId: "req_123",
+    },
+  );
 });
 
 test("theme user menu renders an accessible closed trigger inside the shell header", () => {
@@ -95,9 +117,15 @@ test("theme user menu renders account links, theme options, and sign-out action 
   assert.equal((markup.match(/role="menuitem"/g) ?? []).length, 3);
   assert.equal((markup.match(/role="menuitemradio"/g) ?? []).length, 3);
   assert.match(markup, /Account shortcuts/);
+  assert.match(markup, /role="presentation"/);
+  assert.match(markup, /aria-label="Account shortcuts"/);
   assert.match(markup, /Dashboard/);
+  assert.match(markup, /href="\/dashboard"/);
   assert.match(markup, /Settings/);
+  assert.match(markup, /href="\/settings\/profile"/);
+  assert.match(markup, /aria-label="Display theme"/);
   assert.match(markup, /Display theme/);
+  assert.match(markup, /aria-label="Session"/);
   assert.match(markup, /Session/);
   assert.match(markup, /Sign out/);
   assert.match(markup, /Profile, email, and role details will appear here/);
