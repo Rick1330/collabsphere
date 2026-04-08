@@ -14,6 +14,36 @@ const globalsCss = fs.readFileSync(
   "utf8",
 );
 
+function getCssBlock(source: string, selector: string): string | undefined {
+  const selectorIndex = source.indexOf(selector);
+  if (selectorIndex === -1) {
+    return undefined;
+  }
+
+  const blockStart = source.indexOf("{", selectorIndex);
+  if (blockStart === -1) {
+    return undefined;
+  }
+
+  let depth = 0;
+  for (let index = blockStart; index < source.length; index += 1) {
+    const character = source[index];
+    if (character === "{") {
+      depth += 1;
+      continue;
+    }
+    if (character !== "}") {
+      continue;
+    }
+    depth -= 1;
+    if (depth === 0) {
+      return source.slice(blockStart + 1, index);
+    }
+  }
+
+  return undefined;
+}
+
 const requiredThemeVariables = [
   "--color-bg-primary",
   "--color-bg-secondary",
@@ -30,8 +60,8 @@ const requiredThemeVariables = [
   "--color-info",
 ];
 
-const lightThemeBlock = themeCss.match(/:root\s*\{([\s\S]*?)\}/)?.[1];
-const darkThemeBlock = themeCss.match(/\[data-theme="dark"\]\s*\{([\s\S]*?)\}/)?.[1];
+const lightThemeBlock = getCssBlock(themeCss, ":root");
+const darkThemeBlock = getCssBlock(themeCss, '[data-theme="dark"]');
 const importThemePattern = /^\s*@import\s+(?:url\()?['"]\.\.\/styles\/theme\.css['"]\)?;?/m;
 const importTokensPattern = /^\s*@import\s+(?:url\()?['"]\.\.\/styles\/tokens\.css['"]\)?;?/m;
 
