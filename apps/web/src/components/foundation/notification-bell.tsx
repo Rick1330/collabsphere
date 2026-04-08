@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import {
   default as React,
@@ -75,6 +75,11 @@ type NotificationBellMutationContext = {
   previousUnreadCount: number | undefined;
 };
 
+type NotificationMenuClampParams = {
+  currentIndex: number;
+  itemCount: number;
+};
+
 type NotificationMenuOpenKey = "Enter" | " " | "ArrowDown" | "ArrowUp";
 type NotificationMenuNavigationKey =
   | "ArrowDown"
@@ -103,7 +108,10 @@ export const isNotificationMenuNavigationKey = (
 ): key is NotificationMenuNavigationKey =>
   notificationMenuNavigationKeys.has(key as NotificationMenuNavigationKey);
 
-export const getClampedNotificationMenuIndex = (currentIndex: number, itemCount: number) => {
+export const getClampedNotificationMenuIndex = ({
+  currentIndex,
+  itemCount,
+}: NotificationMenuClampParams) => {
   if (itemCount <= 0) {
     return -1;
   }
@@ -120,9 +128,11 @@ export const getClampedNotificationMenuIndex = (currentIndex: number, itemCount:
 };
 
 export const getNotificationMenuNextIndex = (
-  currentIndex: number,
-  key: NotificationMenuNavigationKey,
-  itemCount: number,
+  {
+    currentIndex,
+    itemCount,
+    key,
+  }: NotificationMenuClampParams & { key: NotificationMenuNavigationKey },
 ) => {
   if (itemCount <= 0) {
     return -1;
@@ -144,8 +154,7 @@ export const getNotificationMenuNextIndex = (
 };
 
 export const getNotificationMenuOpenIndex = (
-  key: NotificationMenuOpenKey,
-  itemCount: number,
+  { key, itemCount }: { key: NotificationMenuOpenKey; itemCount: number },
 ) => {
   if (itemCount <= 0) {
     return -1;
@@ -163,8 +172,7 @@ export const formatNotificationBadgeCount = (unreadCount: number | null) => {
 };
 
 export const formatNotificationRelativeTimestamp = (
-  createdAt: string,
-  now = Date.now(),
+  { createdAt, now = Date.now() }: { createdAt: string; now?: number },
 ) => {
   const createdTimestamp = Date.parse(createdAt);
 
@@ -221,7 +229,13 @@ export const getNotificationTypeMark = (type: string) => {
   return "NT";
 };
 
-export const getNotificationBodyPreview = (body: string, maxLength = 84) => {
+export const getNotificationBodyPreview = ({
+  body,
+  maxLength = 84,
+}: {
+  body: string;
+  maxLength?: number;
+}) => {
   if (body.length <= maxLength) {
     return body;
   }
@@ -283,9 +297,15 @@ const coerceNotificationQueryError = (error: unknown) => {
 };
 
 const buildNotificationAction = <TKind extends "retry" | "mark-all" | "view-all">(
-  kind: TKind,
-  label: string,
-  description: string,
+  {
+    description,
+    kind,
+    label,
+  }: {
+    kind: TKind;
+    label: string;
+    description: string;
+  },
 ): Extract<NotificationAction, { kind: TKind }> => ({
   kind,
   key: `action:${kind}`,
@@ -301,20 +321,20 @@ const getNotificationFooterActions = (unreadCount: number | null) => {
 
   if (hasUnreadNotifications(unreadCount)) {
     actions.push(
-      buildNotificationAction(
-        "mark-all",
-        "Mark all as read",
-        "Clear the unread badge across your recent notifications.",
-      ),
+      buildNotificationAction({
+        kind: "mark-all",
+        label: "Mark all as read",
+        description: "Clear the unread badge across your recent notifications.",
+      }),
     );
   }
 
   actions.push(
-    buildNotificationAction(
-      "view-all",
-      "View all notifications",
-      "Open the full notifications center.",
-    ),
+    buildNotificationAction({
+      kind: "view-all",
+      label: "View all notifications",
+      description: "Open the full notifications center.",
+    }),
   );
 
   return actions;
@@ -337,11 +357,11 @@ const getNotificationBellActions = (
 
   if (dataState.kind === "error") {
     return [
-      buildNotificationAction(
-        "retry",
-        "Retry notifications",
-        "Reload the notification feed without leaving this page.",
-      ),
+      buildNotificationAction({
+        kind: "retry",
+        label: "Retry notifications",
+        description: "Reload the notification feed without leaving this page.",
+      }),
       ...getNotificationFooterActions(unreadCount),
     ];
   }
@@ -385,7 +405,10 @@ export function NotificationBellMenu({
 
   useEffect(() => {
     setActiveIndex((currentIndex) => {
-      const nextIndex = getClampedNotificationMenuIndex(currentIndex, actions.length);
+      const nextIndex = getClampedNotificationMenuIndex({
+        currentIndex,
+        itemCount: actions.length,
+      });
       return nextIndex === currentIndex ? currentIndex : nextIndex;
     });
   }, [actions.length]);
@@ -419,7 +442,12 @@ export function NotificationBellMenu({
   }, [isOpen]);
 
   const openMenu = (nextIndex = getDefaultActiveIndex()) => {
-    setActiveIndex(getClampedNotificationMenuIndex(nextIndex, actions.length));
+    setActiveIndex(
+      getClampedNotificationMenuIndex({
+        currentIndex: nextIndex,
+        itemCount: actions.length,
+      }),
+    );
     setIsOpen(true);
   };
 
@@ -437,7 +465,12 @@ export function NotificationBellMenu({
     }
 
     event.preventDefault();
-    openMenu(getNotificationMenuOpenIndex(event.key, actions.length));
+    openMenu(
+      getNotificationMenuOpenIndex({
+        key: event.key,
+        itemCount: actions.length,
+      }),
+    );
   };
 
   const handleMenuKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -457,7 +490,13 @@ export function NotificationBellMenu({
     }
 
     event.preventDefault();
-    setActiveIndex(getNotificationMenuNextIndex(activeIndex, event.key, actions.length));
+    setActiveIndex(
+      getNotificationMenuNextIndex({
+        currentIndex: activeIndex,
+        itemCount: actions.length,
+        key: event.key,
+      }),
+    );
   };
 
   const handleActionSelect = (action: NotificationAction) => {
@@ -627,11 +666,13 @@ export function NotificationBellMenu({
                         ) : null}
                       </span>
                       <span className="notification-bell__item-description">
-                        {getNotificationBodyPreview(action.notification.body)}
+                        {getNotificationBodyPreview({ body: action.notification.body })}
                       </span>
                     </span>
                     <span className="notification-bell__item-meta">
-                      {formatNotificationRelativeTimestamp(action.notification.createdAt)}
+                      {formatNotificationRelativeTimestamp({
+                        createdAt: action.notification.createdAt,
+                      })}
                     </span>
                   </>
                 ) : (
@@ -655,6 +696,90 @@ export function NotificationBellMenu({
     </div>
   );
 }
+
+const cancelNotificationBellQueries = async (queryClient: QueryClient) => {
+  await Promise.all([
+    queryClient.cancelQueries({ queryKey: notificationUnreadCountQueryKey }),
+    queryClient.cancelQueries({ queryKey: recentNotificationsQueryKey }),
+  ]);
+};
+
+const captureNotificationBellMutationContext = (
+  queryClient: QueryClient,
+): NotificationBellMutationContext => ({
+  previousNotifications:
+    queryClient.getQueryData<NotificationSummary[]>(recentNotificationsQueryKey),
+  previousUnreadCount: queryClient.getQueryData<number>(notificationUnreadCountQueryKey),
+});
+
+const restoreNotificationBellMutationContext = (
+  queryClient: QueryClient,
+  context: NotificationBellMutationContext | undefined,
+) => {
+  if (!context) {
+    return;
+  }
+
+  queryClient.setQueryData(recentNotificationsQueryKey, context.previousNotifications);
+  queryClient.setQueryData(notificationUnreadCountQueryKey, context.previousUnreadCount);
+};
+
+const invalidateNotificationBellQueries = (queryClient: QueryClient) => {
+  queryClient.invalidateQueries({ queryKey: notificationUnreadCountQueryKey }).catch(() => undefined);
+  queryClient.invalidateQueries({ queryKey: recentNotificationsQueryKey }).catch(() => undefined);
+};
+
+const updateNotificationListCache = (
+  queryClient: QueryClient,
+  updateNotification: (notification: NotificationSummary) => NotificationSummary,
+) => {
+  queryClient.setQueryData<NotificationSummary[] | undefined>(
+    recentNotificationsQueryKey,
+    (current) => current?.map(updateNotification),
+  );
+};
+
+const markNotificationAsReadInCache = ({
+  notification,
+  notificationId,
+}: {
+  notification: NotificationSummary;
+  notificationId: string;
+}) => {
+  if (notification.id !== notificationId || notification.isRead) {
+    return { notification, unreadMarked: false };
+  }
+
+  return {
+    notification: { ...notification, isRead: true },
+    unreadMarked: true,
+  };
+};
+
+const optimisticallyMarkAllNotificationsAsRead = (queryClient: QueryClient) => {
+  queryClient.setQueryData(notificationUnreadCountQueryKey, 0);
+  updateNotificationListCache(queryClient, (notification) =>
+    notification.isRead ? notification : { ...notification, isRead: true },
+  );
+};
+
+const optimisticallyMarkNotificationAsRead = (
+  queryClient: QueryClient,
+  notificationId: string,
+) => {
+  let unreadMarked = false;
+
+  updateNotificationListCache(queryClient, (notification) => {
+    const result = markNotificationAsReadInCache({ notification, notificationId });
+    unreadMarked = unreadMarked || result.unreadMarked;
+    return result.notification;
+  });
+
+  queryClient.setQueryData<number | undefined>(
+    notificationUnreadCountQueryKey,
+    (current) => (unreadMarked && typeof current === "number" && current > 0 ? current - 1 : current),
+  );
+};
 
 export function NotificationBell({
   initialOpen = false,
@@ -681,84 +806,32 @@ export function NotificationBell({
   const markAllMutation = useMutation({
     mutationFn: () => markAllNotificationsAsRead(),
     onMutate: async (): Promise<NotificationBellMutationContext> => {
-      await Promise.all([
-        queryClient.cancelQueries({ queryKey: notificationUnreadCountQueryKey }),
-        queryClient.cancelQueries({ queryKey: recentNotificationsQueryKey }),
-      ]);
-
-      const previousNotifications =
-        queryClient.getQueryData<NotificationSummary[]>(recentNotificationsQueryKey);
-      const previousUnreadCount =
-        queryClient.getQueryData<number>(notificationUnreadCountQueryKey);
-
-      queryClient.setQueryData(notificationUnreadCountQueryKey, 0);
-      queryClient.setQueryData<NotificationSummary[] | undefined>(
-        recentNotificationsQueryKey,
-        (current) => current?.map((notification) => ({ ...notification, isRead: true })),
-      );
-
-      return { previousNotifications, previousUnreadCount };
+      await cancelNotificationBellQueries(queryClient);
+      const context = captureNotificationBellMutationContext(queryClient);
+      optimisticallyMarkAllNotificationsAsRead(queryClient);
+      return context;
     },
     onError: (_error, _variables, context) => {
-      if (!context) {
-        return;
-      }
-
-      queryClient.setQueryData(recentNotificationsQueryKey, context.previousNotifications);
-      queryClient.setQueryData(notificationUnreadCountQueryKey, context.previousUnreadCount);
+      restoreNotificationBellMutationContext(queryClient, context);
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: notificationUnreadCountQueryKey }).catch(() => undefined);
-      queryClient.invalidateQueries({ queryKey: recentNotificationsQueryKey }).catch(() => undefined);
+      invalidateNotificationBellQueries(queryClient);
     },
   });
 
   const markOneMutation = useMutation({
     mutationFn: (notificationId: string) => markNotificationAsRead(notificationId),
     onMutate: async (notificationId: string): Promise<NotificationBellMutationContext> => {
-      await Promise.all([
-        queryClient.cancelQueries({ queryKey: notificationUnreadCountQueryKey }),
-        queryClient.cancelQueries({ queryKey: recentNotificationsQueryKey }),
-      ]);
-
-      const previousNotifications =
-        queryClient.getQueryData<NotificationSummary[]>(recentNotificationsQueryKey);
-      const previousUnreadCount =
-        queryClient.getQueryData<number>(notificationUnreadCountQueryKey);
-
-      let decrementedUnreadCount = false;
-
-      queryClient.setQueryData<NotificationSummary[] | undefined>(
-        recentNotificationsQueryKey,
-        (current) =>
-          current?.map((notification) => {
-            if (notification.id !== notificationId || notification.isRead) {
-              return notification;
-            }
-
-            decrementedUnreadCount = true;
-            return { ...notification, isRead: true };
-          }),
-      );
-      queryClient.setQueryData<number | undefined>(
-        notificationUnreadCountQueryKey,
-        (current) =>
-          decrementedUnreadCount && typeof current === "number" && current > 0 ? current - 1 : current,
-      );
-
-      return { previousNotifications, previousUnreadCount };
+      await cancelNotificationBellQueries(queryClient);
+      const context = captureNotificationBellMutationContext(queryClient);
+      optimisticallyMarkNotificationAsRead(queryClient, notificationId);
+      return context;
     },
     onError: (_error, _variables, context) => {
-      if (!context) {
-        return;
-      }
-
-      queryClient.setQueryData(recentNotificationsQueryKey, context.previousNotifications);
-      queryClient.setQueryData(notificationUnreadCountQueryKey, context.previousUnreadCount);
+      restoreNotificationBellMutationContext(queryClient, context);
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: notificationUnreadCountQueryKey }).catch(() => undefined);
-      queryClient.invalidateQueries({ queryKey: recentNotificationsQueryKey }).catch(() => undefined);
+      invalidateNotificationBellQueries(queryClient);
     },
   });
 

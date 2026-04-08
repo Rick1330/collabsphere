@@ -63,13 +63,16 @@ test("notification menu keyboard helpers remain deterministic", () => {
   assert.equal(isNotificationMenuOpenKey("Escape"), false);
   assert.equal(isNotificationMenuNavigationKey("ArrowDown"), true);
   assert.equal(isNotificationMenuNavigationKey("Tab"), false);
-  assert.equal(getNotificationMenuOpenIndex("ArrowDown", 3), 0);
-  assert.equal(getNotificationMenuOpenIndex("ArrowUp", 3), 2);
-  assert.equal(getNotificationMenuNextIndex(0, "ArrowUp", 3), 2);
-  assert.equal(getNotificationMenuNextIndex(2, "ArrowDown", 3), 0);
-  assert.equal(getNotificationMenuNextIndex(1, "Home", 3), 0);
-  assert.equal(getClampedNotificationMenuIndex(5, 2), 1);
-  assert.equal(getClampedNotificationMenuIndex(0, 0), -1);
+  assert.equal(getNotificationMenuOpenIndex({ key: "ArrowDown", itemCount: 3 }), 0);
+  assert.equal(getNotificationMenuOpenIndex({ key: "ArrowUp", itemCount: 3 }), 2);
+  assert.equal(getNotificationMenuNextIndex({ currentIndex: 0, key: "ArrowUp", itemCount: 3 }), 2);
+  assert.equal(
+    getNotificationMenuNextIndex({ currentIndex: 2, key: "ArrowDown", itemCount: 3 }),
+    0,
+  );
+  assert.equal(getNotificationMenuNextIndex({ currentIndex: 1, key: "Home", itemCount: 3 }), 0);
+  assert.equal(getClampedNotificationMenuIndex({ currentIndex: 5, itemCount: 2 }), 1);
+  assert.equal(getClampedNotificationMenuIndex({ currentIndex: 0, itemCount: 0 }), -1);
 });
 
 test("sortNotificationsByRecency orders newest first and falls back to title", () => {
@@ -117,21 +120,21 @@ test("notification helper formatting produces compact preview and timestamp copy
   assert.equal(getSafeNotificationHref("https://malicious.example"), "/notifications");
   assert.equal(getSafeNotificationHref("//malicious.example"), "/notifications");
   assert.equal(
-    getNotificationBodyPreview("A short body", 40),
+    getNotificationBodyPreview({ body: "A short body", maxLength: 40 }),
     "A short body",
   );
   assert.match(
-    getNotificationBodyPreview(
-      "This is a deliberately long notification body that should be truncated cleanly.",
-      32,
-    ),
+    getNotificationBodyPreview({
+      body: "This is a deliberately long notification body that should be truncated cleanly.",
+      maxLength: 32,
+    }),
     /…$/,
   );
   assert.equal(
-    formatNotificationRelativeTimestamp(
-      "2025-07-17T12:09:00Z",
-      Date.parse("2025-07-17T12:10:00Z"),
-    ),
+    formatNotificationRelativeTimestamp({
+      createdAt: "2025-07-17T12:09:00Z",
+      now: Date.parse("2025-07-17T12:10:00Z"),
+    }),
     "1m ago",
   );
 });
