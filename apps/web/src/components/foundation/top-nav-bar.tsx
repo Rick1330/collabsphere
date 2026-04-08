@@ -1,7 +1,14 @@
 import Link from "next/link";
 import * as React from "react";
 
+import { MobileMenu } from "./mobile-menu";
+import type { NavItem } from "./navigation";
+
 type TopNavBarProps = {
+  mobileMenuDescription: string;
+  mobileMenuInitialOpen?: boolean;
+  mobileMenuTitle: string;
+  mobileNavItems: NavItem[];
   notificationBell: React.ReactNode;
   workspaceSwitcher: React.ReactNode;
   userMenu: React.ReactNode;
@@ -49,7 +56,7 @@ function TopNavPlaceholderControl({
 
   if (type === "search") {
     return (
-      <div className="top-nav__search" role="search">
+      <div className="top-nav__search top-nav__search--desktop-only" role="search">
         <button
           type="button"
           className="top-nav__search-trigger"
@@ -77,6 +84,10 @@ function TopNavPlaceholderControl({
 }
 
 export function TopNavBar({
+  mobileMenuDescription,
+  mobileMenuInitialOpen = false,
+  mobileMenuTitle,
+  mobileNavItems,
   notificationBell,
   workspaceSwitcher,
   userMenu,
@@ -84,15 +95,23 @@ export function TopNavBar({
   return (
     <nav className="top-nav" aria-label="Authenticated top navigation">
       <div className="top-nav__brand-cluster">
-        <Link className="top-nav__brand" href="/dashboard">
-          <span className="top-nav__brand-mark" aria-hidden="true">
-            CS
-          </span>
-          <span className="top-nav__brand-copy">
-            <span className="top-nav__brand-label">CollabSphere</span>
-            <span className="top-nav__brand-meta">Workspace command center</span>
-          </span>
-        </Link>
+        <div className="top-nav__brand-row">
+          <MobileMenu
+            description={mobileMenuDescription}
+            initialOpen={mobileMenuInitialOpen}
+            navItems={mobileNavItems}
+            title={mobileMenuTitle}
+          />
+          <Link className="top-nav__brand" href="/dashboard">
+            <span className="top-nav__brand-mark" aria-hidden="true">
+              CS
+            </span>
+            <span className="top-nav__brand-copy">
+              <span className="top-nav__brand-label">CollabSphere</span>
+              <span className="top-nav__brand-meta">Workspace command center</span>
+            </span>
+          </Link>
+        </div>
         <p className="top-nav__context-note">
           Authenticated global shell with collaboration controls staged in place.
         </p>

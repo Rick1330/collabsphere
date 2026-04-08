@@ -28,9 +28,11 @@ export function ShellFrame({
 }: ShellFrameProps) {
   const contentClassName =
     topNav == null ? "shell__content" : "shell__content shell__content--with-top-nav";
+  const shellClassName =
+    topNav == null ? `shell shell--${tone}` : `shell shell--${tone} shell--has-top-nav`;
 
   return (
-    <div className={`shell shell--${tone}`}>
+    <div className={shellClassName}>
       <aside className="shell__rail" aria-label={`${sectionLabel} navigation`}>
         <p className="shell__eyebrow">{sectionLabel}</p>
         <h1 className="shell__title">{title}</h1>

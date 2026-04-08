@@ -34,6 +34,11 @@ export const globalNavItems: NavItem[] = [
     hint: "Workspace switcher and listing surface",
   },
   {
+    href: "/notifications",
+    label: "Notifications",
+    hint: "Full notification history and future filters",
+  },
+  {
     href: "/settings",
     label: "Settings",
     hint: "Account-level settings shell",
