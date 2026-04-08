@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 import {
@@ -11,7 +12,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 
-import { logoutCurrentSession } from "../../lib/api/auth";
+import { AuthApiError, logoutCurrentSession } from "../../lib/api/auth";
 import type { ThemePreference } from "../../lib/theme";
 import { useTheme } from "../theme/theme-provider";
 
@@ -62,6 +63,13 @@ type UserMenuSignOutAction = {
 
 type UserMenuAction = UserMenuLinkAction | UserMenuThemeAction | UserMenuSignOutAction;
 
+type ThemeUserMenuSignOutState =
+  | { kind: "pending"; message: string; requestId: null }
+  | { kind: "error"; message: string; requestId: string | null }
+  | null;
+
+type UserMenuItemElement = HTMLAnchorElement | HTMLButtonElement;
+
 const placeholderIdentity = {
   badge: "Shell",
   description:
@@ -70,6 +78,10 @@ const placeholderIdentity = {
   name: "CollabSphere member",
   triggerMeta: "Account shell with local theme controls",
 } as const;
+
+const navigationSectionLabel = "Account shortcuts";
+const themeSectionLabel = "Display theme";
+const signOutSectionLabel = "Session";
 
 export const themeMenuOptions: readonly ThemeMenuOption[] = [
   {
@@ -183,6 +195,42 @@ export const getThemeMenuStatusLabel = (
   return `${preference === "light" ? "Light" : "Dark"} locked`;
 };
 
+export const getThemeUserMenuSignOutState = ({
+  error,
+  isError,
+  isPending,
+}: {
+  error: unknown;
+  isError: boolean;
+  isPending: boolean;
+}): ThemeUserMenuSignOutState => {
+  if (isPending) {
+    return {
+      kind: "pending",
+      message: "Signing out of the current session.",
+      requestId: null,
+    };
+  }
+
+  if (!isError) {
+    return null;
+  }
+
+  if (error instanceof AuthApiError) {
+    return {
+      kind: "error",
+      message: error.message,
+      requestId: error.requestId,
+    };
+  }
+
+  return {
+    kind: "error",
+    message: "Unable to sign out. Please try again.",
+    requestId: null,
+  };
+};
+
 const getThemeActions = (): UserMenuThemeAction[] =>
   themeMenuOptions.map((option) => ({
     kind: "theme",
@@ -198,14 +246,6 @@ const getUserMenuActions = (): UserMenuAction[] => [
   signOutAction,
 ];
 
-const navigateToMenuHref = (href: string) => {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.location.assign(href);
-};
-
 const redirectToLogin = () => {
   if (typeof window === "undefined") {
     return;
@@ -219,10 +259,7 @@ export function ThemeUserMenu({ initialOpen = false }: ThemeUserMenuProps) {
   const { preference, resolvedTheme, setThemePreference } = useTheme();
   const menuId = useId();
   const triggerId = `${menuId}-trigger`;
-  const navigationLabelId = `${menuId}-navigation`;
-  const themeLabelId = `${menuId}-theme`;
-  const signOutLabelId = `${menuId}-signout`;
-  const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const itemRefs = useRef<Array<UserMenuItemElement | null>>([]);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const [hasMounted, setHasMounted] = useState(false);
@@ -233,9 +270,23 @@ export function ThemeUserMenu({ initialOpen = false }: ThemeUserMenuProps) {
     ? getThemeMenuStatusLabel(preference, resolvedTheme)
     : "Account menu";
 
+  const openMenu = (nextIndex = 0) => {
+    setActiveIndex(nextIndex);
+    setIsOpen(true);
+  };
+
+  const closeMenu = (restoreFocus = false) => {
+    setIsOpen(false);
+
+    if (restoreFocus) {
+      triggerRef.current?.focus();
+    }
+  };
+
   const signOutMutation = useMutation({
     mutationFn: () => logoutCurrentSession(),
     onSuccess: () => {
+      closeMenu();
       queryClient.clear();
       redirectToLogin();
     },
@@ -273,19 +324,6 @@ export function ThemeUserMenu({ initialOpen = false }: ThemeUserMenuProps) {
     };
   }, [isOpen]);
 
-  const openMenu = (nextIndex = 0) => {
-    setActiveIndex(nextIndex);
-    setIsOpen(true);
-  };
-
-  const closeMenu = (restoreFocus = false) => {
-    setIsOpen(false);
-
-    if (restoreFocus) {
-      triggerRef.current?.focus();
-    }
-  };
-
   const handleTriggerKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (!isThemeMenuOpenKey(event.key)) {
       return;
@@ -316,7 +354,7 @@ export function ThemeUserMenu({ initialOpen = false }: ThemeUserMenuProps) {
   };
 
   const handleActionPointerMove = (
-    event: ReactPointerEvent<HTMLButtonElement>,
+    event: ReactPointerEvent<HTMLElement>,
     index: number,
   ) => {
     if (event.pointerType !== "mouse" && event.pointerType !== "pen") {
@@ -326,16 +364,14 @@ export function ThemeUserMenu({ initialOpen = false }: ThemeUserMenuProps) {
     setActiveIndex(index);
   };
 
-  const handleActionSelect = (action: UserMenuAction) => {
-    if (action.kind === "link") {
-      closeMenu();
-      navigateToMenuHref(action.href);
-      return;
-    }
-
+  const handleActionSelect = (action: UserMenuThemeAction | UserMenuSignOutAction) => {
     if (action.kind === "theme") {
       setThemePreference(action.preference);
       closeMenu(true);
+      return;
+    }
+
+    if (signOutMutation.isPending) {
       return;
     }
 
@@ -343,18 +379,11 @@ export function ThemeUserMenu({ initialOpen = false }: ThemeUserMenuProps) {
     signOutMutation.mutate();
   };
 
-  const signOutStatus =
-    signOutMutation.isPending
-      ? {
-          kind: "pending" as const,
-          message: "Signing out of the current session.",
-        }
-      : signOutMutation.isError
-        ? {
-            kind: "error" as const,
-            message: "Unable to sign out. Please try again.",
-          }
-        : null;
+  const signOutStatus = getThemeUserMenuSignOutState({
+    error: signOutMutation.error,
+    isError: signOutMutation.isError,
+    isPending: signOutMutation.isPending,
+  });
 
   return (
     <div ref={rootRef} className="shell-user-menu">
@@ -419,22 +448,22 @@ export function ThemeUserMenu({ initialOpen = false }: ThemeUserMenuProps) {
             aria-labelledby={triggerId}
             onKeyDown={handleMenuKeyDown}
           >
-            <p id={navigationLabelId} className="shell-user-menu__section-label">
-              Account shortcuts
+            <p className="shell-user-menu__section-label" role="presentation" aria-hidden="true">
+              {navigationSectionLabel}
             </p>
-            <div className="shell-user-menu__options" role="group" aria-labelledby={navigationLabelId}>
+            <div className="shell-user-menu__options" role="group" aria-label={navigationSectionLabel}>
               {navigationActions.map((action, index) => (
-                <button
+                <Link
                   key={action.key}
                   ref={(node) => {
                     itemRefs.current[index] = node;
                   }}
-                  type="button"
+                  href={action.href}
                   role="menuitem"
                   tabIndex={index === activeIndex ? 0 : -1}
                   className="shell-user-menu__option shell-user-menu__option--link"
                   onClick={() => {
-                    handleActionSelect(action);
+                    closeMenu();
                   }}
                   onFocus={() => {
                     setActiveIndex(index);
@@ -452,15 +481,15 @@ export function ThemeUserMenu({ initialOpen = false }: ThemeUserMenuProps) {
                       {action.description}
                     </span>
                   </span>
-                </button>
+                </Link>
               ))}
             </div>
 
             <div className="shell-user-menu__divider" role="presentation" />
-            <p id={themeLabelId} className="shell-user-menu__section-label">
-              Display theme
+            <p className="shell-user-menu__section-label" role="presentation" aria-hidden="true">
+              {themeSectionLabel}
             </p>
-            <div className="shell-user-menu__options" role="group" aria-labelledby={themeLabelId}>
+            <div className="shell-user-menu__options" role="group" aria-label={themeSectionLabel}>
               {themeMenuOptions.map((option, optionIndex) => {
                 const index = navigationActions.length + optionIndex;
                 const checked = option.value === preference;
@@ -510,10 +539,10 @@ export function ThemeUserMenu({ initialOpen = false }: ThemeUserMenuProps) {
             </div>
 
             <div className="shell-user-menu__divider" role="presentation" />
-            <p id={signOutLabelId} className="shell-user-menu__section-label">
-              Session
+            <p className="shell-user-menu__section-label" role="presentation" aria-hidden="true">
+              {signOutSectionLabel}
             </p>
-            <div className="shell-user-menu__options" role="group" aria-labelledby={signOutLabelId}>
+            <div className="shell-user-menu__options" role="group" aria-label={signOutSectionLabel}>
               <button
                 ref={(node) => {
                   itemRefs.current[actions.length - 1] = node;
@@ -532,7 +561,7 @@ export function ThemeUserMenu({ initialOpen = false }: ThemeUserMenuProps) {
                   handleActionPointerMove(event, actions.length - 1);
                 }}
                 aria-disabled={signOutMutation.isPending}
-                disabled={signOutMutation.isPending}
+                data-pending={signOutMutation.isPending || undefined}
               >
                 <span className="shell-user-menu__action-mark" aria-hidden="true">
                   {signOutAction.mark}
@@ -547,12 +576,19 @@ export function ThemeUserMenu({ initialOpen = false }: ThemeUserMenuProps) {
                 </span>
               </button>
               {signOutStatus ? (
-                <p
-                  className="shell-user-menu__status"
-                  role={signOutStatus.kind === "error" ? "alert" : "status"}
-                >
-                  {signOutStatus.message}
-                </p>
+                <>
+                  <p
+                    className="shell-user-menu__status"
+                    role={signOutStatus.kind === "error" ? "alert" : "status"}
+                  >
+                    {signOutStatus.message}
+                  </p>
+                  {signOutStatus.requestId ? (
+                    <p className="shell-user-menu__status-meta">
+                      Request ID: {signOutStatus.requestId}
+                    </p>
+                  ) : null}
+                </>
               ) : null}
             </div>
           </div>

@@ -218,6 +218,7 @@ export function MobileMenu({
           className="mobile-menu__dialog"
           aria-labelledby={`${menuId}-title`}
           aria-describedby={`${menuId}-description`}
+          aria-modal="true"
           open
           onCancel={handleDialogCancel}
           onKeyDown={handleDialogKeyDown}

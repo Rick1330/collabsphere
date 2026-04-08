@@ -33,5 +33,6 @@ test("mobile menu renders the global navigation links when opened", () => {
   assert.match(markup, /Settings/);
   assert.match(markup, /Close navigation menu/);
   assert.match(markup, /<dialog/);
+  assert.match(markup, /aria-modal="true"/);
   assert.match(markup, /open=""/);
 });
