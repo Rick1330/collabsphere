@@ -352,7 +352,7 @@ export function ThemeUserMenu({ initialOpen = false }: ThemeUserMenuProps) {
       : signOutMutation.isError
         ? {
             kind: "error" as const,
-            message: signOutMutation.error.message,
+            message: "Unable to sign out. Please try again.",
           }
         : null;
 
