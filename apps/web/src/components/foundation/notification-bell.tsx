@@ -224,6 +224,9 @@ export const getNotificationBodyPreview = (body: string, maxLength = 84) => {
   return `${body.slice(0, maxLength - 1).trimEnd()}…`;
 };
 
+export const getSafeNotificationHref = (url: string) =>
+  url.startsWith("/") && !url.startsWith("//") ? url : "/notifications";
+
 export const getNotificationBellDataState = ({
   error,
   notifications,
@@ -714,7 +717,7 @@ export function NotificationBell({
           markOneMutation.mutate(notification.id);
         }
 
-        router.push(notification.url);
+        router.push(getSafeNotificationHref(notification.url));
       }}
       onViewAll={() => {
         router.push("/notifications");

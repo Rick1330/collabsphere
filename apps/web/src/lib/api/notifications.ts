@@ -58,6 +58,7 @@ type NotificationOperation = "load" | "update";
 
 export type NotificationApiErrorKind =
   | "auth"
+  | "forbidden"
   | "network"
   | "not-found"
   | "server"
@@ -70,6 +71,7 @@ const notificationOperationMessages: Record<
 > = {
   load: {
     auth: "Your session has expired. Please sign in again.",
+    forbidden: "You don't have access to these notifications.",
     network: "Failed to load notifications. Check your connection and retry.",
     "not-found": "The notifications service is not available in this environment yet.",
     server: "Failed to load notifications. Please try again.",
@@ -78,6 +80,7 @@ const notificationOperationMessages: Record<
   },
   update: {
     auth: "Your session has expired. Please sign in again.",
+    forbidden: "You don't have access to update this notification.",
     network: "Failed to update notifications. Check your connection and retry.",
     "not-found": "The selected notification is not available in this environment yet.",
     server: "Failed to update notifications. Please try again.",
@@ -94,7 +97,7 @@ const notificationMalformedMessages: Record<NotificationOperation, string> = {
 const notificationErrorKindsByStatus: Record<number, NotificationApiErrorKind> = {
   400: "validation",
   401: "auth",
-  403: "auth",
+  403: "forbidden",
   404: "not-found",
 };
 
@@ -244,6 +247,10 @@ const getNotificationErrorKindFromStatus = (
 ): NotificationApiErrorKind => {
   if (errorCode === "UNAUTHORIZED") {
     return "auth";
+  }
+
+  if (errorCode === "FORBIDDEN" || errorCode === "NOT_WORKSPACE_MEMBER") {
+    return "forbidden";
   }
 
   if (errorCode === "VALIDATION_ERROR") {
@@ -417,7 +424,9 @@ export async function markNotificationAsRead(
   { accessToken, fetchFn = fetch, signal }: NotificationFetchOptions = {},
 ) {
   try {
-    const response = await fetchFn(`/api/v1/notifications/${notificationId}/read`, {
+    const response = await fetchFn(
+      `/api/v1/notifications/${encodeURIComponent(notificationId)}/read`,
+      {
       method: "PATCH",
       credentials: "include",
       headers: {
@@ -426,7 +435,8 @@ export async function markNotificationAsRead(
       },
       body: JSON.stringify({ isRead: true }),
       signal,
-    });
+      },
+    );
     const payload = await readResponsePayload(response);
 
     if (!response.ok) {

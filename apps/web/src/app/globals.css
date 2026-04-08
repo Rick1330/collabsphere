@@ -659,7 +659,12 @@ button {
     linear-gradient(
       180deg,
       color-mix(in srgb, var(--surface-card) 96%, var(--color-bg-secondary)) 0%,
-      color-mix(in srgb, var(--surface-card-subtle) 92%, var(--section-accent, var(--color-accent)) 100%)
+      color-mix(
+          in srgb,
+          var(--surface-card-subtle) 92%,
+          var(--section-accent, var(--color-accent))
+        )
+        100%
     );
   box-shadow: var(--shadow-elevated);
 }

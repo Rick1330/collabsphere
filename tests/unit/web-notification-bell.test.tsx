@@ -13,6 +13,7 @@ import {
   getNotificationBodyPreview,
   getNotificationMenuNextIndex,
   getNotificationMenuOpenIndex,
+  getSafeNotificationHref,
   getNotificationTypeMark,
   isNotificationMenuNavigationKey,
   isNotificationMenuOpenKey,
@@ -111,6 +112,9 @@ test("notification parsers enforce unread count and list envelopes", () => {
 test("notification helper formatting produces compact preview and timestamp copy", () => {
   assert.equal(getNotificationTypeMark("task.assigned"), "TK");
   assert.equal(getNotificationTypeMark("document.mention"), "DC");
+  assert.equal(getSafeNotificationHref("/w/workspace-alpha/tasks/task-1"), "/w/workspace-alpha/tasks/task-1");
+  assert.equal(getSafeNotificationHref("https://malicious.example"), "/notifications");
+  assert.equal(getSafeNotificationHref("//malicious.example"), "/notifications");
   assert.equal(
     getNotificationBodyPreview("A short body", 40),
     "A short body",
