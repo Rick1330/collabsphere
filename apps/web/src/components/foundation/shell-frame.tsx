@@ -12,6 +12,7 @@ type ShellFrameProps = {
   description: string;
   navItems: NavItem[];
   headerAction?: React.ReactNode;
+  topNav?: React.ReactNode;
   children: React.ReactNode;
 };
 
@@ -22,6 +23,7 @@ export function ShellFrame({
   description,
   navItems,
   headerAction,
+  topNav,
   children,
 }: ShellFrameProps) {
   return (
@@ -44,6 +46,7 @@ export function ShellFrame({
         </nav>
       </aside>
       <div className="shell__content">
+        {topNav == null ? null : topNav}
         <header className="shell__header">
           <div className="shell__header-intro">
             <span className="shell__eyebrow">Next.js App Router foundation</span>

@@ -198,6 +198,195 @@ button {
   gap: 1.5rem;
 }
 
+.top-nav {
+  position: sticky;
+  top: 1rem;
+  z-index: 6;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(14rem, 18rem) minmax(18rem, 1fr) auto;
+  grid-template-areas: "brand workspace search actions";
+  gap: 0.9rem;
+  align-items: center;
+  padding: 1rem 1.1rem;
+  border-radius: 1.45rem;
+  border: 1px solid
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 18%, var(--color-border));
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--surface-card) 94%, var(--surface-card-subtle)) 0%,
+      color-mix(
+          in srgb,
+          var(--surface-card-subtle) 86%,
+          var(--section-accent, var(--color-accent))
+        )
+        100%
+    );
+  box-shadow: var(--shadow-elevated);
+  backdrop-filter: blur(18px);
+}
+
+.top-nav__brand-cluster {
+  grid-area: brand;
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.top-nav__brand {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.8rem;
+  align-items: center;
+  max-width: fit-content;
+  text-decoration: none;
+}
+
+.top-nav__brand:focus-visible,
+.top-nav__control:focus-visible,
+.top-nav__search-trigger:focus-visible {
+  outline: 2px solid var(--focus-ring-color);
+  outline-offset: 2px;
+}
+
+.top-nav__brand-mark,
+.top-nav__control-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--section-accent, var(--color-accent)) 78%, white),
+      color-mix(in srgb, var(--section-accent, var(--color-accent)) 28%, transparent)
+    );
+  color: var(--color-bg-primary);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 30%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--section-accent, var(--color-accent)) 22%, transparent);
+}
+
+.top-nav__brand-copy,
+.top-nav__control-copy {
+  display: grid;
+  gap: 0.14rem;
+  min-width: 0;
+}
+
+.top-nav__brand-label,
+.top-nav__control-label {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.top-nav__brand-meta,
+.top-nav__control-description,
+.top-nav__context-note {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+
+.top-nav__context-note {
+  margin: 0;
+  max-width: 40ch;
+}
+
+.top-nav__workspace-slot {
+  grid-area: workspace;
+}
+
+.top-nav__search {
+  grid-area: search;
+}
+
+.top-nav__actions {
+  grid-area: actions;
+  display: flex;
+  gap: 0.75rem;
+  align-items: stretch;
+  justify-content: flex-end;
+}
+
+.top-nav__user-slot,
+.top-nav__actions > .top-nav__control {
+  flex: 0 1 auto;
+}
+
+.top-nav__control,
+.top-nav__search-trigger {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: center;
+  width: 100%;
+  min-height: 4rem;
+  padding: 0.8rem 0.9rem;
+  border-radius: 1.15rem;
+  border: 1px solid
+    color-mix(in srgb, var(--color-border) 82%, var(--section-accent, var(--color-accent)) 18%);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-card) 92%, var(--color-bg-secondary)) 0%,
+      color-mix(in srgb, var(--surface-card-subtle) 84%, var(--surface-card)) 100%
+    );
+  box-shadow: var(--shadow-soft);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.top-nav__control:hover,
+.top-nav__control:focus-visible,
+.top-nav__search-trigger:hover,
+.top-nav__search-trigger:focus-visible {
+  transform: translateY(-1px);
+  border-color:
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 32%, var(--color-border));
+}
+
+.top-nav__control[aria-disabled="true"],
+.top-nav__search-trigger[aria-disabled="true"] {
+  opacity: 1;
+}
+
+.top-nav__control-tag,
+.top-nav__shortcut {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  align-self: start;
+}
+
+.top-nav__control-tag {
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  background:
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 12%, var(--surface-card));
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.top-nav__shortcut kbd {
+  min-width: 2rem;
+  padding: 0.22rem 0.4rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-card-muted);
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 0.76rem;
+  text-align: center;
+}
+
 .shell__header,
 .placeholder-card,
 .status-banner {
@@ -626,6 +815,11 @@ button {
   box-shadow: inset 0 0 0 0.2rem var(--surface-card);
 }
 
+.top-nav__user-slot .shell-user-menu__trigger {
+  min-width: min(17rem, calc(100vw - 4rem));
+  min-height: 4rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -643,6 +837,18 @@ button {
   .placeholder-card__columns,
   .status-grid {
     grid-template-columns: 1fr;
+  }
+
+  .top-nav {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "brand actions"
+      "workspace workspace"
+      "search search";
+  }
+
+  .top-nav__actions {
+    justify-content: flex-end;
   }
 }
 
@@ -667,6 +873,40 @@ button {
 
   .shell__header {
     grid-template-columns: 1fr;
+  }
+
+  .top-nav {
+    position: static;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "brand"
+      "workspace"
+      "search"
+      "actions";
+    padding: 0.9rem;
+  }
+
+  .top-nav__actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .top-nav__user-slot .shell-user-menu__trigger,
+  .top-nav__control,
+  .top-nav__search-trigger {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .top-nav__control,
+  .top-nav__search-trigger {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .top-nav__control-tag,
+  .top-nav__shortcut {
+    grid-column: 2;
+    align-self: center;
   }
 
   .shell__header-actions,
