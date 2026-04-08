@@ -255,6 +255,21 @@ button {
   grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 0.8rem;
   align-items: center;
+  text-decoration: none;
+}
+
+.global-sidebar__link:hover,
+.global-sidebar__link:focus-visible {
+  background:
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 7%, var(--surface-card));
+  border-color:
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 26%, var(--color-border));
+  transform: translateY(-1px);
+}
+
+.global-sidebar__link:focus-visible {
+  outline: 2px solid var(--focus-ring-color);
+  outline-offset: 2px;
 }
 
 .global-sidebar__link-mark {
