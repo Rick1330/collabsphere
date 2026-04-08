@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { GlobalSidebar } from "../../components/foundation/global-sidebar";
 import { globalNavItems } from "../../components/foundation/navigation";
 import { NotificationBell } from "../../components/foundation/notification-bell";
 import { ShellFrame } from "../../components/foundation/shell-frame";
@@ -21,7 +22,7 @@ export default function AuthenticatedLayout({
       sectionLabel={sectionLabel}
       title={title}
       description={description}
-      navItems={globalNavItems}
+      sidebar={<GlobalSidebar />}
       topNav={
         <TopNavBar
           mobileMenuDescription={description}

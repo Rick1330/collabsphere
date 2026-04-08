@@ -4,6 +4,15 @@ export type NavItem = {
   hint: string;
 };
 
+export type GlobalSidebarItem = {
+  href: string;
+  label: string;
+  description: string;
+  mark: string;
+  tag: string;
+  matchMode?: "exact" | "prefix";
+};
+
 export const publicNavItems: NavItem[] = [
   {
     href: "/",
@@ -49,6 +58,77 @@ export const globalNavItems: NavItem[] = [
     hint: "Nested settings route foundation",
   },
 ];
+
+export const globalSidebarPrimaryItems: readonly GlobalSidebarItem[] = [
+  {
+    href: "/dashboard",
+    label: "Dashboard",
+    description: "Global home and recent collaboration context.",
+    mark: "DB",
+    tag: "Home",
+  },
+  {
+    href: "/workspaces",
+    label: "Workspaces",
+    description: "List and revisit your available workspaces.",
+    mark: "WS",
+    tag: "List",
+  },
+  {
+    href: "/notifications",
+    label: "Notifications",
+    description: "Review your full notification history outside the bell menu.",
+    mark: "NT",
+    tag: "Feed",
+  },
+  {
+    href: "/settings",
+    label: "Settings",
+    description: "Account, profile, and future preference surfaces.",
+    mark: "ST",
+    tag: "Prefs",
+    matchMode: "prefix",
+  },
+];
+
+export const globalSidebarActionItems: readonly GlobalSidebarItem[] = [
+  {
+    href: "/workspaces/new",
+    label: "New Workspace",
+    description: "Start a fresh workspace without leaving the authenticated shell.",
+    mark: "NW",
+    tag: "Create",
+  },
+];
+
+const normalizePathname = (pathname: string): string => {
+  if (pathname === "/") {
+    return pathname;
+  }
+
+  return pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
+};
+
+export const isGlobalSidebarItemActive = (
+  currentPathname: string | null | undefined,
+  item: Pick<GlobalSidebarItem, "href" | "matchMode">,
+): boolean => {
+  if (currentPathname == null) {
+    return false;
+  }
+
+  const normalizedCurrentPathname = normalizePathname(currentPathname);
+  const normalizedHref = normalizePathname(item.href);
+
+  if (item.matchMode === "prefix") {
+    return (
+      normalizedCurrentPathname === normalizedHref ||
+      normalizedCurrentPathname.startsWith(`${normalizedHref}/`)
+    );
+  }
+
+  return normalizedCurrentPathname === normalizedHref;
+};
 
 export const workspaceNavItems = (workspaceId: string): NavItem[] => [
   {

@@ -10,7 +10,8 @@ type ShellFrameProps = {
   sectionLabel: string;
   title: string;
   description: string;
-  navItems: NavItem[];
+  navItems?: NavItem[];
+  sidebar?: React.ReactNode;
   headerAction?: React.ReactNode;
   topNav?: React.ReactNode;
   children: React.ReactNode;
@@ -22,6 +23,7 @@ export function ShellFrame({
   title,
   description,
   navItems,
+  sidebar,
   headerAction,
   topNav,
   children,
@@ -33,23 +35,25 @@ export function ShellFrame({
 
   return (
     <div className={shellClassName}>
-      <aside className="shell__rail" aria-label={`${sectionLabel} navigation`}>
-        <p className="shell__eyebrow">{sectionLabel}</p>
-        <h1 className="shell__title">{title}</h1>
-        <p className="shell__description">{description}</p>
-        <nav className="shell__nav">
-          <ul className="shell__nav-list">
-            {navItems.map((item) => (
-              <li key={item.href} className="shell__nav-item">
-                <Link className="shell__nav-link" href={item.href}>
-                  <span>{item.label}</span>
-                  <span className="shell__nav-hint">{item.hint}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      </aside>
+      {sidebar ?? (
+        <aside className="shell__rail" aria-label={`${sectionLabel} navigation`}>
+          <p className="shell__eyebrow">{sectionLabel}</p>
+          <h1 className="shell__title">{title}</h1>
+          <p className="shell__description">{description}</p>
+          <nav className="shell__nav">
+            <ul className="shell__nav-list">
+              {(navItems ?? []).map((item) => (
+                <li key={item.href} className="shell__nav-item">
+                  <Link className="shell__nav-link" href={item.href}>
+                    <span>{item.label}</span>
+                    <span className="shell__nav-hint">{item.hint}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </aside>
+      )}
       <div className={contentClassName}>
         {topNav == null ? null : topNav}
         <header className="shell__header">
