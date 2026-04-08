@@ -374,10 +374,13 @@ export function WorkspaceSwitcherMenu({
 
   useEffect(() => {
     setActiveIndex((currentIndex) => {
-      const nextIndex = getClampedWorkspaceMenuIndex(currentIndex, actions.length);
+      const nextIndex = getClampedWorkspaceMenuIndex(
+        currentIndex,
+        actions.length,
+      );
       return nextIndex === currentIndex ? currentIndex : nextIndex;
     });
-  }, [actions.length]);
+  }, [actions.length, currentWorkspaceIndex]);
 
   useEffect(() => {
     if (!isOpen) {

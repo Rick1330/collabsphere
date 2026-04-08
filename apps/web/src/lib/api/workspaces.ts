@@ -65,6 +65,17 @@ const workspaceApiMessages = {
   unknown: "The workspace list request could not be completed.",
 } as const;
 
+const workspaceDefaultMessagesByKind: Record<
+  WorkspaceApiErrorKind,
+  string
+> = {
+  auth: workspaceApiMessages.auth,
+  network: workspaceApiMessages.network,
+  "not-found": workspaceApiMessages.notFound,
+  server: workspaceApiMessages.server,
+  unknown: workspaceApiMessages.unknown,
+};
+
 export class WorkspaceApiError extends Error {
   kind: WorkspaceApiErrorKind;
   requestId: string | null;
@@ -226,21 +237,8 @@ const getWorkspaceErrorKindFromStatus = (
   return status >= 500 ? "server" : "unknown";
 };
 
-const getWorkspaceErrorMessage = (kind: WorkspaceApiErrorKind) => {
-  if (kind === "auth") {
-    return workspaceApiMessages.auth;
-  }
-
-  if (kind === "not-found") {
-    return workspaceApiMessages.notFound;
-  }
-
-  if (kind === "server") {
-    return workspaceApiMessages.server;
-  }
-
-  return workspaceApiMessages.unknown;
-};
+const getWorkspaceErrorMessage = (kind: WorkspaceApiErrorKind) =>
+  workspaceDefaultMessagesByKind[kind];
 
 const toWorkspaceApiError = (status: number, payload: unknown): WorkspaceApiError => {
   const errorCode = readWorkspaceErrorCode(payload);
@@ -268,6 +266,33 @@ const parseWorkspaceListResponseOrThrow = (payload: unknown, status: number) => 
 const isAbortLikeError = (error: unknown): error is { name: string } =>
   isRecord(error) && error.name === "AbortError";
 
+const buildWorkspaceRequestHeaders = (accessToken?: string) => ({
+  Accept: "application/json",
+  ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+});
+
+const readResponsePayload = async (
+  response: Response,
+): Promise<WorkspaceListSuccessEnvelope | WorkspaceErrorEnvelope | null> => {
+  try {
+    return (await response.json()) as WorkspaceListSuccessEnvelope | WorkspaceErrorEnvelope;
+  } catch {
+    return null;
+  }
+};
+
+const classifyUnexpectedWorkspaceError = (error: unknown): never => {
+  if (isAbortLikeError(error)) {
+    throw error;
+  }
+
+  if (error instanceof TypeError) {
+    throw new WorkspaceApiError("network", workspaceApiMessages.network);
+  }
+
+  throw new WorkspaceApiError("unknown", workspaceApiMessages.unknown);
+};
+
 export async function listWorkspaces({
   accessToken,
   fetchFn = fetch,
@@ -277,20 +302,11 @@ export async function listWorkspaces({
     const response = await fetchFn("/api/v1/workspaces", {
       method: "GET",
       credentials: "include",
-      headers: {
-        Accept: "application/json",
-        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      },
+      headers: buildWorkspaceRequestHeaders(accessToken),
       signal,
     });
 
-    let payload: WorkspaceListSuccessEnvelope | WorkspaceErrorEnvelope | null = null;
-
-    try {
-      payload = (await response.json()) as WorkspaceListSuccessEnvelope | WorkspaceErrorEnvelope;
-    } catch {
-      payload = null;
-    }
+    const payload = await readResponsePayload(response);
 
     if (!response.ok) {
       throw toWorkspaceApiError(response.status, payload);
@@ -302,17 +318,6 @@ export async function listWorkspaces({
       throw error;
     }
 
-    if (isAbortLikeError(error)) {
-      throw error;
-    }
-
-    if (error instanceof TypeError) {
-      throw new WorkspaceApiError("network", workspaceApiMessages.network);
-    }
-
-    throw new WorkspaceApiError(
-      "unknown",
-      workspaceApiMessages.unknown,
-    );
+    classifyUnexpectedWorkspaceError(error);
   }
 }

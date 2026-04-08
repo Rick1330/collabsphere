@@ -28,7 +28,7 @@ const workspaceState = {
   ],
 };
 
-test("top nav renders authenticated shell regions with a real workspace switcher and staged controls", () => {
+test("top nav renders authenticated shell regions with a live workspace switcher and staged controls", () => {
   const markup = renderToStaticMarkup(
     <AppProviders>
       <TopNavBar
