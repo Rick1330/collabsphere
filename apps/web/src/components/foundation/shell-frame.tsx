@@ -12,6 +12,7 @@ type ShellFrameProps = {
   description: string;
   navItems: NavItem[];
   headerAction?: React.ReactNode;
+  topNav?: React.ReactNode;
   children: React.ReactNode;
 };
 
@@ -22,8 +23,12 @@ export function ShellFrame({
   description,
   navItems,
   headerAction,
+  topNav,
   children,
 }: ShellFrameProps) {
+  const contentClassName =
+    topNav == null ? "shell__content" : "shell__content shell__content--with-top-nav";
+
   return (
     <div className={`shell shell--${tone}`}>
       <aside className="shell__rail" aria-label={`${sectionLabel} navigation`}>
@@ -43,7 +48,8 @@ export function ShellFrame({
           </ul>
         </nav>
       </aside>
-      <div className="shell__content">
+      <div className={contentClassName}>
+        {topNav == null ? null : topNav}
         <header className="shell__header">
           <div className="shell__header-intro">
             <span className="shell__eyebrow">Next.js App Router foundation</span>
