@@ -10,15 +10,23 @@ import { WorkspaceSwitcher } from "../../components/foundation/workspace-switche
 export default function AuthenticatedLayout({
   children,
 }: Readonly<{ children: ReactNode }>) {
+  const sectionLabel = "Authenticated global context";
+  const title = "Personal workspace shell";
+  const description =
+    "Global post-login routes now have a stable App Router layout boundary ready for navigation, theming, and account features.";
+
   return (
     <ShellFrame
       tone="global"
-      sectionLabel="Authenticated global context"
-      title="Personal workspace shell"
-      description="Global post-login routes now have a stable App Router layout boundary ready for navigation, theming, and account features."
+      sectionLabel={sectionLabel}
+      title={title}
+      description={description}
       navItems={globalNavItems}
       topNav={
         <TopNavBar
+          mobileMenuDescription={description}
+          mobileMenuTitle={title}
+          mobileNavItems={globalNavItems}
           notificationBell={<NotificationBell />}
           workspaceSwitcher={<WorkspaceSwitcher />}
           userMenu={<ThemeUserMenu />}

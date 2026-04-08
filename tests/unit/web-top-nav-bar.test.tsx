@@ -5,9 +5,9 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { AppProviders } from "../../apps/web/src/components/providers/app-providers";
+import { globalNavItems } from "../../apps/web/src/components/foundation/navigation";
 import { NotificationBellMenu } from "../../apps/web/src/components/foundation/notification-bell";
 import { ShellFrame } from "../../apps/web/src/components/foundation/shell-frame";
-import { globalNavItems } from "../../apps/web/src/components/foundation/navigation";
 import { TopNavBar } from "../../apps/web/src/components/foundation/top-nav-bar";
 import { ThemeUserMenu } from "../../apps/web/src/components/foundation/user-theme-menu";
 import { WorkspaceSwitcherMenu } from "../../apps/web/src/components/foundation/workspace-switcher";
@@ -33,6 +33,9 @@ test("top nav renders authenticated shell regions with a live workspace switcher
   const markup = renderToStaticMarkup(
     <AppProviders>
       <TopNavBar
+        mobileMenuDescription="Global post-login routes now have a stable App Router layout boundary ready for navigation, theming, and account features."
+        mobileMenuTitle="Personal workspace shell"
+        mobileNavItems={globalNavItems}
         notificationBell={
           <NotificationBellMenu
             unreadCount={12}
@@ -70,8 +73,10 @@ test("top nav renders authenticated shell regions with a live workspace switcher
   assert.match(markup, /Project Alpha/);
   assert.match(markup, /Current workspace · Tech Lead/);
   assert.match(markup, /Search placeholder/);
+  assert.match(markup, /top-nav__search top-nav__search--desktop-only/);
   assert.match(markup, /Notifications/);
   assert.match(markup, /12 unread in your recent feed/);
+  assert.match(markup, /Open navigation menu/);
   assert.match(markup, /role="search"/);
   assert.match(markup, /Ctrl/);
   assert.match(markup, /aria-haspopup="menu"/);
@@ -88,6 +93,9 @@ test("shell frame renders the top nav before the supporting header copy", () => 
         navItems={globalNavItems}
         topNav={
           <TopNavBar
+            mobileMenuDescription="Global post-login routes now have a stable App Router layout boundary ready for navigation, theming, and account features."
+            mobileMenuTitle="Personal workspace shell"
+            mobileNavItems={globalNavItems}
             notificationBell={
               <NotificationBellMenu
                 unreadCount={0}
@@ -114,6 +122,7 @@ test("shell frame renders the top nav before the supporting header copy", () => 
 
   assert.ok(topNavIndex !== -1 && headerIndex !== -1 && topNavIndex < headerIndex);
   assert.match(markup, /class="shell__content shell__content--with-top-nav"/);
+  assert.match(markup, /class="shell shell--global shell--has-top-nav"/);
   assert.match(markup, /role="group" aria-label="Notification and account controls"/);
 });
 
