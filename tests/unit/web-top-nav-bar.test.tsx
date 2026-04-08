@@ -28,7 +28,7 @@ const workspaceState = {
   ],
 };
 
-test("top nav renders the authenticated shell control regions with truthful placeholder labels", () => {
+test("top nav renders authenticated shell regions with a real workspace switcher and staged controls", () => {
   const markup = renderToStaticMarkup(
     <AppProviders>
       <TopNavBar

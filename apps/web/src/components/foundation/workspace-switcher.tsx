@@ -2,8 +2,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
-import * as React from "react";
 import {
+  default as React,
   useEffect,
   useId,
   useRef,
@@ -82,6 +82,25 @@ const workspaceTypeLabels: Record<WorkspaceSummary["type"], string> = {
   academic: "Academic",
   general: "General",
   professional: "Professional",
+};
+
+const getDefaultActiveIndex = (currentWorkspaceIndex: number) =>
+  currentWorkspaceIndex >= 0 ? currentWorkspaceIndex : 0;
+
+export const getClampedWorkspaceMenuIndex = (currentIndex: number, itemCount: number) => {
+  if (itemCount <= 0) {
+    return -1;
+  }
+
+  if (currentIndex < 0) {
+    return 0;
+  }
+
+  if (currentIndex >= itemCount) {
+    return itemCount - 1;
+  }
+
+  return currentIndex;
 };
 
 export const isWorkspaceMenuOpenKey = (key: string): key is WorkspaceMenuOpenKey =>
@@ -344,9 +363,16 @@ export function WorkspaceSwitcherMenu({
     (action) => action.kind === "workspace" && action.current,
   );
   const [activeIndex, setActiveIndex] = useState(() =>
-    currentWorkspaceIndex >= 0 ? currentWorkspaceIndex : 0,
+    getDefaultActiveIndex(currentWorkspaceIndex),
   );
   const triggerCopy = getWorkspaceTriggerCopy(dataState, currentWorkspaceId);
+
+  useEffect(() => {
+    setActiveIndex((currentIndex) => {
+      const nextIndex = getClampedWorkspaceMenuIndex(currentIndex, actions.length);
+      return nextIndex === currentIndex ? currentIndex : nextIndex;
+    });
+  }, [actions.length]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -376,8 +402,8 @@ export function WorkspaceSwitcherMenu({
     };
   }, [isOpen]);
 
-  const openMenu = (nextIndex = currentWorkspaceIndex >= 0 ? currentWorkspaceIndex : 0) => {
-    setActiveIndex(nextIndex);
+  const openMenu = (nextIndex = getDefaultActiveIndex(currentWorkspaceIndex)) => {
+    setActiveIndex(getClampedWorkspaceMenuIndex(nextIndex, actions.length));
     setIsOpen(true);
   };
 
@@ -466,7 +492,7 @@ export function WorkspaceSwitcherMenu({
             return;
           }
 
-          openMenu(currentWorkspaceIndex >= 0 ? currentWorkspaceIndex : 0);
+          openMenu(getDefaultActiveIndex(currentWorkspaceIndex));
         }}
         onKeyDown={handleTriggerKeyDown}
       >
@@ -477,10 +503,6 @@ export function WorkspaceSwitcherMenu({
           <span className="workspace-switcher__trigger-label">{triggerCopy.label}</span>
           <span className="workspace-switcher__trigger-meta">{triggerCopy.meta}</span>
         </span>
-        <span className="workspace-switcher__trigger-shortcut" aria-hidden="true">
-          <kbd>Ctrl</kbd>
-          <kbd>W</kbd>
-        </span>
         <span className="workspace-switcher__trigger-caret" aria-hidden="true">
           {isOpen ? "▴" : "▾"}
         </span>
@@ -490,7 +512,7 @@ export function WorkspaceSwitcherMenu({
         <div id={menuId} className="workspace-switcher__panel">
           <div className="workspace-switcher__panel-header">
             <p className="workspace-switcher__panel-eyebrow">Workspace switcher</p>
-              <p className="workspace-switcher__panel-title">
+            <p className="workspace-switcher__panel-title">
               {currentWorkspaceId ? "Switch workspace context" : "Select Workspace"}
             </p>
           </div>

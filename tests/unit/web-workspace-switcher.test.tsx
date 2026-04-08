@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import {
   WorkspaceSwitcherMenu,
+  getClampedWorkspaceMenuIndex,
   getCurrentWorkspaceIdFromPathname,
   getWorkspaceMenuNextIndex,
   getWorkspaceMenuOpenIndex,
@@ -14,6 +15,8 @@ import {
   isWorkspaceMenuOpenKey,
 } from "../../apps/web/src/components/foundation/workspace-switcher";
 import {
+  WorkspaceApiError,
+  listWorkspaces,
   parseWorkspaceListResponse,
   sortWorkspacesForSwitcher,
   type WorkspaceSummary,
@@ -101,6 +104,8 @@ test("workspace switcher keyboard guards and roving-index helpers stay determini
   assert.equal(getWorkspaceMenuNextIndex(0, "ArrowUp", 3), 2);
   assert.equal(getWorkspaceMenuNextIndex(1, "Home", 3), 0);
   assert.equal(getWorkspaceMenuNextIndex(1, "End", 3), 2);
+  assert.equal(getClampedWorkspaceMenuIndex(5, 2), 1);
+  assert.equal(getClampedWorkspaceMenuIndex(0, 0), -1);
 });
 
 test("getWorkspaceTriggerCopy reflects global and current-workspace states", () => {
@@ -183,4 +188,82 @@ test("workspace switcher renders empty and error states truthfully", () => {
   assert.match(errorMarkup, /Workspace list unavailable/);
   assert.match(errorMarkup, /Retry workspace list/);
   assert.match(errorMarkup, /req_workspace_switcher/);
+});
+
+test("listWorkspaces classifies malformed response payloads as non-network errors", async () => {
+  const fetchFn: typeof fetch = async () =>
+    new Response(
+      JSON.stringify({
+        data: {
+          items: [{ id: "workspace-alpha" }],
+        },
+      }),
+      {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      },
+    );
+
+  await assert.rejects(
+    () => listWorkspaces({ fetchFn }),
+    (error) =>
+      error instanceof WorkspaceApiError &&
+      error.kind === "unknown" &&
+      error.message === "The workspace list response was malformed.",
+  );
+});
+
+test("listWorkspaces rethrows abort-like errors without converting them to API errors", async () => {
+  const abortLikeError = { name: "AbortError" };
+  const fetchFn: typeof fetch = async () => {
+    throw abortLikeError;
+  };
+
+  await assert.rejects(
+    () => listWorkspaces({ fetchFn }),
+    (error) => error === abortLikeError,
+  );
+});
+
+test("listWorkspaces classifies connection failures as network errors", async () => {
+  const fetchFn: typeof fetch = async () => {
+    throw new TypeError("fetch failed");
+  };
+
+  await assert.rejects(
+    () => listWorkspaces({ fetchFn }),
+    (error) =>
+      error instanceof WorkspaceApiError &&
+      error.kind === "network" &&
+      error.message ===
+        "The workspace list could not be reached. Check the connection and retry.",
+  );
+});
+
+test("listWorkspaces keeps user-facing API errors on fixed safe copy", async () => {
+  const fetchFn: typeof fetch = async () =>
+    new Response(
+      JSON.stringify({
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "backend stack trace",
+        },
+        meta: {
+          requestId: "req_workspace_server",
+        },
+      }),
+      {
+        status: 500,
+        headers: { "content-type": "application/json" },
+      },
+    );
+
+  await assert.rejects(
+    () => listWorkspaces({ fetchFn }),
+    (error) =>
+      error instanceof WorkspaceApiError &&
+      error.kind === "server" &&
+      error.message === "The workspace service failed to respond. Retry in a moment." &&
+      error.requestId === "req_workspace_server",
+  );
 });

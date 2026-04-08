@@ -55,6 +55,16 @@ const workspaceRoles = new Set<WorkspaceRole>([
   "VIEWER",
 ]);
 
+const workspaceApiMessages = {
+  auth:
+    "Workspace access could not be verified for this request. Retry after a valid authenticated session is available.",
+  malformed: "The workspace list response was malformed.",
+  network: "The workspace list could not be reached. Check the connection and retry.",
+  notFound: "The workspace list endpoint is not available in this environment yet.",
+  server: "The workspace service failed to respond. Retry in a moment.",
+  unknown: "The workspace list request could not be completed.",
+} as const;
+
 export class WorkspaceApiError extends Error {
   kind: WorkspaceApiErrorKind;
   requestId: string | null;
@@ -114,18 +124,26 @@ const readWorkspaceRole = (value: unknown) => {
   throw new Error("Workspace list response contains an invalid workspace role.");
 };
 
-const readRequestId = (payload: unknown) => {
+const readNonEmptyString = (value: unknown) =>
+  typeof value === "string" && value.length > 0 ? value : null;
+
+const readMetaRecord = (payload: unknown) => {
   if (!isRecord(payload)) {
     return null;
   }
 
-  const meta = payload.meta;
+  return isRecord(payload.meta) ? payload.meta : null;
+};
 
-  if (!isRecord(meta) || typeof meta.requestId !== "string" || meta.requestId.length === 0) {
+const readRequestId = (payload: unknown) =>
+  readNonEmptyString(readMetaRecord(payload)?.requestId);
+
+const readWorkspaceItems = (payload: unknown) => {
+  if (!isRecord(payload) || !isRecord(payload.data)) {
     return null;
   }
 
-  return meta.requestId;
+  return Array.isArray(payload.data.items) ? payload.data.items : null;
 };
 
 const parseWorkspaceSummary = (item: unknown): WorkspaceSummary => {
@@ -168,55 +186,83 @@ export const sortWorkspacesForSwitcher = (workspaces: readonly WorkspaceSummary[
 };
 
 export const parseWorkspaceListResponse = (payload: unknown) => {
-  if (!isRecord(payload) || !isRecord(payload.data) || !Array.isArray(payload.data.items)) {
+  const items = readWorkspaceItems(payload);
+
+  if (!items) {
     throw new Error("Workspace list response does not match the expected list envelope.");
   }
 
-  return sortWorkspacesForSwitcher(payload.data.items.map(parseWorkspaceSummary));
+  return sortWorkspacesForSwitcher(items.map(parseWorkspaceSummary));
 };
 
-const toWorkspaceApiError = (
-  status: number,
-  payload: unknown,
-): WorkspaceApiError => {
-  const requestId = readRequestId(payload);
-  const message =
-    isRecord(payload) && isRecord(payload.error) && typeof payload.error.message === "string"
-      ? payload.error.message
-      : null;
+const readWorkspaceErrorCode = (payload: unknown) => {
+  if (!isRecord(payload) || !isRecord(payload.error)) {
+    return null;
+  }
 
-  if (status === 401 || status === 403) {
-    return new WorkspaceApiError(
-      "auth",
-      message ??
-        "Workspace access could not be verified for this request. Retry after a valid authenticated session is available.",
-      { requestId, status },
-    );
+  return readNonEmptyString(payload.error.code);
+};
+
+const getWorkspaceErrorKindFromStatus = (
+  status: number,
+  errorCode: string | null,
+): WorkspaceApiErrorKind => {
+  if (status === 401 || status === 403 || errorCode === "UNAUTHORIZED") {
+    return "auth";
   }
 
   if (status === 404) {
-    return new WorkspaceApiError(
-      "not-found",
-      message ??
-        "The workspace list endpoint is not available in this environment yet.",
-      { requestId, status },
-    );
+    return "not-found";
   }
 
   if (status >= 500) {
-    return new WorkspaceApiError(
-      "server",
-      message ?? "The workspace service failed to respond. Retry in a moment.",
-      { requestId, status },
-    );
+    return "server";
   }
 
-  return new WorkspaceApiError(
-    "unknown",
-    message ?? "The workspace list request could not be completed.",
-    { requestId, status },
-  );
+  return "unknown";
 };
+
+const getWorkspaceErrorMessage = (kind: WorkspaceApiErrorKind) => {
+  if (kind === "auth") {
+    return workspaceApiMessages.auth;
+  }
+
+  if (kind === "not-found") {
+    return workspaceApiMessages.notFound;
+  }
+
+  if (kind === "server") {
+    return workspaceApiMessages.server;
+  }
+
+  return workspaceApiMessages.unknown;
+};
+
+const toWorkspaceApiError = (status: number, payload: unknown): WorkspaceApiError => {
+  const errorCode = readWorkspaceErrorCode(payload);
+  const kind = getWorkspaceErrorKindFromStatus(status, errorCode);
+  return new WorkspaceApiError(kind, getWorkspaceErrorMessage(kind), {
+    requestId: readRequestId(payload),
+    status,
+  });
+};
+
+const toMalformedWorkspaceResponseError = (payload: unknown, status: number) =>
+  new WorkspaceApiError("unknown", workspaceApiMessages.malformed, {
+    requestId: readRequestId(payload),
+    status,
+  });
+
+const parseWorkspaceListResponseOrThrow = (payload: unknown, status: number) => {
+  try {
+    return parseWorkspaceListResponse(payload);
+  } catch {
+    throw toMalformedWorkspaceResponseError(payload, status);
+  }
+};
+
+const isAbortLikeError = (error: unknown): error is { name: string } =>
+  isRecord(error) && error.name === "AbortError";
 
 export async function listWorkspaces({
   accessToken,
@@ -246,19 +292,23 @@ export async function listWorkspaces({
       throw toWorkspaceApiError(response.status, payload);
     }
 
-    return parseWorkspaceListResponse(payload);
+    return parseWorkspaceListResponseOrThrow(payload, response.status);
   } catch (error) {
     if (error instanceof WorkspaceApiError) {
       throw error;
     }
 
-    if (error instanceof Error && error.name === "AbortError") {
+    if (isAbortLikeError(error)) {
       throw error;
     }
 
+    if (error instanceof TypeError) {
+      throw new WorkspaceApiError("network", workspaceApiMessages.network);
+    }
+
     throw new WorkspaceApiError(
-      "network",
-      "The workspace list could not be reached. Check the connection and retry.",
+      "unknown",
+      workspaceApiMessages.unknown,
     );
   }
 }

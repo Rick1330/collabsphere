@@ -396,24 +396,6 @@ button {
   font-size: 0.86rem;
 }
 
-.workspace-switcher__trigger-shortcut {
-  display: inline-flex;
-  gap: 0.25rem;
-  align-items: center;
-}
-
-.workspace-switcher__trigger-shortcut kbd {
-  min-width: 1.95rem;
-  padding: 0.2rem 0.38rem;
-  border-radius: 0.55rem;
-  border: 1px solid var(--border-subtle);
-  background: var(--surface-card-muted);
-  color: var(--color-text-secondary);
-  font: inherit;
-  font-size: 0.74rem;
-  text-align: center;
-}
-
 .workspace-switcher__trigger-caret {
   color: var(--color-text-tertiary);
   font-size: 0.88rem;
@@ -424,6 +406,9 @@ button {
   inset: calc(100% + 0.7rem) auto auto 0;
   z-index: 8;
   width: min(28rem, calc(100vw - 3rem));
+  max-height: min(32rem, calc(100vh - 6rem));
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 1rem;
   border-radius: 1.35rem;
   border: 1px solid
@@ -1164,10 +1149,6 @@ button {
 
   .workspace-switcher__trigger {
     grid-template-columns: auto minmax(0, 1fr) auto;
-  }
-
-  .workspace-switcher__trigger-shortcut {
-    display: none;
   }
 }
 
