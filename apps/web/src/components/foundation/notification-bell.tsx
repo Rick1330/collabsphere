@@ -70,6 +70,11 @@ type NotificationBellProps = {
   unreadCountOverride?: number | null;
 };
 
+type NotificationBellMutationContext = {
+  previousNotifications: NotificationSummary[] | undefined;
+  previousUnreadCount: number | undefined;
+};
+
 type NotificationMenuOpenKey = "Enter" | " " | "ArrowDown" | "ArrowUp";
 type NotificationMenuNavigationKey =
   | "ArrowDown"
@@ -277,48 +282,71 @@ const coerceNotificationQueryError = (error: unknown) => {
   return null;
 };
 
+const buildNotificationAction = <TKind extends "retry" | "mark-all" | "view-all">(
+  kind: TKind,
+  label: string,
+  description: string,
+): Extract<NotificationAction, { kind: TKind }> => ({
+  kind,
+  key: `action:${kind}`,
+  label,
+  description,
+}) as Extract<NotificationAction, { kind: TKind }>;
+
+const hasUnreadNotifications = (unreadCount: number | null) =>
+  typeof unreadCount === "number" && unreadCount > 0;
+
+const getNotificationFooterActions = (unreadCount: number | null) => {
+  const actions: Array<Exclude<NotificationAction, { kind: "notification" }>> = [];
+
+  if (hasUnreadNotifications(unreadCount)) {
+    actions.push(
+      buildNotificationAction(
+        "mark-all",
+        "Mark all as read",
+        "Clear the unread badge across your recent notifications.",
+      ),
+    );
+  }
+
+  actions.push(
+    buildNotificationAction(
+      "view-all",
+      "View all notifications",
+      "Open the full notifications center.",
+    ),
+  );
+
+  return actions;
+};
+
 const getNotificationBellActions = (
   dataState: NotificationBellDataState,
   unreadCount: number | null,
 ): NotificationAction[] => {
-  const actions: NotificationAction[] = [];
-
   if (dataState.kind === "loaded") {
-    actions.push(
+    return [
       ...dataState.notifications.map((notification) => ({
         kind: "notification" as const,
         key: `notification:${notification.id}`,
         notification,
       })),
-    );
+      ...getNotificationFooterActions(unreadCount),
+    ];
   }
 
   if (dataState.kind === "error") {
-    actions.push({
-      kind: "retry",
-      key: "action:retry",
-      label: "Retry notifications",
-      description: "Reload the notification feed without leaving this page.",
-    });
+    return [
+      buildNotificationAction(
+        "retry",
+        "Retry notifications",
+        "Reload the notification feed without leaving this page.",
+      ),
+      ...getNotificationFooterActions(unreadCount),
+    ];
   }
 
-  if (dataState.kind === "loaded" && unreadCount != null && unreadCount > 0) {
-    actions.push({
-      kind: "mark-all",
-      key: "action:mark-all",
-      label: "Mark all as read",
-      description: "Clear the unread badge across your recent notifications.",
-    });
-  }
-
-  actions.push({
-    kind: "view-all",
-    key: "action:view-all",
-    label: "View all notifications",
-    description: "Open the full notifications center.",
-  });
-
-  return actions;
+  return getNotificationFooterActions(unreadCount);
 };
 
 const LoadingNotificationSkeleton = () => (
@@ -500,14 +528,7 @@ export function NotificationBellMenu({
           <span className="notification-bell__badge" aria-label={badgeLabel ?? undefined}>
             {badgeCount}
           </span>
-        ) : (
-          <span
-            className="notification-bell__badge notification-bell__badge--empty"
-            aria-hidden="true"
-          >
-            Clear
-          </span>
-        )}
+        ) : null}
       </button>
 
       {isOpen ? (
@@ -659,13 +680,34 @@ export function NotificationBell({
 
   const markAllMutation = useMutation({
     mutationFn: () => markAllNotificationsAsRead(),
-    onSuccess: () => {
+    onMutate: async (): Promise<NotificationBellMutationContext> => {
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: notificationUnreadCountQueryKey }),
+        queryClient.cancelQueries({ queryKey: recentNotificationsQueryKey }),
+      ]);
+
+      const previousNotifications =
+        queryClient.getQueryData<NotificationSummary[]>(recentNotificationsQueryKey);
+      const previousUnreadCount =
+        queryClient.getQueryData<number>(notificationUnreadCountQueryKey);
+
       queryClient.setQueryData(notificationUnreadCountQueryKey, 0);
       queryClient.setQueryData<NotificationSummary[] | undefined>(
         recentNotificationsQueryKey,
-        (current) =>
-          current?.map((notification) => ({ ...notification, isRead: true })) ?? current,
+        (current) => current?.map((notification) => ({ ...notification, isRead: true })),
       );
+
+      return { previousNotifications, previousUnreadCount };
+    },
+    onError: (_error, _variables, context) => {
+      if (!context) {
+        return;
+      }
+
+      queryClient.setQueryData(recentNotificationsQueryKey, context.previousNotifications);
+      queryClient.setQueryData(notificationUnreadCountQueryKey, context.previousUnreadCount);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: notificationUnreadCountQueryKey }).catch(() => undefined);
       queryClient.invalidateQueries({ queryKey: recentNotificationsQueryKey }).catch(() => undefined);
     },
@@ -673,23 +715,50 @@ export function NotificationBell({
 
   const markOneMutation = useMutation({
     mutationFn: (notificationId: string) => markNotificationAsRead(notificationId),
-    onSuccess: (result) => {
-      if (!result) {
-        return;
-      }
+    onMutate: async (notificationId: string): Promise<NotificationBellMutationContext> => {
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: notificationUnreadCountQueryKey }),
+        queryClient.cancelQueries({ queryKey: recentNotificationsQueryKey }),
+      ]);
+
+      const previousNotifications =
+        queryClient.getQueryData<NotificationSummary[]>(recentNotificationsQueryKey);
+      const previousUnreadCount =
+        queryClient.getQueryData<number>(notificationUnreadCountQueryKey);
+
+      let decrementedUnreadCount = false;
 
       queryClient.setQueryData<NotificationSummary[] | undefined>(
         recentNotificationsQueryKey,
         (current) =>
-          current?.map((notification) =>
-            notification.id === result.id ? { ...notification, isRead: true } : notification,
-          ) ?? current,
+          current?.map((notification) => {
+            if (notification.id !== notificationId || notification.isRead) {
+              return notification;
+            }
+
+            decrementedUnreadCount = true;
+            return { ...notification, isRead: true };
+          }),
       );
       queryClient.setQueryData<number | undefined>(
         notificationUnreadCountQueryKey,
-        (current) => (typeof current === "number" && current > 0 ? current - 1 : current),
+        (current) =>
+          decrementedUnreadCount && typeof current === "number" && current > 0 ? current - 1 : current,
       );
+
+      return { previousNotifications, previousUnreadCount };
+    },
+    onError: (_error, _variables, context) => {
+      if (!context) {
+        return;
+      }
+
+      queryClient.setQueryData(recentNotificationsQueryKey, context.previousNotifications);
+      queryClient.setQueryData(notificationUnreadCountQueryKey, context.previousUnreadCount);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: notificationUnreadCountQueryKey }).catch(() => undefined);
+      queryClient.invalidateQueries({ queryKey: recentNotificationsQueryKey }).catch(() => undefined);
     },
   });
 

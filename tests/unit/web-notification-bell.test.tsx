@@ -202,6 +202,7 @@ test("notification bell renders empty and error states truthfully", () => {
 
   assert.match(emptyMarkup, /You&#x27;re all caught up!/);
   assert.match(emptyMarkup, /View all notifications/);
+  assert.doesNotMatch(emptyMarkup, /notification-bell__badge/);
   assert.match(errorMarkup, /Failed to load notifications/);
   assert.match(errorMarkup, /Retry notifications/);
   assert.match(errorMarkup, /req_notification_error/);

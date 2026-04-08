@@ -222,15 +222,21 @@ export const parseNotificationListResponse = (payload: unknown) => {
 };
 
 export const parseNotificationUnreadCountResponse = (payload: unknown) => {
-  if (
-    !isRecord(payload) ||
-    !isRecord(payload.data) ||
-    typeof payload.data.unreadCount !== "number"
-  ) {
+  const unreadCount = readNotificationUnreadCountValue(payload);
+
+  if (unreadCount == null) {
     throw new Error("Notifications unread count response does not match the expected envelope.");
   }
 
-  return payload.data.unreadCount;
+  return unreadCount;
+};
+
+const readNotificationUnreadCountValue = (payload: unknown) => {
+  if (!isRecord(payload) || !isRecord(payload.data)) {
+    return null;
+  }
+
+  return typeof payload.data.unreadCount === "number" ? payload.data.unreadCount : null;
 };
 
 const readNotificationErrorCode = (payload: unknown) => {
