@@ -34,13 +34,13 @@ type WorkspaceSwitcherAction =
     }
   | {
       kind: "retry";
-      key: "retry";
+      key: typeof retryWorkspaceActionKey;
       label: string;
       description: string;
     }
   | {
       kind: "create";
-      key: "create";
+      key: typeof createWorkspaceActionKey;
       label: string;
       description: string;
     };
@@ -68,6 +68,9 @@ type WorkspaceMenuNavigationKey =
   | "End"
   | "PageUp"
   | "PageDown";
+
+const createWorkspaceActionKey = "action:create";
+const retryWorkspaceActionKey = "action:retry";
 
 const workspaceMenuNavigationKeys = new Set<WorkspaceMenuNavigationKey>([
   "ArrowDown",
@@ -190,14 +193,14 @@ const createWorkspaceAction = (
   description: string,
 ): WorkspaceSwitcherAction => ({
   kind: "create",
-  key: "create",
+  key: createWorkspaceActionKey,
   label: "Create workspace",
   description,
 });
 
 const retryWorkspaceAction = (): WorkspaceSwitcherAction => ({
   kind: "retry",
-  key: "retry",
+  key: retryWorkspaceActionKey,
   label: "Retry workspace list",
   description: "Retry the current workspace request without leaving the page.",
 });
@@ -294,7 +297,10 @@ const coerceWorkspaceQueryError = (error: unknown) => {
   }
 
   if (error instanceof Error) {
-    return new WorkspaceApiError("unknown", error.message);
+    return new WorkspaceApiError(
+      "unknown",
+      "The workspace list request could not be completed.",
+    );
   }
 
   return null;
@@ -308,7 +314,7 @@ const getWorkspaceSwitcherActions = (
     return [
       ...dataState.workspaces.map((workspace) => ({
         kind: "workspace" as const,
-        key: workspace.id,
+        key: `workspace:${workspace.id}`,
         workspace,
         current: workspace.id === currentWorkspaceId,
       })),

@@ -67,6 +67,36 @@ test("sortWorkspacesForSwitcher orders by lastAccessedAt descending then name", 
   );
 });
 
+test("sortWorkspacesForSwitcher falls back to name order when access dates are missing", () => {
+  const unsortedWithoutDates: WorkspaceSummary[] = [
+    {
+      ...workspaceFixtures[0],
+      id: "workspace-charlie-missing",
+      name: "Charlie",
+      lastAccessedAt: null,
+    },
+    {
+      ...workspaceFixtures[0],
+      id: "workspace-alpha-missing",
+      name: "Alpha",
+      lastAccessedAt: null,
+    },
+    {
+      ...workspaceFixtures[0],
+      id: "workspace-bravo-invalid",
+      name: "Bravo",
+      lastAccessedAt: "not-a-date",
+    },
+  ];
+
+  const sorted = sortWorkspacesForSwitcher(unsortedWithoutDates);
+
+  assert.deepEqual(
+    sorted.map((workspace) => workspace.name),
+    ["Alpha", "Bravo", "Charlie"],
+  );
+});
+
 test("parseWorkspaceListResponse enforces the documented list envelope", () => {
   const parsed = parseWorkspaceListResponse({
     data: {

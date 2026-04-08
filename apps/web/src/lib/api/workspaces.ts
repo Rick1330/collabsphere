@@ -177,7 +177,7 @@ export const sortWorkspacesForSwitcher = (workspaces: readonly WorkspaceSummary[
   return [...workspaces].sort((left, right) => {
     const accessDelta = byAccessTime(right.lastAccessedAt) - byAccessTime(left.lastAccessedAt);
 
-    if (accessDelta !== 0) {
+    if (!Number.isNaN(accessDelta) && accessDelta !== 0) {
       return accessDelta;
     }
 
