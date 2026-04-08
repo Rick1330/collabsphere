@@ -134,7 +134,7 @@ test("root layout injects the pre-paint script ahead of the themed body and supp
   assert.match(rootLayoutSource, /id="theme-prepaint-init"/);
   assert.match(rootLayoutSource, /themePrepaintScript/);
   assert.match(rootLayoutSource, /<body className="app-shell-root">/);
-  assert.match(rootLayoutSource, /<ThemeProvider>/);
+  assert.match(rootLayoutSource, /<AppProviders>/);
   const scriptIndex = rootLayoutSource.indexOf('id="theme-prepaint-init"');
   const bodyIndex = rootLayoutSource.indexOf('<body className="app-shell-root">');
   assert.ok(scriptIndex !== -1 && bodyIndex !== -1 && scriptIndex < bodyIndex);
