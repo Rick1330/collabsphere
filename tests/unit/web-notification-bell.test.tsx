@@ -176,6 +176,7 @@ test("notification bell renders loaded state with unread badge, recent items, an
 
   assert.match(markup, /aria-haspopup="menu"/);
   assert.match(markup, /Notifications/);
+  assert.match(markup, /aria-label="12 unread notifications"/);
   assert.match(markup, /12 unread notifications/);
   assert.match(markup, /Comment mention/);
   assert.match(markup, /Task assigned to you/);

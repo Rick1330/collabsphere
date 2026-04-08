@@ -543,7 +543,7 @@ export function NotificationBellMenu({
         aria-controls={menuId}
         aria-expanded={isOpen}
         aria-haspopup="menu"
-        aria-label="Notifications"
+        aria-label={badgeLabel ?? "Notifications"}
         onClick={() => {
           if (isOpen) {
             closeMenu();
@@ -844,8 +844,9 @@ export function NotificationBell({
     });
 
   const unreadCount =
-    unreadCountOverride ??
-    (typeof unreadCountQuery.data === "number" ? unreadCountQuery.data : null);
+    unreadCountOverride !== undefined
+      ? unreadCountOverride
+      : (typeof unreadCountQuery.data === "number" ? unreadCountQuery.data : null);
 
   return (
     <NotificationBellMenu
