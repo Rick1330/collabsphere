@@ -371,6 +371,9 @@ button {
 .workspace-sidebar__back-link:focus-visible {
   color: var(--color-text-primary);
   transform: translateY(-1px);
+}
+
+.workspace-sidebar__back-link:focus-visible {
   outline: 2px solid var(--focus-ring-color);
   outline-offset: 2px;
 }
@@ -490,7 +493,14 @@ button {
   text-decoration: none;
 }
 
-.workspace-sidebar__link:hover,
+.workspace-sidebar__link:hover {
+  background:
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 7%, var(--surface-card));
+  border-color:
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 26%, var(--color-border));
+  transform: translateY(-1px);
+}
+
 .workspace-sidebar__link:focus-visible {
   background:
     color-mix(in srgb, var(--section-accent, var(--color-accent)) 7%, var(--surface-card));

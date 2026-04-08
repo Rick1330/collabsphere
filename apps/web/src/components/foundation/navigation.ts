@@ -156,6 +156,10 @@ export const isWorkspaceRoleAllowed = (
 ) => workspaceRoleOrder[role] <= workspaceRoleOrder[minimumRole];
 
 export const getWorkspaceRoleGateLabel = (minimumRole: WorkspaceRole) => {
+  if (minimumRole === "OWNER") {
+    return "Owner+";
+  }
+
   if (minimumRole === "MANAGER") {
     return "Manager+";
   }
@@ -168,7 +172,12 @@ export const getWorkspaceRoleGateLabel = (minimumRole: WorkspaceRole) => {
     return "Member+";
   }
 
-  return minimumRole;
+  if (minimumRole === "VIEWER") {
+    return "Viewer+";
+  }
+
+  const exhaustiveRole: never = minimumRole;
+  return exhaustiveRole;
 };
 
 export const getWorkspaceInitials = (
