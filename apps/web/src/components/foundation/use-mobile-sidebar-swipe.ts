@@ -2,21 +2,22 @@
 
 import * as React from "react";
 
-import { getMobileSidebarSwipeAction, isMobileSidebarOpenGestureStart } from "./mobile-sidebar-swipe";
+import {
+  getMobileSidebarSwipeAction,
+  isMobileSidebarOpenGestureStart,
+} from "./mobile-sidebar-swipe";
 
 type TouchSession = {
-  lastX: number;
-  lastY: number;
   startX: number;
   startY: number;
 };
 
-const readTouchCoordinates = (touchList: TouchList, fallback: TouchSession) => {
+const readTouchCoordinates = (touchList: TouchList) => {
   const touch = touchList[0];
 
   return {
-    x: touch?.clientX ?? fallback.lastX,
-    y: touch?.clientY ?? fallback.lastY,
+    x: touch?.clientX ?? null,
+    y: touch?.clientY ?? null,
   };
 };
 
@@ -55,23 +56,9 @@ export function useMobileSidebarSwipe({
       }
 
       documentTouchSessionRef.current = {
-        lastX: touch.clientX,
-        lastY: touch.clientY,
         startX: touch.clientX,
         startY: touch.clientY,
       };
-    };
-
-    const handleTouchMove = (event: TouchEvent) => {
-      const session = documentTouchSessionRef.current;
-
-      if (session == null || event.touches.length !== 1) {
-        return;
-      }
-
-      const touch = event.touches[0];
-      session.lastX = touch.clientX;
-      session.lastY = touch.clientY;
     };
 
     const handleTouchEnd = (event: TouchEvent) => {
@@ -82,7 +69,11 @@ export function useMobileSidebarSwipe({
         return;
       }
 
-      const coordinates = readTouchCoordinates(event.changedTouches, session);
+      const coordinates = readTouchCoordinates(event.changedTouches);
+      if (coordinates.x == null || coordinates.y == null) {
+        return;
+      }
+
       const action = getMobileSidebarSwipeAction({
         endX: coordinates.x,
         endY: coordinates.y,
@@ -99,14 +90,12 @@ export function useMobileSidebarSwipe({
     };
 
     document.addEventListener("touchstart", handleTouchStart, { passive: true });
-    document.addEventListener("touchmove", handleTouchMove, { passive: true });
     document.addEventListener("touchend", handleTouchEnd, { passive: true });
     document.addEventListener("touchcancel", handleTouchEnd, { passive: true });
 
     return () => {
       documentTouchSessionRef.current = null;
       document.removeEventListener("touchstart", handleTouchStart);
-      document.removeEventListener("touchmove", handleTouchMove);
       document.removeEventListener("touchend", handleTouchEnd);
       document.removeEventListener("touchcancel", handleTouchEnd);
     };
@@ -131,23 +120,9 @@ export function useMobileSidebarSwipe({
 
       const touch = event.touches[0];
       panelTouchSessionRef.current = {
-        lastX: touch.clientX,
-        lastY: touch.clientY,
         startX: touch.clientX,
         startY: touch.clientY,
       };
-    };
-
-    const handleTouchMove = (event: TouchEvent) => {
-      const session = panelTouchSessionRef.current;
-
-      if (session == null || event.touches.length !== 1) {
-        return;
-      }
-
-      const touch = event.touches[0];
-      session.lastX = touch.clientX;
-      session.lastY = touch.clientY;
     };
 
     const handleTouchEnd = (event: TouchEvent) => {
@@ -158,7 +133,11 @@ export function useMobileSidebarSwipe({
         return;
       }
 
-      const coordinates = readTouchCoordinates(event.changedTouches, session);
+      const coordinates = readTouchCoordinates(event.changedTouches);
+      if (coordinates.x == null || coordinates.y == null) {
+        return;
+      }
+
       const action = getMobileSidebarSwipeAction({
         endX: coordinates.x,
         endY: coordinates.y,
@@ -175,17 +154,14 @@ export function useMobileSidebarSwipe({
     };
 
     panel.addEventListener("touchstart", handleTouchStart, { passive: true });
-    panel.addEventListener("touchmove", handleTouchMove, { passive: true });
     panel.addEventListener("touchend", handleTouchEnd, { passive: true });
     panel.addEventListener("touchcancel", handleTouchEnd, { passive: true });
 
     return () => {
       panelTouchSessionRef.current = null;
       panel.removeEventListener("touchstart", handleTouchStart);
-      panel.removeEventListener("touchmove", handleTouchMove);
       panel.removeEventListener("touchend", handleTouchEnd);
       panel.removeEventListener("touchcancel", handleTouchEnd);
     };
   }, [enabled, isOpen, onClose, panelRef]);
 }
-
