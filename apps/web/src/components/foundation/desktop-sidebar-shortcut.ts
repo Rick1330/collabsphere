@@ -1,4 +1,7 @@
-const editableRoles = new Set(["textbox", "searchbox", "combobox", "spinbutton"]);
+const editableRoleSelector =
+  '[role="textbox"], [role="searchbox"], [role="combobox"], [role="spinbutton"]';
+const editableContentSelector =
+  '[contenteditable=""], [contenteditable="true"], [contenteditable="plaintext-only"]';
 
 type SidebarShortcutEvent = Pick<
   KeyboardEvent,
@@ -46,35 +49,36 @@ export const isDesktopSidebarShortcut = ({
   return event.ctrlKey && !event.metaKey;
 };
 
-export const isEditableShortcutTarget = (target: EventTarget | null) => {
+const asElementTarget = (target: EventTarget | null) => {
   if (typeof Element === "undefined" || !(target instanceof Element)) {
+    return null;
+  }
+
+  return target;
+};
+
+const hasEditableFormControlTarget = (target: Element) =>
+  target.closest("input, textarea, select") != null;
+
+const hasEditableContentTarget = (target: Element) =>
+  target.closest(editableContentSelector) != null ||
+  ("isContentEditable" in target && Boolean(target.isContentEditable));
+
+const hasEditableRoleTarget = (target: Element) =>
+  target.closest(editableRoleSelector) != null;
+
+export const isEditableShortcutTarget = (target: EventTarget | null) => {
+  const elementTarget = asElementTarget(target);
+
+  if (elementTarget == null) {
     return false;
   }
 
-  if (target.closest("input, textarea, select")) {
-    return true;
-  }
-
-  const editableAncestor = target.closest(
-    '[contenteditable=""], [contenteditable="true"], [contenteditable="plaintext-only"]',
+  return (
+    hasEditableFormControlTarget(elementTarget) ||
+    hasEditableContentTarget(elementTarget) ||
+    hasEditableRoleTarget(elementTarget)
   );
-
-  if (editableAncestor) {
-    return true;
-  }
-
-  const roleHost = target.closest("[role]");
-  const role = roleHost?.getAttribute("role")?.toLowerCase();
-
-  if (role && editableRoles.has(role)) {
-    return true;
-  }
-
-  if ("isContentEditable" in target && Boolean(target.isContentEditable)) {
-    return true;
-  }
-
-  return false;
 };
 
 export const handleDesktopSidebarShortcut = ({
