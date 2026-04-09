@@ -12,6 +12,10 @@ import {
 } from "react";
 
 import type { NavItem } from "./navigation";
+import {
+  mobileSidebarMediaQuery,
+} from "./mobile-sidebar-swipe";
+import { useMobileSidebarSwipe } from "./use-mobile-sidebar-swipe";
 
 type MobileMenuProps = {
   description: string;
@@ -63,8 +67,6 @@ const getFocusTrapTarget = ({
 export const isMobileMenuOpenKey = (key: string): key is MobileMenuOpenKey =>
   key === "Enter" || key === " " || key === "ArrowDown";
 
-const mobileNavMediaQuery = "(max-width: 767px)";
-
 export function MobileMenu({
   description,
   initialOpen = false,
@@ -76,7 +78,9 @@ export function MobileMenu({
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const dialogRef = useRef<HTMLDialogElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
   const [isOpen, setIsOpen] = useState(initialOpen);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
@@ -99,9 +103,9 @@ export function MobileMenu({
     };
   }, [isOpen]);
 
-  const openMenu = () => {
+  const openMenu = useCallback(() => {
     setIsOpen(true);
-  };
+  }, []);
 
   const closeMenu = useCallback(() => {
     setIsOpen(false);
@@ -109,18 +113,20 @@ export function MobileMenu({
   }, []);
 
   useEffect(() => {
-    if (!isOpen || typeof window === "undefined") {
+    if (typeof window === "undefined") {
       return;
     }
 
-    const mediaQuery = window.matchMedia(mobileNavMediaQuery);
+    const mediaQuery = window.matchMedia(mobileSidebarMediaQuery);
+    setIsMobileViewport(mediaQuery.matches);
 
-    if (!mediaQuery.matches) {
+    if (isOpen && !mediaQuery.matches) {
       closeMenu();
-      return;
     }
 
     const handleViewportChange = (event: MediaQueryListEvent) => {
+      setIsMobileViewport(event.matches);
+
       if (!event.matches) {
         closeMenu();
       }
@@ -151,6 +157,14 @@ export function MobileMenu({
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [closeMenu, isOpen]);
+
+  useMobileSidebarSwipe({
+    enabled: isMobileViewport,
+    isOpen,
+    onClose: closeMenu,
+    onOpen: openMenu,
+    panelRef,
+  });
 
   const handleTriggerKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (!isMobileMenuOpenKey(event.key)) {
@@ -216,6 +230,7 @@ export function MobileMenu({
           ref={dialogRef}
           id={menuId}
           className="mobile-menu__dialog"
+          role="dialog"
           aria-labelledby={`${menuId}-title`}
           aria-describedby={`${menuId}-description`}
           aria-modal="true"
@@ -229,7 +244,7 @@ export function MobileMenu({
             aria-label="Close navigation menu"
             onClick={closeMenu}
           />
-          <div className="mobile-menu__panel">
+          <div ref={panelRef} className="mobile-menu__panel">
             <div className="mobile-menu__header">
               <div className="mobile-menu__header-copy">
                 <p className="mobile-menu__eyebrow">Mobile navigation</p>
