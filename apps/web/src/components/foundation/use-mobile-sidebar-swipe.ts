@@ -38,7 +38,15 @@ export function useMobileSidebarSwipe({
   const panelTouchSessionRef = React.useRef<TouchSession | null>(null);
 
   React.useEffect(() => {
-    if (!enabled || isOpen || typeof window === "undefined") {
+    if (!enabled) {
+      return;
+    }
+
+    if (isOpen) {
+      return;
+    }
+
+    if (typeof window === "undefined") {
       return;
     }
 
@@ -70,7 +78,11 @@ export function useMobileSidebarSwipe({
       }
 
       const coordinates = readTouchCoordinates(event.changedTouches);
-      if (coordinates.x == null || coordinates.y == null) {
+      if (coordinates.x == null) {
+        return;
+      }
+
+      if (coordinates.y == null) {
         return;
       }
 
@@ -102,7 +114,15 @@ export function useMobileSidebarSwipe({
   }, [enabled, isOpen, onOpen]);
 
   React.useEffect(() => {
-    if (!enabled || !isOpen || typeof window === "undefined") {
+    if (!enabled) {
+      return;
+    }
+
+    if (!isOpen) {
+      return;
+    }
+
+    if (typeof window === "undefined") {
       return;
     }
 
@@ -134,7 +154,11 @@ export function useMobileSidebarSwipe({
       }
 
       const coordinates = readTouchCoordinates(event.changedTouches);
-      if (coordinates.x == null || coordinates.y == null) {
+      if (coordinates.x == null) {
+        return;
+      }
+
+      if (coordinates.y == null) {
         return;
       }
 
