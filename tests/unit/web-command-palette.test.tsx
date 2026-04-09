@@ -57,7 +57,6 @@ test("command palette renders a dialog with autofocus input and grouped results"
   );
 
   assert.match(markup, /<dialog/);
-  assert.match(markup, /role="dialog"/);
   assert.match(markup, /aria-modal="true"/);
   assert.match(markup, /Command palette/);
   assert.match(markup, /Type a command or search\.\.\./);
@@ -81,4 +80,3 @@ test("globals.css keeps the command palette full-width on mobile and width-cappe
   assert.match(globalsCss, /width: 100vw;/);
   assert.match(globalsCss, /top: 0;/);
 });
-

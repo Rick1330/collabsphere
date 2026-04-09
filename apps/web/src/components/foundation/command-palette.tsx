@@ -3,6 +3,8 @@
 import * as React from "react";
 import { useCallback, useEffect, useId, useRef, type KeyboardEvent } from "react";
 
+import { getFocusableElements, getFocusTrapTarget } from "./dialog-focus-trap";
+
 export type CommandPaletteItem = {
   id: string;
   label: string;
@@ -27,46 +29,124 @@ type CommandPaletteProps = {
 
 type CommandPaletteCloseKey = "Escape";
 
-const focusableSelector = [
-  "a[href]",
-  "button:not([disabled])",
-  "input:not([disabled])",
-  "select:not([disabled])",
-  "textarea:not([disabled])",
-  "[tabindex]:not([tabindex='-1'])",
-].join(", ");
-
-const getFocusableElements = (container: HTMLElement | null): HTMLElement[] =>
-  Array.from(container?.querySelectorAll<HTMLElement>(focusableSelector) ?? []);
-
-const getFocusTrapTarget = ({
-  activeElement,
-  firstElement,
-  lastElement,
-  shiftKey,
-}: {
-  activeElement: Element | null;
-  firstElement: HTMLElement | undefined;
-  lastElement: HTMLElement | undefined;
-  shiftKey: boolean;
-}): HTMLElement | null => {
-  if (firstElement == null || lastElement == null) {
-    return null;
-  }
-
-  if (shiftKey && activeElement === firstElement) {
-    return lastElement;
-  }
-
-  if (!shiftKey && activeElement === lastElement) {
-    return firstElement;
-  }
-
-  return null;
-};
-
 export const isCommandPaletteCloseKey = (key: string): key is CommandPaletteCloseKey =>
   key === "Escape";
+
+type CommandPaletteHeaderProps = {
+  closeButtonRef: React.RefObject<HTMLButtonElement | null>;
+  descriptionId: string;
+  titleId: string;
+  onClose: () => void;
+};
+
+function CommandPaletteHeader({
+  closeButtonRef,
+  descriptionId,
+  titleId,
+  onClose,
+}: Readonly<CommandPaletteHeaderProps>) {
+  return (
+    <header className="command-palette__header">
+      <div className="command-palette__header-copy">
+        <p id={titleId} className="command-palette__title">
+          Command palette
+        </p>
+        <p id={descriptionId} className="command-palette__description">
+          Type a command or search across your workspace.
+        </p>
+      </div>
+      <button
+        ref={closeButtonRef}
+        type="button"
+        className="command-palette__close"
+        aria-label="Close command palette"
+        onClick={onClose}
+      >
+        <span aria-hidden="true">✕</span>
+      </button>
+    </header>
+  );
+}
+
+type CommandPaletteSearchProps = {
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  query: string;
+  onQueryChange: (value: string) => void;
+};
+
+function CommandPaletteSearch({
+  inputRef,
+  onQueryChange,
+  query,
+}: Readonly<CommandPaletteSearchProps>) {
+  return (
+    <div className="command-palette__search" role="search">
+      <span className="command-palette__search-icon" aria-hidden="true">
+        🔍
+      </span>
+      <input
+        ref={inputRef}
+        className="command-palette__search-input"
+        type="search"
+        autoFocus
+        value={query}
+        placeholder="Type a command or search..."
+        aria-label="Search commands"
+        onChange={(event) => {
+          onQueryChange(event.currentTarget.value);
+        }}
+      />
+    </div>
+  );
+}
+
+type CommandPaletteResultsProps = {
+  groups: readonly CommandPaletteGroup[];
+  onItemSelect: (item: CommandPaletteItem) => void;
+};
+
+function CommandPaletteResults({ groups, onItemSelect }: Readonly<CommandPaletteResultsProps>) {
+  return (
+    <section className="command-palette__results" aria-label="Command palette results">
+      {groups.map((group) =>
+        group.items.length > 0 ? (
+          <div key={group.id} className="command-palette__group">
+            <h3 className="command-palette__group-label">{group.label}</h3>
+            <ul className="command-palette__group-list">
+              {group.items.map((item) => (
+                <li key={item.id} className="command-palette__item">
+                  <button
+                    type="button"
+                    className="command-palette__item-button"
+                    aria-label={item.label}
+                    onClick={() => {
+                      onItemSelect(item);
+                    }}
+                  >
+                    <span className="command-palette__item-label">{item.label}</span>
+                    {item.description ? (
+                      <span className="command-palette__item-description">{item.description}</span>
+                    ) : null}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null,
+      )}
+    </section>
+  );
+}
+
+function CommandPaletteFooter() {
+  return (
+    <footer className="command-palette__footer" aria-label="Command palette hints">
+      <span className="command-palette__hint">
+        <kbd>Esc</kbd> close
+      </span>
+    </footer>
+  );
+}
 
 export function CommandPalette({
   groups,
@@ -139,6 +219,7 @@ export function CommandPalette({
     }
 
     const focusableElements = getFocusableElements(dialogRef.current);
+    const lastElement = focusableElements.at(-1);
 
     if (focusableElements.length === 0) {
       event.preventDefault();
@@ -154,7 +235,7 @@ export function CommandPalette({
     const target = getFocusTrapTarget({
       activeElement: document.activeElement,
       firstElement: focusableElements[0],
-      lastElement: focusableElements[focusableElements.length - 1],
+      lastElement,
       shiftKey: event.shiftKey,
     });
 
@@ -167,11 +248,28 @@ export function CommandPalette({
   const titleId = `${paletteId}-title`;
   const descriptionId = `${paletteId}-description`;
 
+  const handleItemSelect = useCallback(
+    (item: CommandPaletteItem) => {
+      let error: unknown;
+      try {
+        item.onSelect?.();
+      } catch (error_) {
+        error = error_;
+      } finally {
+        closePalette();
+      }
+
+      if (error) {
+        throw error;
+      }
+    },
+    [closePalette],
+  );
+
   return isOpen ? (
     <dialog
       ref={dialogRef}
       className="command-palette__dialog"
-      role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
@@ -187,95 +285,15 @@ export function CommandPalette({
         onClick={closePalette}
       />
       <div className="command-palette__panel">
-        <header className="command-palette__header">
-          <div className="command-palette__header-copy">
-            <p id={titleId} className="command-palette__title">
-              Command palette
-            </p>
-            <p id={descriptionId} className="command-palette__description">
-              Type a command or search across your workspace.
-            </p>
-          </div>
-          <button
-            ref={closeButtonRef}
-            type="button"
-            className="command-palette__close"
-            aria-label="Close command palette"
-            onClick={closePalette}
-          >
-            <span aria-hidden="true">✕</span>
-          </button>
-        </header>
-
-        <div className="command-palette__search" role="search">
-          <span className="command-palette__search-icon" aria-hidden="true">
-            🔍
-          </span>
-          <input
-            ref={inputRef}
-            className="command-palette__search-input"
-            type="search"
-            autoFocus
-            value={query}
-            placeholder="Type a command or search..."
-            aria-label="Search commands"
-            onChange={(event) => {
-              onQueryChange(event.currentTarget.value);
-            }}
-          />
-        </div>
-
-        <div
-          className="command-palette__results"
-          role="region"
-          aria-label="Command palette results"
-        >
-          {groups.map((group) =>
-            group.items.length > 0 ? (
-              <section key={group.id} className="command-palette__group">
-                <h3 className="command-palette__group-label">{group.label}</h3>
-                <ul className="command-palette__group-list">
-                  {group.items.map((item) => (
-                    <li key={item.id} className="command-palette__item">
-                      <button
-                        type="button"
-                        className="command-palette__item-button"
-                        aria-label={item.label}
-                        onClick={() => {
-                          let error: unknown;
-                          try {
-                            item.onSelect?.();
-                          } catch (caught) {
-                            error = caught;
-                          } finally {
-                            closePalette();
-                          }
-
-                          if (error) {
-                            throw error;
-                          }
-                        }}
-                      >
-                        <span className="command-palette__item-label">{item.label}</span>
-                        {item.description ? (
-                          <span className="command-palette__item-description">
-                            {item.description}
-                          </span>
-                        ) : null}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ) : null,
-          )}
-        </div>
-
-        <footer className="command-palette__footer" aria-label="Command palette hints">
-          <span className="command-palette__hint">
-            <kbd>Esc</kbd> close
-          </span>
-        </footer>
+        <CommandPaletteHeader
+          closeButtonRef={closeButtonRef}
+          descriptionId={descriptionId}
+          titleId={titleId}
+          onClose={closePalette}
+        />
+        <CommandPaletteSearch inputRef={inputRef} query={query} onQueryChange={onQueryChange} />
+        <CommandPaletteResults groups={groups} onItemSelect={handleItemSelect} />
+        <CommandPaletteFooter />
       </div>
     </dialog>
   ) : null;
