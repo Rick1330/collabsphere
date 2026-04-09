@@ -10,6 +10,7 @@ import {
   ShellFrameView,
   type ShellFrameProps,
 } from "./shell-frame-view";
+import { useDesktopSidebarShortcut } from "./use-desktop-sidebar-shortcut";
 import { useDesktopSidebarMode } from "./use-desktop-sidebar-mode";
 
 type CollapsibleSidebarProps = {
@@ -54,6 +55,10 @@ export function CollapsibleShellFrame({
   const { sidebarMode, toggleSidebarMode } = useDesktopSidebarMode({
     defaultMode: defaultSidebarMode,
     enabled: canCollapseSidebar,
+  });
+  useDesktopSidebarShortcut({
+    enabled: canCollapseSidebar,
+    onToggle: toggleSidebarMode,
   });
 
   return (
