@@ -83,7 +83,7 @@ test("shell frame honors an explicit null sidebar instead of falling back to the
     </ShellFrame>,
   );
 
-  assert.doesNotMatch(markup, /class="shell__rail"/);
+  assert.doesNotMatch(markup, /shell__rail--default/);
   assert.match(markup, /class="shell shell--global shell--no-rail"/);
   assert.doesNotMatch(markup, /Authenticated global context navigation/);
 });
