@@ -108,6 +108,25 @@ test("shell frame propagates a collapsed desktop sidebar state into the authenti
   assert.match(markup, /title="Dashboard"/);
 });
 
+test("sidebar views generate stable controlled ids when a collapse handler is provided directly", () => {
+  const globalMarkup = renderToStaticMarkup(
+    <GlobalSidebarView currentPathname="/dashboard" onToggleCollapse={() => undefined} />,
+  );
+  const workspaceMarkup = renderToStaticMarkup(
+    <WorkspaceSidebarView
+      currentPathname="/w/workspace-alpha/tasks"
+      dataState={{ kind: "loaded", workspace }}
+      onToggleCollapse={() => undefined}
+      workspaceId="workspace-alpha"
+    />,
+  );
+
+  assert.match(globalMarkup, /id="[^"]+"/);
+  assert.match(globalMarkup, /aria-controls="[^"]+"/);
+  assert.match(workspaceMarkup, /id="[^"]+"/);
+  assert.match(workspaceMarkup, /aria-controls="[^"]+"/);
+});
+
 test("workspace sidebar keeps collapsed controls accessible even when text labels are visually hidden", () => {
   const markup = renderToStaticMarkup(
     <WorkspaceSidebarView

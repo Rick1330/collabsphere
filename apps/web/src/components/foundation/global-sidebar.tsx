@@ -82,9 +82,12 @@ export function GlobalSidebarView({
   primaryItems = globalSidebarPrimaryItems,
   sidebarId,
 }: Readonly<GlobalSidebarViewProps>) {
+  const generatedSidebarId = React.useId();
+  const effectiveSidebarId = sidebarId ?? generatedSidebarId;
+
   return (
     <aside
-      id={sidebarId}
+      id={effectiveSidebarId}
       className="shell__rail global-sidebar"
       aria-label="Global navigation"
       data-collapsed={collapsed}
@@ -93,7 +96,7 @@ export function GlobalSidebarView({
         <button
           type="button"
           className="sidebar-collapse-toggle"
-          aria-controls={sidebarId}
+          aria-controls={effectiveSidebarId}
           aria-expanded={!collapsed}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}

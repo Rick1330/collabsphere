@@ -391,6 +391,8 @@ export function WorkspaceSidebarView({
   sidebarId,
   workspaceId,
 }: Readonly<WorkspaceSidebarViewProps>) {
+  const generatedSidebarId = React.useId();
+  const effectiveSidebarId = sidebarId ?? generatedSidebarId;
   const presentation = getWorkspaceSidebarPresentation(dataState, workspaceId);
   const sections = [
     {
@@ -412,7 +414,7 @@ export function WorkspaceSidebarView({
 
   return (
     <aside
-      id={sidebarId}
+      id={effectiveSidebarId}
       className="shell__rail workspace-sidebar"
       aria-label="Workspace navigation"
       data-collapsed={collapsed}
@@ -421,7 +423,7 @@ export function WorkspaceSidebarView({
         <button
           type="button"
           className="sidebar-collapse-toggle"
-          aria-controls={sidebarId}
+          aria-controls={effectiveSidebarId}
           aria-expanded={!collapsed}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
