@@ -200,14 +200,14 @@ const validateBuildContext = async (context: BuildContext) => {
 
 const stageAppDistLayout = async (context: BuildContext) => {
   if (!context.hasTsSource) {
-    await rm(distDir, { recursive: true, force: true });
+    await removeDirectoryWithRetries({ directory: distDir });
     await mkdir(distDir, { recursive: true });
     return;
   }
 
   await mkdir(distDir, { recursive: true });
-  await rm(path.join(distDir, "_shared"), { recursive: true, force: true });
-  await rm(path.join(distDir, "node_modules"), { recursive: true, force: true });
+  await removeDirectoryWithRetries({ directory: path.join(distDir, "_shared") });
+  await removeDirectoryWithRetries({ directory: path.join(distDir, "node_modules") });
   await rm(distEntryPath, { force: true });
   await rm(distPackageJsonPath, { force: true });
 
