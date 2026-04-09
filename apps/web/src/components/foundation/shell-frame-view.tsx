@@ -52,8 +52,8 @@ export function ShellFrameView({
       <p className="shell__description">{description}</p>
       <nav className="shell__nav">
         <ul className="shell__nav-list">
-          {(navItems ?? []).map((item) => (
-            <li key={item.href} className="shell__nav-item">
+          {(navItems ?? []).map((item, index) => (
+            <li key={`${item.href}-${index}`} className="shell__nav-item">
               <Link className="shell__nav-link" href={item.href}>
                 <span>{item.label}</span>
                 <span className="shell__nav-hint">{item.hint}</span>
