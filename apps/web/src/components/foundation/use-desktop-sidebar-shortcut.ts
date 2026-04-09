@@ -17,15 +17,24 @@ export const useDesktopSidebarShortcut = ({
   onToggle,
 }: Readonly<UseDesktopSidebarShortcutOptions>) => {
   React.useEffect(() => {
-    if (!enabled || typeof window === "undefined") {
+    if (
+      !enabled ||
+      typeof window === "undefined" ||
+      typeof window.matchMedia !== "function"
+    ) {
       return;
     }
 
+    const desktopMediaQuery = window.matchMedia("(min-width: 1280px)");
     const isMacLike = isMacLikePlatform({
       platform: window.navigator.platform,
       userAgent: window.navigator.userAgent,
     });
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (!desktopMediaQuery.matches) {
+        return;
+      }
+
       handleDesktopSidebarShortcut({
         enabled,
         event,

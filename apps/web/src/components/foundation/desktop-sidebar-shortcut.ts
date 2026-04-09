@@ -15,6 +15,8 @@ type SidebarShortcutEvent = Pick<
   | "target"
 >;
 
+const isSidebarToggleKey = (key: string) => key.toLowerCase() === "b";
+
 export const isMacLikePlatform = ({
   platform,
   userAgent,
@@ -30,23 +32,19 @@ export const isDesktopSidebarShortcut = ({
   event: SidebarShortcutEvent;
   isMacLike: boolean;
 }>) => {
-  if (event.key.toLowerCase() !== "b") {
+  if (!isSidebarToggleKey(event.key)) {
     return false;
   }
 
-  if (event.altKey || event.shiftKey) {
+  const hasExclusivePrimaryModifier = event.metaKey !== event.ctrlKey;
+  const hasSupportedModifiers =
+    !event.altKey && !event.shiftKey && hasExclusivePrimaryModifier;
+
+  if (!hasSupportedModifiers) {
     return false;
   }
 
-  if (event.metaKey && event.ctrlKey) {
-    return false;
-  }
-
-  if (isMacLike) {
-    return event.metaKey && !event.ctrlKey;
-  }
-
-  return event.ctrlKey && !event.metaKey;
+  return isMacLike ? event.metaKey : event.ctrlKey;
 };
 
 const asElementTarget = (target: EventTarget | null) => {
