@@ -7,6 +7,7 @@ export type CommandPaletteItem = {
   id: string;
   label: string;
   description?: string;
+  onSelect?: () => void;
 };
 
 export type CommandPaletteGroup = {
@@ -78,6 +79,7 @@ export function CommandPalette({
   const paletteId = useId();
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
 
   const closePalette = useCallback(() => {
     returnFocusRef?.current?.focus();
@@ -139,6 +141,13 @@ export function CommandPalette({
     const focusableElements = getFocusableElements(dialogRef.current);
 
     if (focusableElements.length === 0) {
+      event.preventDefault();
+      if (closeButtonRef.current) {
+        closeButtonRef.current.focus();
+        return;
+      }
+
+      dialogRef.current?.focus();
       return;
     }
 
@@ -167,6 +176,7 @@ export function CommandPalette({
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
       open
+      tabIndex={-1}
       onCancel={handleDialogCancel}
       onKeyDown={handleDialogKeyDown}
     >
@@ -187,6 +197,7 @@ export function CommandPalette({
             </p>
           </div>
           <button
+            ref={closeButtonRef}
             type="button"
             className="command-palette__close"
             aria-label="Close command palette"
@@ -214,7 +225,11 @@ export function CommandPalette({
           />
         </div>
 
-        <div className="command-palette__results" aria-label="Command palette results">
+        <div
+          className="command-palette__results"
+          role="region"
+          aria-label="Command palette results"
+        >
           {groups.map((group) =>
             group.items.length > 0 ? (
               <section key={group.id} className="command-palette__group">
@@ -227,7 +242,11 @@ export function CommandPalette({
                         className="command-palette__item-button"
                         aria-label={item.label}
                         onClick={() => {
-                          closePalette();
+                          try {
+                            item.onSelect?.();
+                          } finally {
+                            closePalette();
+                          }
                         }}
                       >
                         <span className="command-palette__item-label">{item.label}</span>
@@ -254,4 +273,3 @@ export function CommandPalette({
     </dialog>
   ) : null;
 }
-
