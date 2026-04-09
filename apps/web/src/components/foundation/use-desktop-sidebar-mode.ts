@@ -19,7 +19,7 @@ export const useDesktopSidebarMode = ({
   enabled,
 }: Readonly<UseDesktopSidebarModeOptions>) => {
   const [sidebarMode, setSidebarMode] = React.useState<DesktopSidebarMode>(defaultMode);
-  const hasHydratedSidebarMode = React.useRef(false);
+  const [hasHydratedSidebarMode, setHasHydratedSidebarMode] = React.useState(false);
 
   React.useEffect(() => {
     if (typeof window === "undefined") {
@@ -27,12 +27,12 @@ export const useDesktopSidebarMode = ({
     }
 
     if (!enabled) {
-      hasHydratedSidebarMode.current = false;
+      setHasHydratedSidebarMode(false);
       return;
     }
 
     setSidebarMode(readStoredDesktopSidebarMode(window.localStorage));
-    hasHydratedSidebarMode.current = true;
+    setHasHydratedSidebarMode(true);
   }, [enabled]);
 
   React.useEffect(() => {
@@ -44,12 +44,12 @@ export const useDesktopSidebarMode = ({
       return;
     }
 
-    if (!hasHydratedSidebarMode.current) {
+    if (!hasHydratedSidebarMode) {
       return;
     }
 
     writeStoredDesktopSidebarMode(window.localStorage, sidebarMode);
-  }, [enabled, sidebarMode]);
+  }, [enabled, hasHydratedSidebarMode, sidebarMode]);
 
   const toggleSidebarMode = React.useCallback(() => {
     setSidebarMode((currentMode) =>
