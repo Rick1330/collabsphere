@@ -12,6 +12,11 @@ import {
 } from "react";
 
 import type { NavItem } from "./navigation";
+import {
+  getMobileSidebarSwipeAction,
+  isMobileSidebarOpenGestureStart,
+  mobileSidebarMediaQuery,
+} from "./mobile-sidebar-swipe";
 
 type MobileMenuProps = {
   description: string;
@@ -63,7 +68,12 @@ const getFocusTrapTarget = ({
 export const isMobileMenuOpenKey = (key: string): key is MobileMenuOpenKey =>
   key === "Enter" || key === " " || key === "ArrowDown";
 
-const mobileNavMediaQuery = "(max-width: 767px)";
+type MobileMenuTouchSession = {
+  lastX: number;
+  lastY: number;
+  startX: number;
+  startY: number;
+};
 
 export function MobileMenu({
   description,
@@ -76,7 +86,11 @@ export function MobileMenu({
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const dialogRef = useRef<HTMLDialogElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const documentTouchSessionRef = useRef<MobileMenuTouchSession | null>(null);
+  const panelTouchSessionRef = useRef<MobileMenuTouchSession | null>(null);
   const [isOpen, setIsOpen] = useState(initialOpen);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
@@ -99,9 +113,9 @@ export function MobileMenu({
     };
   }, [isOpen]);
 
-  const openMenu = () => {
+  const openMenu = useCallback(() => {
     setIsOpen(true);
-  };
+  }, []);
 
   const closeMenu = useCallback(() => {
     setIsOpen(false);
@@ -109,18 +123,16 @@ export function MobileMenu({
   }, []);
 
   useEffect(() => {
-    if (!isOpen || typeof window === "undefined") {
+    if (typeof window === "undefined") {
       return;
     }
 
-    const mediaQuery = window.matchMedia(mobileNavMediaQuery);
-
-    if (!mediaQuery.matches) {
-      closeMenu();
-      return;
-    }
+    const mediaQuery = window.matchMedia(mobileSidebarMediaQuery);
+    setIsMobileViewport(mediaQuery.matches);
 
     const handleViewportChange = (event: MediaQueryListEvent) => {
+      setIsMobileViewport(event.matches);
+
       if (!event.matches) {
         closeMenu();
       }
@@ -131,7 +143,7 @@ export function MobileMenu({
     return () => {
       mediaQuery.removeEventListener("change", handleViewportChange);
     };
-  }, [closeMenu, isOpen]);
+  }, [closeMenu]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -151,6 +163,176 @@ export function MobileMenu({
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [closeMenu, isOpen]);
+
+  useEffect(() => {
+    if (!isMobileViewport || isOpen || typeof window === "undefined") {
+      return;
+    }
+
+    const readTouchCoordinates = (touchList: TouchList, fallback: MobileMenuTouchSession) => {
+      const touch = touchList[0];
+
+      return {
+        x: touch?.clientX ?? fallback.lastX,
+        y: touch?.clientY ?? fallback.lastY,
+      };
+    };
+
+    const handleTouchStart = (event: TouchEvent) => {
+      if (event.touches.length !== 1) {
+        documentTouchSessionRef.current = null;
+        return;
+      }
+
+      const touch = event.touches[0];
+
+      if (!isMobileSidebarOpenGestureStart(touch.clientX)) {
+        documentTouchSessionRef.current = null;
+        return;
+      }
+
+      documentTouchSessionRef.current = {
+        lastX: touch.clientX,
+        lastY: touch.clientY,
+        startX: touch.clientX,
+        startY: touch.clientY,
+      };
+    };
+
+    const handleTouchMove = (event: TouchEvent) => {
+      const session = documentTouchSessionRef.current;
+
+      if (session == null || event.touches.length !== 1) {
+        return;
+      }
+
+      const touch = event.touches[0];
+      session.lastX = touch.clientX;
+      session.lastY = touch.clientY;
+    };
+
+    const handleTouchEnd = (event: TouchEvent) => {
+      const session = documentTouchSessionRef.current;
+      documentTouchSessionRef.current = null;
+
+      if (session == null) {
+        return;
+      }
+
+      const coordinates = readTouchCoordinates(event.changedTouches, session);
+      const action = getMobileSidebarSwipeAction({
+        endX: coordinates.x,
+        endY: coordinates.y,
+        isOpen: false,
+        panelWidth: window.innerWidth,
+        startX: session.startX,
+        startY: session.startY,
+        viewportWidth: window.innerWidth,
+      });
+
+      if (action === "open") {
+        openMenu();
+      }
+    };
+
+    document.addEventListener("touchstart", handleTouchStart, { passive: true });
+    document.addEventListener("touchmove", handleTouchMove, { passive: true });
+    document.addEventListener("touchend", handleTouchEnd, { passive: true });
+    document.addEventListener("touchcancel", handleTouchEnd, { passive: true });
+
+    return () => {
+      documentTouchSessionRef.current = null;
+      document.removeEventListener("touchstart", handleTouchStart);
+      document.removeEventListener("touchmove", handleTouchMove);
+      document.removeEventListener("touchend", handleTouchEnd);
+      document.removeEventListener("touchcancel", handleTouchEnd);
+    };
+  }, [isMobileViewport, isOpen, openMenu]);
+
+  useEffect(() => {
+    if (!isMobileViewport || !isOpen || typeof window === "undefined") {
+      return;
+    }
+
+    const panel = panelRef.current;
+
+    if (panel == null) {
+      return;
+    }
+
+    const readTouchCoordinates = (touchList: TouchList, fallback: MobileMenuTouchSession) => {
+      const touch = touchList[0];
+
+      return {
+        x: touch?.clientX ?? fallback.lastX,
+        y: touch?.clientY ?? fallback.lastY,
+      };
+    };
+
+    const handleTouchStart = (event: TouchEvent) => {
+      if (event.touches.length !== 1) {
+        panelTouchSessionRef.current = null;
+        return;
+      }
+
+      const touch = event.touches[0];
+      panelTouchSessionRef.current = {
+        lastX: touch.clientX,
+        lastY: touch.clientY,
+        startX: touch.clientX,
+        startY: touch.clientY,
+      };
+    };
+
+    const handleTouchMove = (event: TouchEvent) => {
+      const session = panelTouchSessionRef.current;
+
+      if (session == null || event.touches.length !== 1) {
+        return;
+      }
+
+      const touch = event.touches[0];
+      session.lastX = touch.clientX;
+      session.lastY = touch.clientY;
+    };
+
+    const handleTouchEnd = (event: TouchEvent) => {
+      const session = panelTouchSessionRef.current;
+      panelTouchSessionRef.current = null;
+
+      if (session == null) {
+        return;
+      }
+
+      const coordinates = readTouchCoordinates(event.changedTouches, session);
+      const action = getMobileSidebarSwipeAction({
+        endX: coordinates.x,
+        endY: coordinates.y,
+        isOpen: true,
+        panelWidth: panel.getBoundingClientRect().width,
+        startX: session.startX,
+        startY: session.startY,
+        viewportWidth: window.innerWidth,
+      });
+
+      if (action === "close") {
+        closeMenu();
+      }
+    };
+
+    panel.addEventListener("touchstart", handleTouchStart, { passive: true });
+    panel.addEventListener("touchmove", handleTouchMove, { passive: true });
+    panel.addEventListener("touchend", handleTouchEnd, { passive: true });
+    panel.addEventListener("touchcancel", handleTouchEnd, { passive: true });
+
+    return () => {
+      panelTouchSessionRef.current = null;
+      panel.removeEventListener("touchstart", handleTouchStart);
+      panel.removeEventListener("touchmove", handleTouchMove);
+      panel.removeEventListener("touchend", handleTouchEnd);
+      panel.removeEventListener("touchcancel", handleTouchEnd);
+    };
+  }, [closeMenu, isMobileViewport, isOpen]);
 
   const handleTriggerKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (!isMobileMenuOpenKey(event.key)) {
@@ -216,6 +398,7 @@ export function MobileMenu({
           ref={dialogRef}
           id={menuId}
           className="mobile-menu__dialog"
+          role="dialog"
           aria-labelledby={`${menuId}-title`}
           aria-describedby={`${menuId}-description`}
           aria-modal="true"
@@ -229,7 +412,7 @@ export function MobileMenu({
             aria-label="Close navigation menu"
             onClick={closeMenu}
           />
-          <div className="mobile-menu__panel">
+          <div ref={panelRef} className="mobile-menu__panel">
             <div className="mobile-menu__header">
               <div className="mobile-menu__header-copy">
                 <p className="mobile-menu__eyebrow">Mobile navigation</p>
