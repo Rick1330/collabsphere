@@ -242,10 +242,17 @@ export function CommandPalette({
                         className="command-palette__item-button"
                         aria-label={item.label}
                         onClick={() => {
+                          let error: unknown;
                           try {
                             item.onSelect?.();
+                          } catch (caught) {
+                            error = caught;
                           } finally {
                             closePalette();
+                          }
+
+                          if (error) {
+                            throw error;
                           }
                         }}
                       >
