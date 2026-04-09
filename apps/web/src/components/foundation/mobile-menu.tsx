@@ -120,6 +120,10 @@ export function MobileMenu({
     const mediaQuery = window.matchMedia(mobileSidebarMediaQuery);
     setIsMobileViewport(mediaQuery.matches);
 
+    if (isOpen && !mediaQuery.matches) {
+      closeMenu();
+    }
+
     const handleViewportChange = (event: MediaQueryListEvent) => {
       setIsMobileViewport(event.matches);
 
@@ -133,7 +137,7 @@ export function MobileMenu({
     return () => {
       mediaQuery.removeEventListener("change", handleViewportChange);
     };
-  }, [closeMenu]);
+  }, [closeMenu, isOpen]);
 
   useEffect(() => {
     if (!isOpen) {
