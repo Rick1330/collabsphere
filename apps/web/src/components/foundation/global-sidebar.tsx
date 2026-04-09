@@ -11,19 +11,27 @@ import {
   type GlobalSidebarItem,
 } from "./navigation";
 
+type SidebarCollapseProps = {
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
+  sidebarId?: string;
+};
+
 type GlobalSidebarSectionProps = {
+  collapsed: boolean;
   currentPathname: string | null;
   items: readonly GlobalSidebarItem[];
   label: string;
 };
 
-type GlobalSidebarViewProps = {
+type GlobalSidebarViewProps = SidebarCollapseProps & {
   actionItems?: readonly GlobalSidebarItem[];
   currentPathname: string | null;
   primaryItems?: readonly GlobalSidebarItem[];
 };
 
 function GlobalSidebarSection({
+  collapsed,
   currentPathname,
   items,
   label,
@@ -43,7 +51,9 @@ function GlobalSidebarSection({
                 className="shell__nav-link global-sidebar__link"
                 data-active={isActive}
                 aria-current={isActive ? "page" : undefined}
+                aria-label={collapsed ? item.label : undefined}
                 href={item.href}
+                title={collapsed ? item.label : undefined}
               >
                 <span className="global-sidebar__link-mark" aria-hidden="true">
                   {item.mark}
@@ -66,11 +76,32 @@ function GlobalSidebarSection({
 
 export function GlobalSidebarView({
   actionItems = globalSidebarActionItems,
+  collapsed = false,
   currentPathname,
+  onToggleCollapse,
   primaryItems = globalSidebarPrimaryItems,
+  sidebarId,
 }: Readonly<GlobalSidebarViewProps>) {
   return (
-    <aside className="shell__rail global-sidebar" aria-label="Global navigation">
+    <aside
+      id={sidebarId}
+      className="shell__rail global-sidebar"
+      aria-label="Global navigation"
+      data-collapsed={collapsed}
+    >
+      {onToggleCollapse ? (
+        <button
+          type="button"
+          className="sidebar-collapse-toggle"
+          aria-controls={sidebarId}
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          onClick={onToggleCollapse}
+        >
+          <span aria-hidden="true">{collapsed ? ">" : "<"}</span>
+        </button>
+      ) : null}
       <div className="global-sidebar__header">
         <p className="shell__eyebrow">Global navigation</p>
         <h1 className="shell__title global-sidebar__title">CollabSphere</h1>
@@ -82,11 +113,13 @@ export function GlobalSidebarView({
 
       <nav className="global-sidebar__nav" aria-label="Global routes">
         <GlobalSidebarSection
+          collapsed={collapsed}
           currentPathname={currentPathname}
           items={primaryItems}
           label="Routes"
         />
         <GlobalSidebarSection
+          collapsed={collapsed}
           currentPathname={currentPathname}
           items={actionItems}
           label="Actions"
@@ -106,8 +139,8 @@ export function GlobalSidebarView({
   );
 }
 
-export function GlobalSidebar() {
+export function GlobalSidebar(props: Readonly<SidebarCollapseProps>) {
   const pathname = usePathname();
 
-  return <GlobalSidebarView currentPathname={pathname} />;
+  return <GlobalSidebarView currentPathname={pathname} {...props} />;
 }

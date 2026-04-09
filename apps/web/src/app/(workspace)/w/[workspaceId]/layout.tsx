@@ -23,6 +23,7 @@ export default async function WorkspaceLayout({
       sectionLabel="Workspace context"
       title={`Workspace ${workspaceId}`}
       description="Workspace-scoped routes now live under a dedicated dynamic layout boundary ready for membership-aware features."
+      collapsibleSidebar
       sidebar={<WorkspaceSidebar workspaceId={workspaceId} />}
       headerAction={<ThemeUserMenu />}
     >

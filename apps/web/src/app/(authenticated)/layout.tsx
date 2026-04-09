@@ -22,6 +22,7 @@ export default function AuthenticatedLayout({
       sectionLabel={sectionLabel}
       title={title}
       description={description}
+      collapsibleSidebar
       sidebar={<GlobalSidebar />}
       topNav={
         <TopNavBar
