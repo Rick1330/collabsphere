@@ -77,6 +77,10 @@ export function useMobileSidebarSwipe({
         return;
       }
 
+      if (event.type === "touchcancel") {
+        return;
+      }
+
       const coordinates = readTouchCoordinates(event.changedTouches);
       if (coordinates.x == null) {
         return;
@@ -150,6 +154,10 @@ export function useMobileSidebarSwipe({
       panelTouchSessionRef.current = null;
 
       if (session == null) {
+        return;
+      }
+
+      if (event.type === "touchcancel") {
         return;
       }
 
