@@ -77,6 +77,10 @@ export function useMobileSidebarSwipe({
         return;
       }
 
+      if (event.type === "touchcancel") {
+        return;
+      }
+
       const coordinates = readTouchCoordinates(event.changedTouches);
       if (coordinates.x == null) {
         return;
@@ -101,19 +105,15 @@ export function useMobileSidebarSwipe({
       }
     };
 
-    const handleTouchCancel = () => {
-      documentTouchSessionRef.current = null;
-    };
-
     document.addEventListener("touchstart", handleTouchStart, { passive: true });
     document.addEventListener("touchend", handleTouchEnd, { passive: true });
-    document.addEventListener("touchcancel", handleTouchCancel, { passive: true });
+    document.addEventListener("touchcancel", handleTouchEnd, { passive: true });
 
     return () => {
       documentTouchSessionRef.current = null;
       document.removeEventListener("touchstart", handleTouchStart);
       document.removeEventListener("touchend", handleTouchEnd);
-      document.removeEventListener("touchcancel", handleTouchCancel);
+      document.removeEventListener("touchcancel", handleTouchEnd);
     };
   }, [enabled, isOpen, onOpen]);
 
@@ -157,6 +157,10 @@ export function useMobileSidebarSwipe({
         return;
       }
 
+      if (event.type === "touchcancel") {
+        return;
+      }
+
       const coordinates = readTouchCoordinates(event.changedTouches);
       if (coordinates.x == null) {
         return;
@@ -181,19 +185,15 @@ export function useMobileSidebarSwipe({
       }
     };
 
-    const handleTouchCancel = () => {
-      panelTouchSessionRef.current = null;
-    };
-
     panel.addEventListener("touchstart", handleTouchStart, { passive: true });
     panel.addEventListener("touchend", handleTouchEnd, { passive: true });
-    panel.addEventListener("touchcancel", handleTouchCancel, { passive: true });
+    panel.addEventListener("touchcancel", handleTouchEnd, { passive: true });
 
     return () => {
       panelTouchSessionRef.current = null;
       panel.removeEventListener("touchstart", handleTouchStart);
       panel.removeEventListener("touchend", handleTouchEnd);
-      panel.removeEventListener("touchcancel", handleTouchCancel);
+      panel.removeEventListener("touchcancel", handleTouchEnd);
     };
   }, [enabled, isOpen, onClose, panelRef]);
 }
