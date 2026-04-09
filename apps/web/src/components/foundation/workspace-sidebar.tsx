@@ -73,6 +73,25 @@ type WorkspaceSidebarPresentation = {
   title: string;
 };
 
+const getWorkspaceSidebarSections = (workspaceId: string) =>
+  [
+    {
+      items: workspaceSidebarPrimaryItems(workspaceId),
+      label: "Workspace",
+      sectionId: "workspace",
+    },
+    {
+      items: workspaceSidebarSecondaryItems(workspaceId),
+      label: "Elevated routes",
+      sectionId: "elevated-routes",
+    },
+    {
+      items: workspaceSidebarQuickActionItems(workspaceId),
+      label: "Quick actions",
+      sectionId: "quick-actions",
+    },
+  ] as const;
+
 const getWorkspaceSidebarDataState = ({
   error,
   workspaces,
@@ -394,23 +413,7 @@ export function WorkspaceSidebarView({
   const generatedSidebarId = React.useId();
   const effectiveSidebarId = sidebarId ?? generatedSidebarId;
   const presentation = getWorkspaceSidebarPresentation(dataState, workspaceId);
-  const sections = [
-    {
-      items: workspaceSidebarPrimaryItems(workspaceId),
-      label: "Workspace",
-      sectionId: "workspace",
-    },
-    {
-      items: workspaceSidebarSecondaryItems(workspaceId),
-      label: "Elevated routes",
-      sectionId: "elevated-routes",
-    },
-    {
-      items: workspaceSidebarQuickActionItems(workspaceId),
-      label: "Quick actions",
-      sectionId: "quick-actions",
-    },
-  ] as const;
+  const sections = getWorkspaceSidebarSections(workspaceId);
 
   return (
     <aside

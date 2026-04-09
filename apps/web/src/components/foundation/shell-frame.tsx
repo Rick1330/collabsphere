@@ -4,10 +4,9 @@ import Link from "next/link";
 import * as React from "react";
 
 import type { NavItem } from "./navigation";
+import { useDesktopSidebarMode } from "./use-desktop-sidebar-mode";
 import {
   defaultDesktopSidebarMode,
-  writeStoredDesktopSidebarMode,
-  readStoredDesktopSidebarMode,
   type DesktopSidebarMode,
 } from "../../lib/sidebar-state";
 
@@ -33,6 +32,32 @@ type ShellFrameProps = {
   children: React.ReactNode;
 };
 
+const getResolvedSidebar = ({
+  canCollapseSidebar,
+  rail,
+  sidebar,
+  sidebarId,
+  sidebarMode,
+  toggleSidebarMode,
+}: {
+  canCollapseSidebar: boolean;
+  rail: React.ReactNode;
+  sidebar: React.ReactNode;
+  sidebarId: string;
+  sidebarMode: DesktopSidebarMode;
+  toggleSidebarMode: () => void;
+}) => {
+  if (!canCollapseSidebar || !React.isValidElement(sidebar)) {
+    return sidebar !== undefined ? sidebar : rail;
+  }
+
+  return React.cloneElement(sidebar as React.ReactElement<CollapsibleSidebarProps>, {
+    collapsed: sidebarMode === "collapsed",
+    onToggleCollapse: toggleSidebarMode,
+    sidebarId,
+  });
+};
+
 export function ShellFrame({
   tone,
   sectionLabel,
@@ -51,10 +76,10 @@ export function ShellFrame({
   const contentClassName =
     topNav == null ? "shell__content" : "shell__content shell__content--with-top-nav";
   const sidebarId = React.useId();
-  const [sidebarMode, setSidebarMode] =
-    React.useState<DesktopSidebarMode>(defaultSidebarMode);
-  const [hasHydratedSidebarMode, setHasHydratedSidebarMode] =
-    React.useState(!canCollapseSidebar);
+  const { sidebarMode, toggleSidebarMode } = useDesktopSidebarMode({
+    defaultMode: defaultSidebarMode,
+    enabled: canCollapseSidebar,
+  });
   const shellClassName = [
     "shell",
     `shell--${tone}`,
@@ -63,30 +88,6 @@ export function ShellFrame({
   ]
     .filter(Boolean)
     .join(" ");
-
-  React.useEffect(() => {
-    if (!canCollapseSidebar || typeof window === "undefined") {
-      return;
-    }
-
-    const persistedMode = readStoredDesktopSidebarMode(window.localStorage);
-    setSidebarMode(persistedMode);
-    setHasHydratedSidebarMode(true);
-  }, [canCollapseSidebar]);
-
-  React.useEffect(() => {
-    if (!canCollapseSidebar || !hasHydratedSidebarMode || typeof window === "undefined") {
-      return;
-    }
-
-    writeStoredDesktopSidebarMode(window.localStorage, sidebarMode);
-  }, [canCollapseSidebar, hasHydratedSidebarMode, sidebarMode]);
-
-  const handleToggleSidebar = React.useCallback(() => {
-    setSidebarMode((currentMode) =>
-      currentMode === "expanded" ? "collapsed" : "expanded",
-    );
-  }, []);
 
   const rail = (
     <aside className="shell__rail shell__rail--default" aria-label={`${sectionLabel} navigation`}>
@@ -107,16 +108,14 @@ export function ShellFrame({
       </nav>
     </aside>
   );
-  const resolvedSidebar =
-    canCollapseSidebar && React.isValidElement(sidebar)
-      ? React.cloneElement(sidebar as React.ReactElement<CollapsibleSidebarProps>, {
-          collapsed: sidebarMode === "collapsed",
-          onToggleCollapse: handleToggleSidebar,
-          sidebarId,
-        })
-      : sidebar !== undefined
-        ? sidebar
-        : rail;
+  const resolvedSidebar = getResolvedSidebar({
+    canCollapseSidebar,
+    rail,
+    sidebar,
+    sidebarId,
+    sidebarMode,
+    toggleSidebarMode,
+  });
 
   return (
     <div
