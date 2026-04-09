@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { ShellFrame } from "../../../../components/foundation/shell-frame";
+import { CollapsibleShellFrame } from "../../../../components/foundation/collapsible-shell-frame";
 import { ThemeUserMenu } from "../../../../components/foundation/user-theme-menu";
 import { WorkspaceSidebar } from "../../../../components/foundation/workspace-sidebar";
 
@@ -18,7 +18,7 @@ export default async function WorkspaceLayout({
   const { workspaceId } = await params;
 
   return (
-    <ShellFrame
+    <CollapsibleShellFrame
       tone="workspace"
       sectionLabel="Workspace context"
       title={`Workspace ${workspaceId}`}
@@ -27,6 +27,6 @@ export default async function WorkspaceLayout({
       headerAction={<ThemeUserMenu />}
     >
       {children}
-    </ShellFrame>
+    </CollapsibleShellFrame>
   );
 }

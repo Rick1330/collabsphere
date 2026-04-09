@@ -23,19 +23,26 @@ import {
   type WorkspaceSidebarItem,
 } from "./navigation";
 
+type SidebarCollapseProps = {
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
+  sidebarId?: string;
+};
+
 type WorkspaceSidebarDataState =
   | { kind: "loading" }
   | { kind: "loaded"; workspace: WorkspaceSummary }
   | { kind: "missing" }
   | { kind: "error"; message: string; requestId: string | null };
 
-type WorkspaceSidebarViewProps = {
+type WorkspaceSidebarViewProps = SidebarCollapseProps & {
   currentPathname: string | null;
   dataState: WorkspaceSidebarDataState;
   workspaceId: string;
 };
 
 type WorkspaceSidebarSectionProps = {
+  collapsed: boolean;
   currentPathname: string | null;
   currentRole: WorkspaceRole | null;
   items: readonly WorkspaceSidebarItem[];
@@ -65,6 +72,25 @@ type WorkspaceSidebarPresentation = {
   status: WorkspaceSidebarStatusState | null;
   title: string;
 };
+
+const getWorkspaceSidebarSections = (workspaceId: string) =>
+  [
+    {
+      items: workspaceSidebarPrimaryItems(workspaceId),
+      label: "Workspace",
+      sectionId: "workspace",
+    },
+    {
+      items: workspaceSidebarSecondaryItems(workspaceId),
+      label: "Elevated routes",
+      sectionId: "elevated-routes",
+    },
+    {
+      items: workspaceSidebarQuickActionItems(workspaceId),
+      label: "Quick actions",
+      sectionId: "quick-actions",
+    },
+  ] as const;
 
 const getWorkspaceSidebarDataState = ({
   error,
@@ -280,10 +306,12 @@ function WorkspaceSidebarLinkContent({
 }
 
 function WorkspaceSidebarItemRow({
+  collapsed,
   currentPathname,
   currentRole,
   item,
 }: Readonly<{
+  collapsed: boolean;
   currentPathname: string | null;
   currentRole: WorkspaceRole | null;
   item: WorkspaceSidebarItem;
@@ -301,7 +329,9 @@ function WorkspaceSidebarItemRow({
           className="shell__nav-link workspace-sidebar__link"
           data-active={itemState.isActive}
           aria-current={itemState.isActive ? "page" : undefined}
+          aria-label={collapsed ? item.label : undefined}
           href={item.href}
+          title={collapsed ? item.label : undefined}
         >
           <span className="workspace-sidebar__link-mark" aria-hidden="true">
             {item.mark}
@@ -325,6 +355,7 @@ function WorkspaceSidebarItemRow({
         className="workspace-sidebar__locked"
         data-locked={!itemState.hasAccess}
         aria-label={ariaLabel}
+        title={collapsed ? ariaLabel : undefined}
       >
         <span className="workspace-sidebar__link-mark" aria-hidden="true">
           {itemState.hasAccess ? item.mark : "🔒"}
@@ -341,6 +372,7 @@ function WorkspaceSidebarItemRow({
 }
 
 function WorkspaceSidebarSection({
+  collapsed,
   currentPathname,
   currentRole,
   items,
@@ -359,6 +391,7 @@ function WorkspaceSidebarSection({
         {items.map((item) => (
           <WorkspaceSidebarItemRow
             key={item.href}
+            collapsed={collapsed}
             currentPathname={currentPathname}
             currentRole={currentRole}
             item={item}
@@ -370,33 +403,45 @@ function WorkspaceSidebarSection({
 }
 
 export function WorkspaceSidebarView({
+  collapsed = false,
   currentPathname,
   dataState,
+  onToggleCollapse,
+  sidebarId,
   workspaceId,
 }: Readonly<WorkspaceSidebarViewProps>) {
+  const generatedSidebarId = React.useId();
+  const effectiveSidebarId = sidebarId ?? generatedSidebarId;
   const presentation = getWorkspaceSidebarPresentation(dataState, workspaceId);
-  const sections = [
-    {
-      items: workspaceSidebarPrimaryItems(workspaceId),
-      label: "Workspace",
-      sectionId: "workspace",
-    },
-    {
-      items: workspaceSidebarSecondaryItems(workspaceId),
-      label: "Elevated routes",
-      sectionId: "elevated-routes",
-    },
-    {
-      items: workspaceSidebarQuickActionItems(workspaceId),
-      label: "Quick actions",
-      sectionId: "quick-actions",
-    },
-  ] as const;
+  const sections = getWorkspaceSidebarSections(workspaceId);
 
   return (
-    <aside className="shell__rail workspace-sidebar" aria-label="Workspace navigation">
+    <aside
+      id={effectiveSidebarId}
+      className="shell__rail workspace-sidebar"
+      aria-label="Workspace navigation"
+      data-collapsed={collapsed}
+    >
+      {onToggleCollapse ? (
+        <button
+          type="button"
+          className="sidebar-collapse-toggle"
+          aria-controls={effectiveSidebarId}
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          onClick={onToggleCollapse}
+        >
+          <span aria-hidden="true">{collapsed ? ">" : "<"}</span>
+        </button>
+      ) : null}
       <div className="workspace-sidebar__header">
-        <Link className="workspace-sidebar__back-link" href="/dashboard">
+        <Link
+          className="workspace-sidebar__back-link"
+          aria-label={collapsed ? "Back to dashboard" : undefined}
+          href="/dashboard"
+          title={collapsed ? "Back to dashboard" : undefined}
+        >
           <span aria-hidden="true">←</span>
           <span>Back to dashboard</span>
         </Link>
@@ -422,6 +467,7 @@ export function WorkspaceSidebarView({
         {sections.map((section) => (
           <WorkspaceSidebarSection
             key={section.label}
+            collapsed={collapsed}
             currentPathname={currentPathname}
             currentRole={presentation.currentRole}
             items={section.items}
@@ -435,9 +481,17 @@ export function WorkspaceSidebarView({
 }
 
 export function WorkspaceSidebar({
+  collapsed = false,
+  onToggleCollapse,
+  sidebarId,
   workspaceId,
   pathnameOverride,
-}: Readonly<{ workspaceId: string; pathnameOverride?: string }>) {
+}: Readonly<
+  SidebarCollapseProps & {
+    workspaceId: string;
+    pathnameOverride?: string;
+  }
+>) {
   const pathnameFromRouter = usePathname();
   const pathname = pathnameOverride ?? pathnameFromRouter;
   const query = useQuery({
@@ -456,8 +510,11 @@ export function WorkspaceSidebar({
 
   return (
     <WorkspaceSidebarView
+      collapsed={collapsed}
       currentPathname={pathname}
       dataState={dataState}
+      onToggleCollapse={onToggleCollapse}
+      sidebarId={sidebarId}
       workspaceId={workspaceId}
     />
   );
