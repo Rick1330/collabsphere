@@ -101,15 +101,19 @@ export function useMobileSidebarSwipe({
       }
     };
 
+    const handleTouchCancel = () => {
+      documentTouchSessionRef.current = null;
+    };
+
     document.addEventListener("touchstart", handleTouchStart, { passive: true });
     document.addEventListener("touchend", handleTouchEnd, { passive: true });
-    document.addEventListener("touchcancel", handleTouchEnd, { passive: true });
+    document.addEventListener("touchcancel", handleTouchCancel, { passive: true });
 
     return () => {
       documentTouchSessionRef.current = null;
       document.removeEventListener("touchstart", handleTouchStart);
       document.removeEventListener("touchend", handleTouchEnd);
-      document.removeEventListener("touchcancel", handleTouchEnd);
+      document.removeEventListener("touchcancel", handleTouchCancel);
     };
   }, [enabled, isOpen, onOpen]);
 
@@ -177,15 +181,19 @@ export function useMobileSidebarSwipe({
       }
     };
 
+    const handleTouchCancel = () => {
+      panelTouchSessionRef.current = null;
+    };
+
     panel.addEventListener("touchstart", handleTouchStart, { passive: true });
     panel.addEventListener("touchend", handleTouchEnd, { passive: true });
-    panel.addEventListener("touchcancel", handleTouchEnd, { passive: true });
+    panel.addEventListener("touchcancel", handleTouchCancel, { passive: true });
 
     return () => {
       panelTouchSessionRef.current = null;
       panel.removeEventListener("touchstart", handleTouchStart);
       panel.removeEventListener("touchend", handleTouchEnd);
-      panel.removeEventListener("touchcancel", handleTouchEnd);
+      panel.removeEventListener("touchcancel", handleTouchCancel);
     };
   }, [enabled, isOpen, onClose, panelRef]);
 }
