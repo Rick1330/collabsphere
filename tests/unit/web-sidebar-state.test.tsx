@@ -6,8 +6,8 @@ import test from "node:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
+import { CollapsibleShellFrame } from "../../apps/web/src/components/foundation/collapsible-shell-frame";
 import { GlobalSidebarView } from "../../apps/web/src/components/foundation/global-sidebar";
-import { ShellFrame } from "../../apps/web/src/components/foundation/shell-frame";
 import { WorkspaceSidebarView } from "../../apps/web/src/components/foundation/workspace-sidebar";
 import {
   defaultDesktopSidebarMode,
@@ -87,17 +87,16 @@ test("sidebar state helpers use the versioned storage key and fail closed on inv
 
 test("shell frame propagates a collapsed desktop sidebar state into the authenticated global rail", () => {
   const markup = renderToStaticMarkup(
-    <ShellFrame
+    <CollapsibleShellFrame
       tone="global"
       sectionLabel="Authenticated global context"
       title="Personal workspace shell"
       description="Global post-login routes now have a stable App Router layout boundary ready for navigation, theming, and account features."
-      collapsibleSidebar
       defaultSidebarMode="collapsed"
       sidebar={<GlobalSidebarView currentPathname="/dashboard" />}
     >
       <div>Example content</div>
-    </ShellFrame>,
+    </CollapsibleShellFrame>,
   );
 
   assert.match(markup, /data-sidebar-state="collapsed"/);

@@ -367,11 +367,6 @@ button {
   gap: 1rem;
 }
 
-.global-sidebar__header,
-.workspace-sidebar__header {
-  padding-right: 4rem;
-}
-
 .workspace-sidebar__back-link {
   display: inline-flex;
   align-items: center;
@@ -2064,6 +2059,11 @@ button {
 }
 
 @media (width >= 1280px) {
+  .global-sidebar__header,
+  .workspace-sidebar__header {
+    padding-right: 4rem;
+  }
+
   .shell[data-sidebar-state="collapsed"] {
     grid-template-columns: 3.75rem 1fr;
   }
@@ -2123,12 +2123,23 @@ button {
 
   .global-sidebar[data-collapsed="true"] .global-sidebar__header,
   .global-sidebar[data-collapsed="true"] .global-sidebar__supplement,
-  .global-sidebar[data-collapsed="true"] .global-sidebar__section-label,
-  .workspace-sidebar[data-collapsed="true"] .workspace-sidebar__section-label,
   .workspace-sidebar[data-collapsed="true"] .workspace-sidebar__identity-copy,
   .workspace-sidebar[data-collapsed="true"] .workspace-sidebar__role-badge,
   .workspace-sidebar[data-collapsed="true"] .workspace-sidebar__status {
     display: none;
+  }
+
+  .global-sidebar[data-collapsed="true"] .global-sidebar__section-label,
+  .workspace-sidebar[data-collapsed="true"] .workspace-sidebar__section-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   .global-sidebar[data-collapsed="true"] .global-sidebar__nav,

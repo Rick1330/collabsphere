@@ -22,7 +22,11 @@ export const useDesktopSidebarMode = ({
   const hasHydratedSidebarMode = React.useRef(false);
 
   React.useEffect(() => {
-    if (!enabled || typeof window === "undefined") {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (!enabled) {
       hasHydratedSidebarMode.current = false;
       return;
     }
@@ -32,7 +36,15 @@ export const useDesktopSidebarMode = ({
   }, [enabled]);
 
   React.useEffect(() => {
-    if (!enabled || !hasHydratedSidebarMode.current || typeof window === "undefined") {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (!enabled) {
+      return;
+    }
+
+    if (!hasHydratedSidebarMode.current) {
       return;
     }
 

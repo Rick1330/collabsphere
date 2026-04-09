@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { ShellFrame } from "../../../../components/foundation/shell-frame";
+import { CollapsibleShellFrame } from "../../../../components/foundation/collapsible-shell-frame";
 import { ThemeUserMenu } from "../../../../components/foundation/user-theme-menu";
 import { WorkspaceSidebar } from "../../../../components/foundation/workspace-sidebar";
 
@@ -18,16 +18,15 @@ export default async function WorkspaceLayout({
   const { workspaceId } = await params;
 
   return (
-    <ShellFrame
+    <CollapsibleShellFrame
       tone="workspace"
       sectionLabel="Workspace context"
       title={`Workspace ${workspaceId}`}
       description="Workspace-scoped routes now live under a dedicated dynamic layout boundary ready for membership-aware features."
-      collapsibleSidebar
       sidebar={<WorkspaceSidebar workspaceId={workspaceId} />}
       headerAction={<ThemeUserMenu />}
     >
       {children}
-    </ShellFrame>
+    </CollapsibleShellFrame>
   );
 }
