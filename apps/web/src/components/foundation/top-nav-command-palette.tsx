@@ -57,7 +57,9 @@ export function TopNavCommandPalette({
   const [isOpen, setIsOpen] = React.useState(initialOpen);
   const [query, setQuery] = React.useState("");
   const [modifierLabel, setModifierLabel] = React.useState<"Ctrl" | "Cmd">("Ctrl");
-  const [pathname, setPathname] = React.useState<string | null>(null);
+  const [pathname, setPathname] = React.useState<string | null>(() =>
+    typeof window === "undefined" ? null : window.location.pathname,
+  );
   const triggerRef = React.useRef<HTMLButtonElement | null>(null);
   const inputRef = React.useRef<HTMLInputElement | null>(null);
   const dialogId = `command-palette-${React.useId()}`;

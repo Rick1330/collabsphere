@@ -72,7 +72,7 @@ const searchMessages: Record<SearchApiErrorKind, string> = {
   auth: "Your session has expired. Please sign in again.",
   forbidden: "Search is not available for this scope.",
   network: "Search could not be reached. Check your connection and retry.",
-  "not-found": "Search is not available in this environment yet.",
+  "not-found": "Search was not found for the requested scope.",
   server: "Search could not be completed. Please try again.",
   unknown: "Search could not be completed.",
   validation: "Search query is not valid.",
@@ -142,12 +142,17 @@ const parseSearchPagination = (value: unknown): SearchPagination | null => {
 
   const { page, pageSize, totalItems, totalPages } = value;
 
-  if (
-    typeof page !== "number" ||
-    typeof pageSize !== "number" ||
-    typeof totalItems !== "number" ||
-    typeof totalPages !== "number"
-  ) {
+  const isNumber = (candidate: unknown): candidate is number => typeof candidate === "number";
+  if (!isNumber(page)) {
+    return null;
+  }
+  if (!isNumber(pageSize)) {
+    return null;
+  }
+  if (!isNumber(totalItems)) {
+    return null;
+  }
+  if (!isNumber(totalPages)) {
     return null;
   }
 

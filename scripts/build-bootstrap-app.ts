@@ -417,10 +417,10 @@ const main = async () => {
       distPackageDependencies,
     });
 
-    // Cleanup is intentionally opt-in: multiple unit tests (and local scripts) can invoke this
-    // builder concurrently. Deleting `dist/apps` / `dist/packages` makes those runs flaky because
-    // another process can remove the compile outputs between `tsc` and staging.
-    if (process.env.BOOTSTRAP_CLEAN_COMPILE_ARTIFACTS === "1") {
+    // Cleanup is enabled by default for production builds (keeps dist small for runtime images).
+    // Unit tests can disable it by setting `BOOTSTRAP_CLEAN_COMPILE_ARTIFACTS=0` to avoid flakiness
+    // when multiple bootstrap builders run concurrently.
+    if (process.env.BOOTSTRAP_CLEAN_COMPILE_ARTIFACTS !== "0") {
       await cleanupTsCompileArtifacts({ hasTsSource: context.hasTsSource });
     }
 
