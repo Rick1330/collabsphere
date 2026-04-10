@@ -57,10 +57,10 @@ export function TopNavCommandPalette({
   const [isOpen, setIsOpen] = React.useState(initialOpen);
   const [query, setQuery] = React.useState("");
   const [modifierLabel, setModifierLabel] = React.useState<"Ctrl" | "Cmd">("Ctrl");
+  const [pathname, setPathname] = React.useState<string | null>(null);
   const triggerRef = React.useRef<HTMLButtonElement | null>(null);
   const inputRef = React.useRef<HTMLInputElement | null>(null);
   const dialogId = `command-palette-${React.useId()}`;
-  const pathname = typeof window === "undefined" ? null : window.location.pathname;
   const normalizedQuery = normalizeCommandPaletteQuery(query);
   const searchScope = getSearchScopeFromPathname(pathname);
   const { status: searchStatus } = useCommandPaletteSearch({
@@ -82,7 +82,19 @@ export function TopNavCommandPalette({
     setModifierLabel(isMacLike ? "Cmd" : "Ctrl");
   }, []);
 
+  React.useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    setPathname(window.location.pathname);
+  }, []);
+
   const openPalette = React.useCallback(() => {
+    if (typeof window !== "undefined") {
+      setPathname(window.location.pathname);
+    }
+
     setIsOpen(true);
   }, []);
 
