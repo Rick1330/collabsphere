@@ -361,6 +361,70 @@ const classifyUnexpectedSearchError = (error: unknown): never => {
   throw new SearchApiError("unknown", searchMessages.unknown);
 };
 
+const buildSearchRequestUrl = ({
+  normalizedQuery,
+  scope,
+  types,
+  page,
+  pageSize,
+  workspaceId,
+}: Readonly<{
+  normalizedQuery: string;
+  scope: "global";
+  types: readonly string[];
+  page: number;
+  pageSize: number;
+  workspaceId?: never;
+}> | Readonly<{
+  normalizedQuery: string;
+  scope: "workspace";
+  workspaceId: string;
+  types: readonly string[];
+  page: number;
+  pageSize: number;
+}>) =>
+  scope === "workspace"
+    ? buildSearchUrl({
+        q: normalizedQuery,
+        scope,
+        workspaceId,
+        types,
+        page,
+        pageSize,
+      })
+    : buildSearchUrl({ q: normalizedQuery, scope, types, page, pageSize });
+
+const parseSuccessfulSearchResponse = ({
+  payload,
+  status,
+}: {
+  payload: unknown;
+  status: number;
+}): SearchResponse => {
+  try {
+    return parseSearchResponse(payload);
+  } catch {
+    throw new SearchApiError("unknown", searchMessages.unknown, {
+      requestId: readRequestId(payload),
+      status,
+    });
+  }
+};
+
+const parseSearchHttpResponse = ({
+  response,
+  payload,
+}: {
+  response: Response;
+  payload: unknown;
+}): SearchResponse => {
+  if (!response.ok) {
+    throw toSearchApiError(response.status, payload);
+  }
+
+  return parseSuccessfulSearchResponse({ payload, status: response.status });
+};
+
 export async function search(
   options: Readonly<
     SearchFetchOptions &
@@ -394,50 +458,39 @@ export async function search(
     types = ["documents", "tasks"],
   } = options;
   const normalized = normalizeSearchQuery(q);
-
-  if (scope === "workspace" && options.workspaceId.length === 0) {
-    throw new SearchApiError("validation", "Workspace ID is required for workspace-scoped search.");
-  }
+  const url =
+    scope === "workspace"
+      ? buildSearchRequestUrl({
+          normalizedQuery: normalized,
+          scope,
+          workspaceId: options.workspaceId,
+          types,
+          page,
+          pageSize,
+        })
+      : buildSearchRequestUrl({
+          normalizedQuery: normalized,
+          scope,
+          types,
+          page,
+          pageSize,
+        });
 
   try {
-    const response = await fetchFn(
-      scope === "workspace"
-        ? buildSearchUrl({
-            q: normalized,
-            scope,
-            workspaceId: options.workspaceId,
-            types,
-            page,
-            pageSize,
-          })
-        : buildSearchUrl({ q: normalized, scope, types, page, pageSize }),
-      {
-        method: "GET",
-        credentials: "include",
-        headers: buildSearchRequestHeaders(accessToken),
-        signal,
-      },
-    );
+    const response = await fetchFn(url, {
+      method: "GET",
+      credentials: "include",
+      headers: buildSearchRequestHeaders(accessToken),
+      signal,
+    });
 
     const payload = await readResponsePayload(response);
-
-    if (!response.ok) {
-      throw toSearchApiError(response.status, payload);
-    }
-
-    try {
-      return parseSearchResponse(payload);
-    } catch {
-      throw new SearchApiError("unknown", searchMessages.unknown, {
-        requestId: readRequestId(payload),
-        status: response.status,
-      });
-    }
+    return parseSearchHttpResponse({ response, payload });
   } catch (error) {
     if (error instanceof SearchApiError) {
       throw error;
     }
 
-    return classifyUnexpectedSearchError(error);
+    throw classifyUnexpectedSearchError(error);
   }
 }
