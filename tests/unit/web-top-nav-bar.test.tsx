@@ -77,7 +77,6 @@ test("top nav renders authenticated shell regions with a live workspace switcher
   assert.match(markup, /top-nav__search top-nav__search--desktop-only/);
   assert.match(markup, /aria-haspopup="dialog"/);
   assert.match(markup, /aria-expanded="false"/);
-  assert.match(markup, /aria-controls="command-palette-/);
   assert.match(markup, /Notifications/);
   assert.match(markup, /12 unread in your recent feed/);
   assert.match(markup, /Open navigation menu/);
@@ -111,6 +110,8 @@ test("top nav can render an initially open command palette in the authenticated 
     </AppProviders>,
   );
 
+  assert.match(markup, /aria-expanded="true"/);
+  assert.match(markup, /aria-controls="command-palette-/);
   assert.match(markup, /<dialog/);
   assert.match(markup, /Command palette/);
   assert.match(markup, /Search commands/);

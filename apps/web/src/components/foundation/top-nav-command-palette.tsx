@@ -94,7 +94,7 @@ export function TopNavCommandPalette({
           ref={triggerRef}
           type="button"
           className="top-nav__search-trigger"
-          aria-controls={dialogId}
+          aria-controls={isOpen ? dialogId : undefined}
           aria-expanded={isOpen}
           aria-haspopup="dialog"
           aria-label="Open command palette"
