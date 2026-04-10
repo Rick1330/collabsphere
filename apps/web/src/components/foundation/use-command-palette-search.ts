@@ -52,15 +52,36 @@ export const useCommandPaletteSearch = ({
       const controller = new AbortController();
       abortController.current = controller;
 
-      void search({
-        q: normalized,
-        scope,
-        workspaceId: scope === "workspace" ? workspaceId : null,
-        signal: controller.signal,
-        types: ["documents", "tasks"],
-        page: 1,
-        pageSize: 25,
-      })
+      const scopeSnapshot = scope;
+      const workspaceIdSnapshot = workspaceId;
+
+      const requestPromise =
+        scopeSnapshot === "workspace"
+          ? workspaceIdSnapshot
+            ? search({
+                q: normalized,
+                scope: scopeSnapshot,
+                workspaceId: workspaceIdSnapshot,
+                signal: controller.signal,
+                types: ["documents", "tasks"],
+                page: 1,
+                pageSize: 25,
+              })
+            : null
+          : search({
+              q: normalized,
+              scope: scopeSnapshot,
+              signal: controller.signal,
+              types: ["documents", "tasks"],
+              page: 1,
+              pageSize: 25,
+            });
+
+      if (!requestPromise) {
+        return;
+      }
+
+      void requestPromise
         .then((response) => {
           if (requestSeq.current !== currentSeq) {
             return;

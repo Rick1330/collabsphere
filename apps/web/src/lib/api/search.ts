@@ -307,26 +307,38 @@ const readResponsePayload = async (response: Response) => {
   }
 };
 
-export const buildSearchUrl = ({
-  page = 1,
-  pageSize = 25,
-  q,
-  scope,
-  types,
-  workspaceId,
-}: Readonly<{
-  q: string;
-  scope: SearchScope;
-  workspaceId?: string | null;
-  types?: readonly string[];
-  page?: number;
-  pageSize?: number;
-}>) => {
+export const buildSearchUrl = (
+  options: Readonly<
+    | {
+        q: string;
+        scope: "global";
+        types?: readonly string[];
+        page?: number;
+        pageSize?: number;
+      }
+    | {
+        q: string;
+        scope: "workspace";
+        workspaceId: string;
+        types?: readonly string[];
+        page?: number;
+        pageSize?: number;
+      }
+  >,
+) => {
+  const { q, scope, types, page = 1, pageSize = 25 } = options;
   const params = new URLSearchParams();
   params.set("q", q);
   params.set("scope", scope);
   if (scope === "workspace") {
-    params.set("workspaceId", workspaceId ?? "");
+    if (options.workspaceId.length === 0) {
+      throw new SearchApiError(
+        "validation",
+        "Workspace ID is required for workspace-scoped search.",
+      );
+    }
+
+    params.set("workspaceId", options.workspaceId);
   }
   if (types && types.length > 0) {
     params.set("types", types.join(","));
@@ -349,39 +361,56 @@ const classifyUnexpectedSearchError = (error: unknown): never => {
   throw new SearchApiError("unknown", searchMessages.unknown);
 };
 
-export async function search({
-  accessToken,
-  fetchFn = fetch,
-  page = 1,
-  pageSize = 25,
-  q,
-  scope,
-  signal,
-  types = ["documents", "tasks"],
-  workspaceId,
-}: Readonly<
-  SearchFetchOptions & {
-    q: string;
-    scope: SearchScope;
-    workspaceId?: string | null;
-    types?: readonly string[];
-    page?: number;
-    pageSize?: number;
-  }
->): Promise<SearchResponse> {
+export async function search(
+  options: Readonly<
+    SearchFetchOptions &
+      (
+        | {
+            q: string;
+            scope: "global";
+            types?: readonly string[];
+            page?: number;
+            pageSize?: number;
+          }
+        | {
+            q: string;
+            scope: "workspace";
+            workspaceId: string;
+            types?: readonly string[];
+            page?: number;
+            pageSize?: number;
+          }
+      )
+  >,
+): Promise<SearchResponse> {
+  const {
+    accessToken,
+    fetchFn = fetch,
+    page = 1,
+    pageSize = 25,
+    q,
+    scope,
+    signal,
+    types = ["documents", "tasks"],
+  } = options;
   const normalized = normalizeSearchQuery(q);
-  const resolvedWorkspaceId = scope === "workspace" ? workspaceId ?? "" : null;
+
+  if (scope === "workspace" && options.workspaceId.length === 0) {
+    throw new SearchApiError("validation", "Workspace ID is required for workspace-scoped search.");
+  }
 
   try {
     const response = await fetchFn(
-      buildSearchUrl({
-        q: normalized,
-        scope,
-        workspaceId: resolvedWorkspaceId,
-        types,
-        page,
-        pageSize,
-      }),
+      scope === "workspace"
+        ? buildSearchUrl({
+            q: normalized,
+            scope,
+            workspaceId: options.workspaceId,
+            types,
+            page,
+            pageSize,
+          })
+        : buildSearchUrl({ q: normalized, scope, types, page, pageSize }),
       {
         method: "GET",
         credentials: "include",
