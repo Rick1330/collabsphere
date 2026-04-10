@@ -4,6 +4,12 @@ import * as React from "react";
 
 import { CommandPalette, type CommandPaletteGroup } from "./command-palette";
 import { isMacLikePlatform } from "./command-palette-shortcut";
+import {
+  buildCommandPaletteGroups,
+  getSearchScopeFromPathname,
+  normalizeCommandPaletteQuery,
+} from "./command-palette-search-helpers";
+import { useCommandPaletteSearch } from "./use-command-palette-search";
 import { useCommandPaletteShortcut } from "./use-command-palette-shortcut";
 
 const commandPaletteGroups: readonly CommandPaletteGroup[] = [
@@ -51,9 +57,17 @@ export function TopNavCommandPalette({
   const [isOpen, setIsOpen] = React.useState(initialOpen);
   const [query, setQuery] = React.useState("");
   const [modifierLabel, setModifierLabel] = React.useState<"Ctrl" | "Cmd">("Ctrl");
+  const [pathname, setPathname] = React.useState<string | null>(null);
   const triggerRef = React.useRef<HTMLButtonElement | null>(null);
   const inputRef = React.useRef<HTMLInputElement | null>(null);
   const dialogId = `command-palette-${React.useId()}`;
+  const normalizedQuery = normalizeCommandPaletteQuery(query);
+  const searchScope = getSearchScopeFromPathname(pathname);
+  const { status: searchStatus } = useCommandPaletteSearch({
+    query: normalizedQuery,
+    scope: searchScope.scope,
+    workspaceId: searchScope.workspaceId,
+  });
 
   React.useEffect(() => {
     if (typeof window === "undefined") {
@@ -66,6 +80,14 @@ export function TopNavCommandPalette({
     });
 
     setModifierLabel(isMacLike ? "Cmd" : "Ctrl");
+  }, []);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    setPathname(window.location.pathname);
   }, []);
 
   const openPalette = React.useCallback(() => {
@@ -86,6 +108,30 @@ export function TopNavCommandPalette({
     onOpen: openPalette,
     onRefocusInput: refocusInput,
   });
+
+  const onSelectUrl = React.useCallback(
+    (url: string) => {
+      if (typeof window === "undefined") {
+        return;
+      }
+
+      // Prefer a navigation method that works in unit tests without a mounted Next.js App Router.
+      // If we later need SPA transitions, inject a Next router navigate callback from a boundary.
+      window.location.assign(url);
+    },
+    [],
+  );
+
+  const groups = React.useMemo(
+    () =>
+      buildCommandPaletteGroups({
+        baseGroups: commandPaletteGroups,
+        normalizedQuery,
+        onSelectUrl,
+        status: searchStatus,
+      }),
+    [normalizedQuery, onSelectUrl, searchStatus],
+  );
 
   return (
     <>
@@ -117,7 +163,7 @@ export function TopNavCommandPalette({
       </div>
       <CommandPalette
         dialogId={dialogId}
-        groups={commandPaletteGroups}
+        groups={groups}
         inputRef={inputRef}
         isOpen={isOpen}
         onClose={closePalette}

@@ -1087,6 +1087,19 @@ button {
     color-mix(in srgb, var(--section-accent, var(--color-accent)) 7%, var(--surface-card));
 }
 
+.command-palette__item-button:disabled {
+  cursor: default;
+  transform: none;
+  opacity: 0.72;
+  border-color: var(--border-subtle);
+  background: var(--surface-card);
+  box-shadow: none;
+}
+
+.command-palette__item-button:disabled:hover {
+  transform: none;
+}
+
 .command-palette__item-label {
   font-weight: 700;
   color: var(--color-text-primary);
