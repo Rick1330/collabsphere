@@ -3,8 +3,10 @@ import * as React from "react";
 
 import { MobileMenu } from "./mobile-menu";
 import type { NavItem } from "./navigation";
+import { TopNavCommandPalette } from "./top-nav-command-palette";
 
 type TopNavBarProps = {
+  commandPaletteInitialOpen?: boolean;
   mobileMenuDescription: string;
   mobileMenuInitialOpen?: boolean;
   mobileMenuTitle: string;
@@ -14,76 +16,8 @@ type TopNavBarProps = {
   userMenu: React.ReactNode;
 };
 
-type TopNavPlaceholderControlProps = {
-  accentLabel: string;
-  ariaLabel: string;
-  description: string;
-  label: string;
-  shortcut?: readonly string[];
-  tag: string;
-  type?: "button" | "search";
-};
-
-function TopNavPlaceholderControl({
-  accentLabel,
-  ariaLabel,
-  description,
-  label,
-  shortcut,
-  tag,
-  type = "button",
-}: TopNavPlaceholderControlProps) {
-  const content = (
-    <>
-      <span className="top-nav__control-mark" aria-hidden="true">
-        {accentLabel}
-      </span>
-      <span className="top-nav__control-copy">
-        <span className="top-nav__control-label">{label}</span>
-        <span className="top-nav__control-description">{description}</span>
-      </span>
-      {shortcut ? (
-        <span className="top-nav__shortcut" aria-hidden="true">
-          {shortcut.map((key) => (
-            <kbd key={key}>{key}</kbd>
-          ))}
-        </span>
-      ) : (
-        <span className="top-nav__control-tag">{tag}</span>
-      )}
-    </>
-  );
-
-  if (type === "search") {
-    return (
-      <div className="top-nav__search top-nav__search--desktop-only" role="search">
-        <button
-          type="button"
-          className="top-nav__search-trigger"
-          aria-label={ariaLabel}
-          aria-disabled="true"
-          disabled
-        >
-          {content}
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      className="top-nav__control"
-      aria-label={ariaLabel}
-      aria-disabled="true"
-      disabled
-    >
-      {content}
-    </button>
-  );
-}
-
 export function TopNavBar({
+  commandPaletteInitialOpen = false,
   mobileMenuDescription,
   mobileMenuInitialOpen = false,
   mobileMenuTitle,
@@ -121,15 +55,7 @@ export function TopNavBar({
         {workspaceSwitcher}
       </div>
 
-      <TopNavPlaceholderControl
-        accentLabel="SR"
-        ariaLabel="Search placeholder. Search and command palette wiring are not implemented in this story."
-        description="Search workspaces, documents, and commands"
-        label="Search the collaboration graph"
-        shortcut={["Ctrl", "K"]}
-        tag="Soon"
-        type="search"
-      />
+      <TopNavCommandPalette initialOpen={commandPaletteInitialOpen} />
 
       <div className="top-nav__actions" role="group" aria-label="Notification and account controls">
         {notificationBell}

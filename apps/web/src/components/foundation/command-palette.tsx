@@ -24,6 +24,7 @@ type CommandPaletteProps = {
   onClose: () => void;
   query: string;
   onQueryChange: (value: string) => void;
+  inputRef?: React.RefObject<HTMLInputElement | null>;
   returnFocusRef?: React.RefObject<HTMLElement | null>;
 };
 
@@ -173,6 +174,7 @@ function CommandPaletteFooter() {
 
 export function CommandPalette({
   groups,
+  inputRef,
   isOpen,
   onClose,
   onQueryChange,
@@ -181,7 +183,8 @@ export function CommandPalette({
 }: Readonly<CommandPaletteProps>) {
   const paletteId = useId();
   const dialogRef = useRef<HTMLDialogElement | null>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const internalInputRef = useRef<HTMLInputElement | null>(null);
+  const searchInputRef = inputRef ?? internalInputRef;
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
 
   const closePalette = useCallback(() => {
@@ -194,8 +197,8 @@ export function CommandPalette({
       return;
     }
 
-    inputRef.current?.focus();
-  }, [isOpen]);
+    searchInputRef.current?.focus();
+  }, [isOpen, searchInputRef]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -322,7 +325,11 @@ export function CommandPalette({
           titleId={titleId}
           onClose={closePalette}
         />
-        <CommandPaletteSearch inputRef={inputRef} query={query} onQueryChange={onQueryChange} />
+        <CommandPaletteSearch
+          inputRef={searchInputRef}
+          query={query}
+          onQueryChange={onQueryChange}
+        />
         <CommandPaletteResults groups={groups} onItemSelect={handleItemSelect} />
         <CommandPaletteFooter />
       </div>

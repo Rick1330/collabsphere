@@ -73,7 +73,7 @@ test("top nav renders authenticated shell regions with a live workspace switcher
   assert.match(markup, /CollabSphere/);
   assert.match(markup, /Project Alpha/);
   assert.match(markup, /Current workspace · Tech Lead/);
-  assert.match(markup, /Search placeholder/);
+  assert.match(markup, /Open command palette/);
   assert.match(markup, /top-nav__search top-nav__search--desktop-only/);
   assert.match(markup, /Notifications/);
   assert.match(markup, /12 unread in your recent feed/);
@@ -81,6 +81,37 @@ test("top nav renders authenticated shell regions with a live workspace switcher
   assert.match(markup, /role="search"/);
   assert.match(markup, /Ctrl/);
   assert.match(markup, /aria-haspopup="menu"/);
+});
+
+test("top nav can render an initially open command palette in the authenticated shell", () => {
+  const markup = renderToStaticMarkup(
+    <AppProviders>
+      <TopNavBar
+        commandPaletteInitialOpen
+        mobileMenuDescription="Global post-login routes now have a stable App Router layout boundary ready for navigation, theming, and account features."
+        mobileMenuTitle="Personal workspace shell"
+        mobileNavItems={globalNavItems}
+        notificationBell={
+          <NotificationBellMenu
+            unreadCount={0}
+            dataState={{ kind: "empty" }}
+          />
+        }
+        workspaceSwitcher={
+          <WorkspaceSwitcherMenu
+            currentWorkspaceId="workspace-alpha"
+            dataState={workspaceState}
+          />
+        }
+        userMenu={<ThemeUserMenu />}
+      />
+    </AppProviders>,
+  );
+
+  assert.match(markup, /<dialog/);
+  assert.match(markup, /Command palette/);
+  assert.match(markup, /Search commands/);
+  assert.match(markup, /open=""/);
 });
 
 test("shell frame renders the top nav before the supporting header copy", () => {
