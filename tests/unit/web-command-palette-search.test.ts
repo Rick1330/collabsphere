@@ -145,10 +145,12 @@ test("buildCommandPaletteGroups annotates search results with icons and workspac
   const documentsGroup = groups.find((group) => group.id === "search-documents");
   const tasksGroup = groups.find((group) => group.id === "search-tasks");
 
-  assert.equal(documentsGroup?.items[0]?.icon, "📄");
-  assert.equal(documentsGroup?.items[0]?.pill, "Workspace");
-  assert.equal(tasksGroup?.items[0]?.icon, "✅");
-  assert.equal(tasksGroup?.items[0]?.pill, "Workspace");
+  assert.ok(documentsGroup);
+  assert.ok(tasksGroup);
+  assert.equal(documentsGroup.items[0].icon, "📄");
+  assert.equal(documentsGroup.items[0].pill, "Workspace");
+  assert.equal(tasksGroup.items[0].icon, "✅");
+  assert.equal(tasksGroup.items[0].pill, "Workspace");
 });
 
 test("buildCommandPaletteGroups shows empty state when both result groups are empty", () => {
