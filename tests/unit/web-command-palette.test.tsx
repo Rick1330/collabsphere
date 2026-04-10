@@ -70,6 +70,37 @@ test("command palette renders a dialog with autofocus input and grouped results"
   assert.match(markup, /Create new workspace/);
 });
 
+test("command palette renders item icons and pills as aria-hidden decorations", () => {
+  const markup = renderToStaticMarkup(
+    <CommandPalette
+      groups={[
+        {
+          id: "documents",
+          label: "Documents",
+          items: [
+            {
+              id: "doc-intro",
+              icon: "📄",
+              label: "Introduction",
+              description: "Project Alpha",
+              pill: "Workspace",
+            },
+          ],
+        },
+      ]}
+      isOpen
+      onClose={() => {}}
+      query=""
+      onQueryChange={() => {}}
+    />,
+  );
+
+  assert.match(markup, /command-palette__item-icon/);
+  assert.match(markup, /aria-hidden=\"true\">📄/);
+  assert.match(markup, /command-palette__item-pill/);
+  assert.match(markup, /aria-hidden=\"true\">Workspace/);
+});
+
 test("globals.css keeps the command palette full-width on mobile and width-capped on tablet+", () => {
   assert.match(globalsCss, /\.command-palette__dialog \{/);
   assert.match(globalsCss, /\.command-palette__panel \{/);
