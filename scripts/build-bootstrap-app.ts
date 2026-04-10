@@ -18,7 +18,7 @@ const sourceTsPath = path.join(packageDir, "src", "dev.ts");
 const distDir = path.join(packageDir, "dist");
 const distEntryPath = path.join(distDir, "dev.js");
 const distPackageJsonPath = path.join(distDir, "package.json");
-const distLockDir = path.join(distDir, ".bootstrap-lock");
+const distLockDir = path.join(packageDir, ".bootstrap-lock");
 const compiledTsEntryPath = path.join(
   distDir,
   path.relative(repoRoot, sourceTsPath).replace(/\.ts$/, ".js"),

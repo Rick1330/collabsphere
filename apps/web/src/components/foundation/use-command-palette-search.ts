@@ -35,6 +35,13 @@ export const useCommandPaletteSearch = ({
       return;
     }
 
+    if (scope === "workspace" && !workspaceId) {
+      abortController.current?.abort();
+      abortController.current = null;
+      setStatus({ kind: "idle" });
+      return;
+    }
+
     setStatus({ kind: "loading", query: normalized });
 
     const timeoutId = window.setTimeout(() => {
