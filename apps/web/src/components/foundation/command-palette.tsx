@@ -273,23 +273,26 @@ export function CommandPalette({
 
   const handleItemSelect = useCallback(
     (item: CommandPaletteItem) => {
+      let result: void | Promise<void>;
       try {
-        const result = item.onSelect?.();
-
-        if (result && typeof (result as Promise<void>).then === "function") {
-          void (result as Promise<void>)
-            .catch((error_) => {
-              console.error("[CommandPalette] item onSelect failed", error_);
-            })
-            .finally(() => {
-              closePalette();
-            });
-
-          return;
-        }
-      } finally {
+        result = item.onSelect?.();
+      } catch (error_) {
         closePalette();
+        throw error_;
       }
+
+      if (result && typeof (result as Promise<void>).then === "function") {
+        void (result as Promise<void>)
+          .catch((error_) => {
+            console.error("[CommandPalette] item onSelect failed", error_);
+          })
+          .finally(() => {
+            closePalette();
+          });
+        return;
+      }
+
+      closePalette();
     },
     [closePalette],
   );
