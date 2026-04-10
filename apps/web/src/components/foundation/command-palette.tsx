@@ -20,6 +20,7 @@ export type CommandPaletteGroup = {
 
 type CommandPaletteProps = {
   groups: readonly CommandPaletteGroup[];
+  dialogId?: string;
   isOpen: boolean;
   onClose: () => void;
   query: string;
@@ -173,6 +174,7 @@ function CommandPaletteFooter() {
 }
 
 export function CommandPalette({
+  dialogId,
   groups,
   inputRef,
   isOpen,
@@ -303,6 +305,7 @@ export function CommandPalette({
   return isOpen ? (
     <dialog
       ref={dialogRef}
+      id={dialogId}
       className="command-palette__dialog"
       aria-modal="true"
       aria-labelledby={titleId}

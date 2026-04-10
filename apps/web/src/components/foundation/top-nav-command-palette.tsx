@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { CommandPalette, type CommandPaletteGroup } from "./command-palette";
+import { isMacLikePlatform } from "./command-palette-shortcut";
 import { useCommandPaletteShortcut } from "./use-command-palette-shortcut";
 
 const commandPaletteGroups: readonly CommandPaletteGroup[] = [
@@ -49,8 +50,23 @@ export function TopNavCommandPalette({
 }: Readonly<TopNavCommandPaletteProps>) {
   const [isOpen, setIsOpen] = React.useState(initialOpen);
   const [query, setQuery] = React.useState("");
+  const [modifierLabel, setModifierLabel] = React.useState<"Ctrl" | "Cmd">("Ctrl");
   const triggerRef = React.useRef<HTMLButtonElement | null>(null);
   const inputRef = React.useRef<HTMLInputElement | null>(null);
+  const dialogId = `command-palette-${React.useId()}`;
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const isMacLike = isMacLikePlatform({
+      platform: window.navigator.platform,
+      userAgent: window.navigator.userAgent,
+    });
+
+    setModifierLabel(isMacLike ? "Cmd" : "Ctrl");
+  }, []);
 
   const openPalette = React.useCallback(() => {
     setIsOpen(true);
@@ -78,6 +94,9 @@ export function TopNavCommandPalette({
           ref={triggerRef}
           type="button"
           className="top-nav__search-trigger"
+          aria-controls={dialogId}
+          aria-expanded={isOpen}
+          aria-haspopup="dialog"
           aria-label="Open command palette"
           onClick={openPalette}
         >
@@ -91,12 +110,13 @@ export function TopNavCommandPalette({
             </span>
           </span>
           <span className="top-nav__shortcut" aria-hidden="true">
-            <kbd>Ctrl</kbd>
+            <kbd>{modifierLabel}</kbd>
             <kbd>K</kbd>
           </span>
         </button>
       </div>
       <CommandPalette
+        dialogId={dialogId}
         groups={commandPaletteGroups}
         inputRef={inputRef}
         isOpen={isOpen}
