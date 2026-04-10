@@ -62,7 +62,7 @@ const compileOutputDirs = [path.join(distDir, "apps"), path.join(distDir, "packa
 
 const removeDirectoryWithRetries = async ({
   directory,
-  maxAttempts = 3,
+  maxAttempts = 8,
 }: {
   directory: string;
   maxAttempts?: number;
@@ -76,7 +76,10 @@ const removeDirectoryWithRetries = async ({
         throw error;
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 50 * (attempt + 1)));
+      // Windows can transiently fail removing deeply nested folders (ENOTEMPTY/EPERM)
+      // due to filesystem latency or background indexers. Backoff and retry.
+      const delayMs = 100 * (attempt + 1) * (attempt + 1);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
   }
 };

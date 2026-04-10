@@ -15,6 +15,7 @@ import type { NavItem } from "./navigation";
 import {
   mobileSidebarMediaQuery,
 } from "./mobile-sidebar-swipe";
+import { getFocusableElements, getFocusTrapTarget } from "./dialog-focus-trap";
 import { useMobileSidebarSwipe } from "./use-mobile-sidebar-swipe";
 
 type MobileMenuProps = {
@@ -25,44 +26,6 @@ type MobileMenuProps = {
 };
 
 type MobileMenuOpenKey = "Enter" | " " | "ArrowDown";
-
-const focusableSelector = [
-  "a[href]",
-  "button:not([disabled])",
-  "input:not([disabled])",
-  "select:not([disabled])",
-  "textarea:not([disabled])",
-  "[tabindex]:not([tabindex='-1'])",
-].join(", ");
-
-const getFocusableElements = (container: HTMLElement | null): HTMLElement[] =>
-  Array.from(container?.querySelectorAll<HTMLElement>(focusableSelector) ?? []);
-
-const getFocusTrapTarget = ({
-  activeElement,
-  firstElement,
-  lastElement,
-  shiftKey,
-}: {
-  activeElement: Element | null;
-  firstElement: HTMLElement | undefined;
-  lastElement: HTMLElement | undefined;
-  shiftKey: boolean;
-}): HTMLElement | null => {
-  if (firstElement == null || lastElement == null) {
-    return null;
-  }
-
-  if (shiftKey && activeElement === firstElement) {
-    return lastElement;
-  }
-
-  if (!shiftKey && activeElement === lastElement) {
-    return firstElement;
-  }
-
-  return null;
-};
 
 export const isMobileMenuOpenKey = (key: string): key is MobileMenuOpenKey =>
   key === "Enter" || key === " " || key === "ArrowDown";

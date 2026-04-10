@@ -767,7 +767,8 @@ button {
   display: block;
 }
 
-.mobile-menu__dialog {
+.mobile-menu__dialog,
+.command-palette__dialog {
   position: fixed;
   inset: 0;
   width: 100vw;
@@ -779,20 +780,25 @@ button {
   background: transparent;
 }
 
-.mobile-menu__dialog::backdrop {
+.mobile-menu__dialog::backdrop,
+.command-palette__dialog::backdrop {
   background: transparent;
 }
 
-.mobile-menu__overlay {
+.mobile-menu__overlay,
+.command-palette__overlay {
   position: fixed;
   inset: 0;
-  z-index: 12;
   display: block;
   padding: 0;
   border: none;
+  cursor: pointer;
+}
+
+.mobile-menu__overlay {
+  z-index: 12;
   background: color-mix(in srgb, var(--color-bg-primary) 44%, transparent);
   backdrop-filter: blur(12px);
-  cursor: pointer;
 }
 
 .mobile-menu__panel {
@@ -854,7 +860,8 @@ button {
   font-size: 0.92rem;
 }
 
-.mobile-menu__close {
+.mobile-menu__close,
+.command-palette__close {
   display: inline-grid;
   place-items: center;
   width: 2.85rem;
@@ -867,7 +874,9 @@ button {
 }
 
 .mobile-menu__close:hover,
-.mobile-menu__close:focus-visible {
+.mobile-menu__close:focus-visible,
+.command-palette__close:hover,
+.command-palette__close:focus-visible {
   transform: translateY(-1px);
   border-color:
     color-mix(in srgb, var(--section-accent, var(--color-accent)) 30%, var(--color-border));
@@ -875,6 +884,12 @@ button {
 
 .mobile-menu__close:focus-visible,
 .mobile-menu__link:focus-visible {
+  outline: 2px solid var(--focus-ring-color);
+  outline-offset: 2px;
+}
+
+.command-palette__close:focus-visible,
+.command-palette__item-button:focus-visible {
   outline: 2px solid var(--focus-ring-color);
   outline-offset: 2px;
 }
@@ -919,6 +934,204 @@ button {
 .mobile-menu__link-description {
   color: var(--color-text-secondary);
   font-size: 0.9rem;
+}
+
+.command-palette__overlay {
+  z-index: 14;
+  background: color-mix(in srgb, var(--color-bg-primary) 48%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+.command-palette__panel {
+  position: fixed;
+  top: clamp(1.5rem, 8vh, 5.25rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 15;
+  width: min(40rem, calc(100vw - 2.5rem));
+  max-height: calc(100vh - clamp(3rem, 16vh, 11rem));
+  padding: 1.15rem 1.15rem 0.95rem;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: 1rem;
+  overflow: hidden;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-card) 96%, var(--color-bg-secondary)) 0%,
+      color-mix(in srgb, var(--surface-card-subtle) 92%, var(--surface-card)) 100%
+    );
+  border: 1px solid var(--border-subtle);
+  border-radius: 1.5rem;
+  box-shadow: var(--shadow-elevated);
+}
+
+.command-palette__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: start;
+}
+
+.command-palette__header-copy {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.command-palette__title,
+.command-palette__description {
+  margin: 0;
+}
+
+.command-palette__title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--color-text-primary);
+}
+
+.command-palette__description {
+  font-size: 0.92rem;
+  color: var(--color-text-secondary);
+}
+
+.command-palette__search {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.65rem 0.75rem;
+  border-radius: 1.2rem;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-card);
+  box-shadow: var(--shadow-soft);
+}
+
+.command-palette__search:focus-within {
+  border-color:
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 30%, var(--color-border));
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--focus-ring-color) 30%, transparent),
+    var(--shadow-soft);
+}
+
+.command-palette__search-icon {
+  font-size: 1.15rem;
+}
+
+.command-palette__search-input {
+  width: 100%;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: 1rem;
+}
+
+.command-palette__search-input:focus {
+  outline: none;
+}
+
+.command-palette__results {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.25rem 0;
+  display: grid;
+  gap: 1rem;
+}
+
+.command-palette__group {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.command-palette__group-label {
+  margin: 0;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+}
+
+.command-palette__group-list {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.command-palette__item-button {
+  width: 100%;
+  min-height: 2.85rem;
+  display: grid;
+  gap: 0.12rem;
+  align-content: start;
+  padding: 0.75rem 0.8rem;
+  text-align: left;
+  border-radius: 1.15rem;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-card);
+  box-shadow: var(--shadow-soft);
+  color: inherit;
+  cursor: pointer;
+}
+
+.command-palette__item-button:hover,
+.command-palette__item-button:focus-visible {
+  transform: translateY(-1px);
+  border-color:
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 30%, var(--color-border));
+  background:
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 7%, var(--surface-card));
+}
+
+.command-palette__item-label {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.command-palette__item-description {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+}
+
+.command-palette__footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 0.25rem;
+  border-top: 1px solid color-mix(in srgb, var(--border-subtle) 85%, transparent);
+  color: var(--color-text-tertiary);
+  font-size: 0.85rem;
+}
+
+.command-palette__hint kbd {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-card);
+}
+
+@media (width >= 768px) and (width <= 1279px) {
+  .command-palette__panel {
+    width: min(37.5rem, calc(100vw - 3rem));
+  }
+}
+
+@media (width <= 767px) {
+  .command-palette__panel {
+    top: 0;
+    left: 0;
+    transform: none;
+    width: 100vw;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+    padding: 1.1rem 1rem 0.9rem;
+  }
 }
 
 .workspace-switcher {
