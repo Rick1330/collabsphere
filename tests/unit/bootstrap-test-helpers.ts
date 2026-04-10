@@ -255,6 +255,10 @@ export const runTsc = (projectPath: string) => {
 export const runTsx = (...args: string[]) => {
   execFileSync(process.execPath, [tsxCli, ...args], {
     cwd: repoRoot,
+    env: {
+      ...process.env,
+      BOOTSTRAP_CLEAN_COMPILE_ARTIFACTS: "0",
+    },
     stdio: "inherit",
   });
 };

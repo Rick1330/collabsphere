@@ -18,6 +18,7 @@ const sourceTsPath = path.join(packageDir, "src", "dev.ts");
 const distDir = path.join(packageDir, "dist");
 const distEntryPath = path.join(distDir, "dev.js");
 const distPackageJsonPath = path.join(distDir, "package.json");
+const distLockDir = path.join(packageDir, ".bootstrap-lock");
 const compiledTsEntryPath = path.join(
   distDir,
   path.relative(repoRoot, sourceTsPath).replace(/\.ts$/, ".js"),
@@ -60,6 +61,8 @@ type BuildContext = {
 
 const compileOutputDirs = [path.join(distDir, "apps"), path.join(distDir, "packages")];
 
+const sleep = (delayMs: number) => new Promise<void>((resolve) => setTimeout(resolve, delayMs));
+
 const removeDirectoryWithRetries = async ({
   directory,
   maxAttempts = 8,
@@ -82,6 +85,37 @@ const removeDirectoryWithRetries = async ({
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
   }
+};
+
+const acquireDistLock = async () => {
+  // Multiple unit tests can invoke this script in parallel, and the staging step cleans up
+  // `dist/apps` + `dist/packages`. Without a lock, one invocation can delete the other's
+  // compile outputs mid-run and cause flaky ENOENT failures.
+  await mkdir(distDir, { recursive: true });
+
+  const maxAttempts = 80;
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    try {
+      await mkdir(distLockDir);
+      return;
+    } catch (error) {
+      const code = (error as { code?: string } | null)?.code;
+      if (code !== "EEXIST") {
+        throw error;
+      }
+
+      // Backoff with a hard cap so CI failures are actionable instead of hanging forever.
+      await sleep(Math.min(50 * (attempt + 1), 500));
+    }
+  }
+
+  throw new Error(
+    `Timed out waiting for bootstrap lock at ${path.relative(repoRoot, distLockDir)}.`,
+  );
+};
+
+const releaseDistLock = async () => {
+  await removeDirectoryWithRetries({ directory: distLockDir });
 };
 
 const fileExists = async ({ filePath }: { filePath: string }) => {
@@ -338,52 +372,64 @@ const cleanupTsCompileArtifacts = async ({ hasTsSource }: { hasTsSource: boolean
 };
 
 const main = async () => {
-  const context = await loadBuildContext();
-  await validateBuildContext(context);
-  runSyntaxCheck({ filePath: context.compiledPath });
-  await stageAppDistLayout(context);
+  await acquireDistLock();
 
-  let distSourceCode = context.compiledSourceCode;
-  const distPackageDependencies = context.packageJson.dependencies
-    ? { ...context.packageJson.dependencies }
-    : {};
-  const needsSharedEnv = needsSharedEnvRuntime({ sourceCode: context.sourceCode });
-  const needsSharedBootstrap = needsSharedBootstrapRuntime({ sourceCode: context.sourceCode });
-  const sharedRuntimeEntryPoints = collectSharedRuntimeEntryPoints({
-    needsSharedEnv,
-    needsSharedBootstrap,
-  });
+  try {
+    const context = await loadBuildContext();
+    await validateBuildContext(context);
+    runSyntaxCheck({ filePath: context.compiledPath });
+    await stageAppDistLayout(context);
 
-  if (needsSharedEnv || needsSharedBootstrap) {
-    const sharedDistDir = path.join(distDir, "_shared");
-    const distNodeModulesDir = path.join(distDir, "node_modules");
-    await mkdir(sharedDistDir, { recursive: true });
-
-    await stageSharedRuntimeArtifacts({
+    let distSourceCode = context.compiledSourceCode;
+    const distPackageDependencies = context.packageJson.dependencies
+      ? { ...context.packageJson.dependencies }
+      : {};
+    const needsSharedEnv = needsSharedEnvRuntime({ sourceCode: context.sourceCode });
+    const needsSharedBootstrap = needsSharedBootstrapRuntime({ sourceCode: context.sourceCode });
+    const sharedRuntimeEntryPoints = collectSharedRuntimeEntryPoints({
       needsSharedEnv,
-      sharedDistDir,
-      distNodeModulesDir,
-      sharedRuntimeEntryPoints,
+      needsSharedBootstrap,
     });
 
-    distSourceCode = rewriteSharedRuntimeImports({ sourceCode: distSourceCode });
+    if (needsSharedEnv || needsSharedBootstrap) {
+      const sharedDistDir = path.join(distDir, "_shared");
+      const distNodeModulesDir = path.join(distDir, "node_modules");
+      await mkdir(sharedDistDir, { recursive: true });
 
-    if (needsSharedEnv && context.sharedPackageJson.dependencies?.zod) {
-      distPackageDependencies.zod = context.sharedPackageJson.dependencies.zod;
+      await stageSharedRuntimeArtifacts({
+        needsSharedEnv,
+        sharedDistDir,
+        distNodeModulesDir,
+        sharedRuntimeEntryPoints,
+      });
+
+      distSourceCode = rewriteSharedRuntimeImports({ sourceCode: distSourceCode });
+
+      if (needsSharedEnv && context.sharedPackageJson.dependencies?.zod) {
+        distPackageDependencies.zod = context.sharedPackageJson.dependencies.zod;
+      }
     }
+
+    assertNoMonorepoSharedImports({ sourceCode: distSourceCode });
+    await writeStagedArtifact({
+      packageJson: context.packageJson,
+      distSourceCode,
+      distPackageDependencies,
+    });
+
+    // Cleanup is enabled by default for production builds (keeps dist small for runtime images).
+    // Unit tests can disable it by setting `BOOTSTRAP_CLEAN_COMPILE_ARTIFACTS=0` to avoid flakiness
+    // when multiple bootstrap builders run concurrently.
+    if (process.env.BOOTSTRAP_CLEAN_COMPILE_ARTIFACTS !== "0") {
+      await cleanupTsCompileArtifacts({ hasTsSource: context.hasTsSource });
+    }
+
+    console.log(
+      `[build] staged ${context.packageJson.name} bootstrap artifact in ${path.relative(repoRoot, distDir)}`,
+    );
+  } finally {
+    await releaseDistLock();
   }
-
-  assertNoMonorepoSharedImports({ sourceCode: distSourceCode });
-  await writeStagedArtifact({
-    packageJson: context.packageJson,
-    distSourceCode,
-    distPackageDependencies,
-  });
-  await cleanupTsCompileArtifacts({ hasTsSource: context.hasTsSource });
-
-  console.log(
-    `[build] staged ${context.packageJson.name} bootstrap artifact in ${path.relative(repoRoot, distDir)}`,
-  );
 };
 
 main().catch((error) => {

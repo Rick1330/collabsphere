@@ -10,6 +10,7 @@ export type CommandPaletteItem = {
   label: string;
   description?: string;
   onSelect?: () => void | Promise<void>;
+  disabled?: boolean;
 };
 
 export type CommandPaletteGroup = {
@@ -125,6 +126,7 @@ function CommandPaletteResultItem({ item, onSelect }: Readonly<CommandPaletteRes
       type="button"
       className="command-palette__item-button"
       aria-describedby={descriptionId}
+      disabled={item.disabled}
       onClick={onSelect}
     >
       <span className="command-palette__item-label">{item.label}</span>
