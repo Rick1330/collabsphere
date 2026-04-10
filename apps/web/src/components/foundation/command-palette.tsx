@@ -9,7 +9,7 @@ export type CommandPaletteItem = {
   id: string;
   label: string;
   description?: string;
-  onSelect?: () => void;
+  onSelect?: () => void | Promise<void>;
 };
 
 export type CommandPaletteGroup = {
@@ -273,17 +273,22 @@ export function CommandPalette({
 
   const handleItemSelect = useCallback(
     (item: CommandPaletteItem) => {
-      let error: unknown;
       try {
-        item.onSelect?.();
-      } catch (error_) {
-        error = error_;
+        const result = item.onSelect?.();
+
+        if (result && typeof (result as Promise<void>).then === "function") {
+          void (result as Promise<void>)
+            .catch((error_) => {
+              console.error("[CommandPalette] item onSelect failed", error_);
+            })
+            .finally(() => {
+              closePalette();
+            });
+
+          return;
+        }
       } finally {
         closePalette();
-      }
-
-      if (error) {
-        throw error;
       }
     },
     [closePalette],
