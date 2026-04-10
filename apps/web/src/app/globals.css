@@ -767,7 +767,8 @@ button {
   display: block;
 }
 
-.mobile-menu__dialog {
+.mobile-menu__dialog,
+.command-palette__dialog {
   position: fixed;
   inset: 0;
   width: 100vw;
@@ -779,20 +780,25 @@ button {
   background: transparent;
 }
 
-.mobile-menu__dialog::backdrop {
+.mobile-menu__dialog::backdrop,
+.command-palette__dialog::backdrop {
   background: transparent;
 }
 
-.mobile-menu__overlay {
+.mobile-menu__overlay,
+.command-palette__overlay {
   position: fixed;
   inset: 0;
-  z-index: 12;
   display: block;
   padding: 0;
   border: none;
+  cursor: pointer;
+}
+
+.mobile-menu__overlay {
+  z-index: 12;
   background: color-mix(in srgb, var(--color-bg-primary) 44%, transparent);
   backdrop-filter: blur(12px);
-  cursor: pointer;
 }
 
 .mobile-menu__panel {
@@ -854,7 +860,8 @@ button {
   font-size: 0.92rem;
 }
 
-.mobile-menu__close {
+.mobile-menu__close,
+.command-palette__close {
   display: inline-grid;
   place-items: center;
   width: 2.85rem;
@@ -867,7 +874,9 @@ button {
 }
 
 .mobile-menu__close:hover,
-.mobile-menu__close:focus-visible {
+.mobile-menu__close:focus-visible,
+.command-palette__close:hover,
+.command-palette__close:focus-visible {
   transform: translateY(-1px);
   border-color:
     color-mix(in srgb, var(--section-accent, var(--color-accent)) 30%, var(--color-border));
@@ -875,6 +884,12 @@ button {
 
 .mobile-menu__close:focus-visible,
 .mobile-menu__link:focus-visible {
+  outline: 2px solid var(--focus-ring-color);
+  outline-offset: 2px;
+}
+
+.command-palette__close:focus-visible,
+.command-palette__item-button:focus-visible {
   outline: 2px solid var(--focus-ring-color);
   outline-offset: 2px;
 }
@@ -921,32 +936,10 @@ button {
   font-size: 0.9rem;
 }
 
-.command-palette__dialog {
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  max-width: none;
-  height: 100vh;
-  max-height: none;
-  padding: 0;
-  border: none;
-  background: transparent;
-}
-
-.command-palette__dialog::backdrop {
-  background: transparent;
-}
-
 .command-palette__overlay {
-  position: fixed;
-  inset: 0;
   z-index: 14;
-  display: block;
-  padding: 0;
-  border: none;
   background: color-mix(in srgb, var(--color-bg-primary) 48%, transparent);
   backdrop-filter: blur(14px);
-  cursor: pointer;
 }
 
 .command-palette__panel {
@@ -999,31 +992,6 @@ button {
 .command-palette__description {
   font-size: 0.92rem;
   color: var(--color-text-secondary);
-}
-
-.command-palette__close {
-  display: inline-grid;
-  place-items: center;
-  width: 2.85rem;
-  height: 2.85rem;
-  border-radius: 999px;
-  border: 1px solid var(--border-subtle);
-  background: var(--surface-card);
-  color: var(--color-text-primary);
-  cursor: pointer;
-}
-
-.command-palette__close:hover,
-.command-palette__close:focus-visible {
-  transform: translateY(-1px);
-  border-color:
-    color-mix(in srgb, var(--section-accent, var(--color-accent)) 30%, var(--color-border));
-}
-
-.command-palette__close:focus-visible,
-.command-palette__item-button:focus-visible {
-  outline: 2px solid var(--focus-ring-color);
-  outline-offset: 2px;
 }
 
 .command-palette__search {

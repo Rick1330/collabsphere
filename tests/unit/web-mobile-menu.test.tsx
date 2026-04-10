@@ -123,7 +123,7 @@ test("globals.css keeps the mobile slide-over full-width and touch targets above
   assert.match(globalsCss, /\.top-nav__hamburger \{/);
   assert.match(globalsCss, /width: 3\.2rem;/);
   assert.match(globalsCss, /height: 3\.2rem;/);
-  assert.match(globalsCss, /\.mobile-menu__close \{/);
+  assert.match(globalsCss, /\.mobile-menu__close,\r?\n\.command-palette__close \{/);
   assert.match(globalsCss, /width: 2\.85rem;/);
   assert.match(globalsCss, /height: 2\.85rem;/);
   assert.match(globalsCss, /@media \(width <= 767px\) \{/);

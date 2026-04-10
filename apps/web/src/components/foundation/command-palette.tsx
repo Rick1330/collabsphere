@@ -32,6 +32,9 @@ type CommandPaletteCloseKey = "Escape";
 export const isCommandPaletteCloseKey = (key: string): key is CommandPaletteCloseKey =>
   key === "Escape";
 
+const getCommandPaletteItemDomId = (value: string) =>
+  `command-palette-item-${value.replaceAll(/[^a-zA-Z0-9_-]/g, "-")}`;
+
 type CommandPaletteHeaderProps = {
   closeButtonRef: React.RefObject<HTMLButtonElement | null>;
   descriptionId: string;
@@ -105,6 +108,33 @@ type CommandPaletteResultsProps = {
   onItemSelect: (item: CommandPaletteItem) => void;
 };
 
+type CommandPaletteResultItemProps = {
+  item: CommandPaletteItem;
+  onSelect: () => void;
+};
+
+function CommandPaletteResultItem({ item, onSelect }: Readonly<CommandPaletteResultItemProps>) {
+  const descriptionId = item.description
+    ? `${getCommandPaletteItemDomId(item.id)}-description`
+    : undefined;
+
+  return (
+    <button
+      type="button"
+      className="command-palette__item-button"
+      aria-describedby={descriptionId}
+      onClick={onSelect}
+    >
+      <span className="command-palette__item-label">{item.label}</span>
+      {item.description ? (
+        <span id={descriptionId} className="command-palette__item-description">
+          {item.description}
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
 function CommandPaletteResults({ groups, onItemSelect }: Readonly<CommandPaletteResultsProps>) {
   return (
     <section className="command-palette__results" aria-label="Command palette results">
@@ -115,19 +145,12 @@ function CommandPaletteResults({ groups, onItemSelect }: Readonly<CommandPalette
             <ul className="command-palette__group-list">
               {group.items.map((item) => (
                 <li key={item.id} className="command-palette__item">
-                  <button
-                    type="button"
-                    className="command-palette__item-button"
-                    aria-label={item.label}
-                    onClick={() => {
+                  <CommandPaletteResultItem
+                    item={item}
+                    onSelect={() => {
                       onItemSelect(item);
                     }}
-                  >
-                    <span className="command-palette__item-label">{item.label}</span>
-                    {item.description ? (
-                      <span className="command-palette__item-description">{item.description}</span>
-                    ) : null}
-                  </button>
+                  />
                 </li>
               ))}
             </ul>
