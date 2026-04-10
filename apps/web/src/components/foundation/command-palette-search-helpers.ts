@@ -23,11 +23,19 @@ export const getSearchScopeFromPathname = (
 export const stripSearchSnippetMarkup = (value: string) =>
   value.replaceAll(/<\/?mark>/g, "");
 
-const buildDisabledItem = (id: string, label: string, description?: string): CommandPaletteItem => ({
+const getWorkspaceScopePill = (scope?: SearchScope) => (scope === "workspace" ? "Workspace" : undefined);
+
+const buildDisabledItem = (
+  id: string,
+  label: string,
+  description?: string,
+  options?: { icon?: CommandPaletteItem["icon"]; pill?: string },
+): CommandPaletteItem => ({
   id,
-  icon: "…",
+  icon: options?.icon ?? "…",
   label,
   description,
+  pill: options?.pill,
   disabled: true,
 });
 
@@ -42,7 +50,7 @@ export const buildCommandPaletteSearchGroups = ({
 }>) => {
   const documents = search.documents.slice(0, 5);
   const tasks = search.tasks.slice(0, 5);
-  const pill = scope === "workspace" ? "Workspace" : undefined;
+  const pill = getWorkspaceScopePill(scope);
 
   const groups: CommandPaletteGroup[] = [];
 
@@ -88,9 +96,66 @@ export const buildCommandPaletteSearchGroups = ({
     {
       id: "search-empty",
       label: "Search",
-      items: [{ ...buildDisabledItem("search-empty", "No results found."), icon: "🔎" }],
+      items: [buildDisabledItem("search-empty", "No results found.", undefined, { icon: "🔎" })],
     },
   ];
+};
+
+const buildCommandPaletteSearchStatusGroups = ({
+  onSelectUrl,
+  scope,
+  status,
+}: Readonly<{
+  status: CommandPaletteSearchStatus;
+  onSelectUrl: (url: string) => void;
+  scope?: SearchScope;
+}>) => {
+  const pill = getWorkspaceScopePill(scope);
+
+  if (status.kind === "loading") {
+    return [
+      {
+        id: "search-documents-loading",
+        label: "Documents",
+        items: [
+          buildDisabledItem("search-documents-loading", "Searching documents...", undefined, {
+            icon: "⏳",
+            pill,
+          }),
+        ],
+      },
+      {
+        id: "search-tasks-loading",
+        label: "Tasks",
+        items: [
+          buildDisabledItem("search-tasks-loading", "Searching tasks...", undefined, { icon: "⏳", pill }),
+        ],
+      },
+    ] satisfies CommandPaletteGroup[];
+  }
+
+  if (status.kind === "error") {
+    return [
+      {
+        id: "search-error",
+        label: "Search",
+        items: [
+          buildDisabledItem(
+            "search-error",
+            status.message,
+            status.requestId ? `Request id: ${status.requestId}` : undefined,
+            { icon: "⚠️" },
+          ),
+        ],
+      },
+    ] satisfies CommandPaletteGroup[];
+  }
+
+  if (status.kind === "loaded") {
+    return buildCommandPaletteSearchGroups({ search: status.results, onSelectUrl, scope });
+  }
+
+  return [];
 };
 
 export const buildCommandPaletteGroups = ({
@@ -110,63 +175,10 @@ export const buildCommandPaletteGroups = ({
     return [...baseGroups];
   }
 
-  if (status.kind === "loading") {
-    const pill = scope === "workspace" ? "Workspace" : undefined;
-    return [
-      ...baseGroups,
-      {
-        id: "search-documents-loading",
-        label: "Documents",
-        items: [
-          {
-            ...buildDisabledItem("search-documents-loading", "Searching documents..."),
-            icon: "⏳",
-            pill,
-          },
-        ],
-      },
-      {
-        id: "search-tasks-loading",
-        label: "Tasks",
-        items: [
-          {
-            ...buildDisabledItem("search-tasks-loading", "Searching tasks..."),
-            icon: "⏳",
-            pill,
-          },
-        ],
-      },
-    ];
-  }
-
-  if (status.kind === "error") {
-    return [
-      ...baseGroups,
-      {
-        id: "search-error",
-        label: "Search",
-        items: [
-          {
-            ...buildDisabledItem(
-              "search-error",
-              status.message,
-              status.requestId ? `Request id: ${status.requestId}` : undefined,
-            ),
-            icon: "⚠️",
-          },
-        ],
-      },
-    ];
-  }
-
-  if (status.kind === "loaded") {
-    return [
-      ...baseGroups,
-      ...buildCommandPaletteSearchGroups({ search: status.results, onSelectUrl, scope }),
-    ];
-  }
-
-  return [...baseGroups];
+  return [
+    ...baseGroups,
+    ...buildCommandPaletteSearchStatusGroups({ status, onSelectUrl, scope }),
+  ];
 };
 
 export const toSearchStatusFromResponse = (response: SearchResponse): CommandPaletteSearchStatus => ({

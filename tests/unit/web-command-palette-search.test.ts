@@ -9,6 +9,33 @@ import {
   stripSearchSnippetMarkup,
 } from "../../apps/web/src/components/foundation/command-palette-search-helpers";
 
+const workspaceScopedLoadedStatus = {
+  kind: "loaded" as const,
+  query: "lo",
+  results: {
+    documents: [
+      {
+        id: "doc-1",
+        title: "Doc 1",
+        snippet: "a hit",
+        updatedAt: "2025-07-17T12:10:00Z",
+        url: "/w/workspace-alpha/documents/doc-1",
+      },
+    ],
+    tasks: [
+      {
+        id: "task-1",
+        title: "Task 1",
+        snippet: "b hit",
+        status: "open",
+        priority: "low",
+        dueDate: null,
+        url: "/w/workspace-alpha/tasks/task-1",
+      },
+    ],
+  },
+};
+
 test("normalizeSearchQuery trims and caps at 200 chars", () => {
   assert.equal(normalizeSearchQuery("  hi  "), "hi");
   assert.equal(normalizeSearchQuery("a".repeat(250)).length, 200);
@@ -111,32 +138,7 @@ test("buildCommandPaletteGroups annotates search results with icons and workspac
     baseGroups: [],
     normalizedQuery: "lo",
     scope: "workspace",
-    status: {
-      kind: "loaded",
-      query: "lo",
-      results: {
-        documents: [
-          {
-            id: "doc-1",
-            title: "Doc 1",
-            snippet: "a hit",
-            updatedAt: "2025-07-17T12:10:00Z",
-            url: "/w/workspace-alpha/documents/doc-1",
-          },
-        ],
-        tasks: [
-          {
-            id: "task-1",
-            title: "Task 1",
-            snippet: "b hit",
-            status: "open",
-            priority: "low",
-            dueDate: null,
-            url: "/w/workspace-alpha/tasks/task-1",
-          },
-        ],
-      },
-    },
+    status: workspaceScopedLoadedStatus,
     onSelectUrl: () => {},
   });
 
