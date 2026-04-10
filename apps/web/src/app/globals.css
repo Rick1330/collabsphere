@@ -1066,8 +1066,9 @@ button {
   width: 100%;
   min-height: 2.85rem;
   display: grid;
-  gap: 0.12rem;
-  align-content: start;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  column-gap: 0.75rem;
+  align-items: center;
   padding: 0.75rem 0.8rem;
   text-align: left;
   border-radius: 1.15rem;
@@ -1076,6 +1077,41 @@ button {
   box-shadow: var(--shadow-soft);
   color: inherit;
   cursor: pointer;
+}
+
+.command-palette__item-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 0.95rem;
+  font-size: 1.08rem;
+  line-height: 1;
+  background:
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 12%, var(--surface-card));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 14%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--color-border) 55%, transparent);
+}
+
+.command-palette__item-copy {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.command-palette__item-pill {
+  justify-self: end;
+  align-self: start;
+  margin-top: 0.15rem;
+  padding: 0.18rem 0.48rem;
+  border-radius: 999px;
+  background:
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 16%, var(--surface-card));
+  color: var(--color-text-secondary);
+  font-size: 0.74rem;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .command-palette__item-button:hover,

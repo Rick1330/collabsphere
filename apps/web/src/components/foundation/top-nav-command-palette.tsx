@@ -19,11 +19,13 @@ const commandPaletteGroups: readonly CommandPaletteGroup[] = [
     items: [
       {
         id: "recent-dashboard",
+        icon: "🏠",
         label: "Dashboard",
         description: "Quick return to the global overview",
       },
       {
         id: "recent-workspaces",
+        icon: "🗂️",
         label: "Workspaces",
         description: "Recent and starred collaboration spaces",
       },
@@ -35,11 +37,13 @@ const commandPaletteGroups: readonly CommandPaletteGroup[] = [
     items: [
       {
         id: "action-new-workspace",
+        icon: "➕",
         label: "Create new workspace",
         description: "Start a new shared project space",
       },
       {
         id: "action-settings",
+        icon: "⚙️",
         label: "Go to settings",
         description: "Manage profile and app preferences",
       },
@@ -134,9 +138,10 @@ export function TopNavCommandPalette({
         baseGroups: commandPaletteGroups,
         normalizedQuery,
         onSelectUrl,
+        scope: searchScope.scope,
         status: searchStatus,
       }),
-    [normalizedQuery, onSelectUrl, searchStatus],
+    [normalizedQuery, onSelectUrl, searchScope.scope, searchStatus],
   );
 
   return (

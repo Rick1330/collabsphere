@@ -7,8 +7,10 @@ import { getFocusableElements, getFocusTrapTarget } from "./dialog-focus-trap";
 
 export type CommandPaletteItem = {
   id: string;
+  icon?: React.ReactNode;
   label: string;
   description?: string;
+  pill?: string;
   onSelect?: () => void | Promise<void>;
   disabled?: boolean;
 };
@@ -129,10 +131,20 @@ function CommandPaletteResultItem({ item, onSelect }: Readonly<CommandPaletteRes
       disabled={item.disabled}
       onClick={onSelect}
     >
-      <span className="command-palette__item-label">{item.label}</span>
-      {item.description ? (
-        <span id={descriptionId} className="command-palette__item-description">
-          {item.description}
+      <span className="command-palette__item-icon" aria-hidden="true">
+        {item.icon ?? "•"}
+      </span>
+      <span className="command-palette__item-copy">
+        <span className="command-palette__item-label">{item.label}</span>
+        {item.description ? (
+          <span id={descriptionId} className="command-palette__item-description">
+            {item.description}
+          </span>
+        ) : null}
+      </span>
+      {item.pill ? (
+        <span className="command-palette__item-pill" aria-hidden="true">
+          {item.pill}
         </span>
       ) : null}
     </button>
