@@ -1123,6 +1123,22 @@ button {
     color-mix(in srgb, var(--section-accent, var(--color-accent)) 7%, var(--surface-card));
 }
 
+.command-palette__item-button[aria-selected="true"] {
+  transform: none;
+  border-color:
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 40%, var(--color-border));
+  background:
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 10%, var(--surface-card));
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--focus-ring-color) 22%, transparent),
+    var(--shadow-soft);
+}
+
+.command-palette__item-button[aria-selected="true"] .command-palette__item-icon {
+  background:
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 18%, var(--surface-card));
+}
+
 .command-palette__item-button:disabled {
   cursor: default;
   transform: none;
@@ -1149,6 +1165,8 @@ button {
 .command-palette__footer {
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.6rem;
   padding-top: 0.25rem;
   border-top: 1px solid color-mix(in srgb, var(--border-subtle) 85%, transparent);
   color: var(--color-text-tertiary);
