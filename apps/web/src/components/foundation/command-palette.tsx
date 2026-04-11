@@ -157,6 +157,7 @@ function CommandPaletteResultItem({
       className="command-palette__item-button"
       role="option"
       aria-selected={isActive}
+      aria-disabled={item.disabled ?? false}
       aria-describedby={descriptionId}
       disabled={item.disabled}
       onMouseDown={(event) => {
@@ -535,13 +536,9 @@ function useCommandPaletteDialogKeyDown({
 function useCommandPaletteItemSelect(closePalette: () => void) {
   return useCallback(
     (item: CommandPaletteItem) => {
-      if (!item.onSelect) {
-        return;
-      }
-
       let result: void | Promise<void>;
       try {
-        result = item.onSelect();
+        result = item.onSelect?.();
       } catch (error_) {
         closePalette();
         throw error_;

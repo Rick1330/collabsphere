@@ -2,12 +2,6 @@ import type { CommandPaletteGroup, CommandPaletteItem } from "./command-palette"
 
 export type CommandPaletteNavigationDirection = "next" | "previous";
 
-type PaletteItemRef = {
-  groupIndex: number;
-  itemIndex: number;
-  item: CommandPaletteItem;
-};
-
 const isSelectableItem = (item: CommandPaletteItem) => !item.disabled;
 
 type PaletteGroupRef = {
@@ -15,18 +9,18 @@ type PaletteGroupRef = {
   firstItemId: string;
 };
 
-export const getSelectableItems = (groups: readonly CommandPaletteGroup[]) => {
-  const items: PaletteItemRef[] = [];
+const getSelectableItemIds = (groups: readonly CommandPaletteGroup[]) => {
+  const items: string[] = [];
 
-  groups.forEach((group, groupIndex) => {
-    group.items.forEach((item, itemIndex) => {
+  for (const group of groups) {
+    for (const item of group.items) {
       if (!isSelectableItem(item)) {
-        return;
+        continue;
       }
 
-      items.push({ groupIndex, itemIndex, item });
-    });
-  });
+      items.push(item.id);
+    }
+  }
 
   return items;
 };
@@ -73,7 +67,7 @@ export const getNextSelectableItemId = ({
   activeItemId: string | null;
   direction: CommandPaletteNavigationDirection;
 }>) => {
-  const selectable = getSelectableItems(groups).map((entry) => entry.item.id);
+  const selectable = getSelectableItemIds(groups);
 
   if (selectable.length === 0) {
     return null;
