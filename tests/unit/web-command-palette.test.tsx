@@ -70,6 +70,30 @@ test("command palette renders a dialog with autofocus input and grouped results"
   assert.match(markup, /Create new workspace/);
 });
 
+test("command palette results use listbox semantics with aria-selected options", () => {
+  const markup = renderToStaticMarkup(
+    <CommandPalette
+      groups={[
+        {
+          id: "recent",
+          label: "Recent",
+          items: [{ id: "doc-intro", label: "Introduction" }],
+        },
+      ]}
+      isOpen
+      onClose={() => {}}
+      query=""
+      onQueryChange={() => {}}
+    />,
+  );
+
+  assert.match(markup, /role=\"combobox\"/);
+  assert.match(markup, /role=\"listbox\"/);
+  assert.match(markup, /role=\"option\"/);
+  assert.match(markup, /id=\"command-palette-item-doc-intro\"/);
+  assert.match(markup, /aria-selected=\"false\"/);
+});
+
 test("command palette renders item icons and pills as aria-hidden decorations", () => {
   const markup = renderToStaticMarkup(
     <CommandPalette
