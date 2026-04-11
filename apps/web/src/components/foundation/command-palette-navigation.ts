@@ -124,15 +124,13 @@ export const getNextGroupItemId = ({
   }
 
   const activeGroupIndex = getGroupIndexForItemId(groups, activeItemId);
-  const activePosition =
+  let activePosition =
     activeGroupIndex == null
       ? -1
       : selectableGroups.findIndex((entry) => entry.groupIndex === activeGroupIndex);
 
-  if (activePosition === -1) {
-    return direction === "next"
-      ? selectableGroups[0]?.firstItemId ?? null
-      : selectableGroups.at(-1)?.firstItemId ?? null;
+  if (activePosition < 0) {
+    activePosition = direction === "next" ? -1 : 0;
   }
 
   const delta = direction === "next" ? 1 : -1;

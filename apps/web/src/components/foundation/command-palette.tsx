@@ -354,6 +354,30 @@ export function CommandPalette({
   query,
   returnFocusRef,
 }: Readonly<CommandPaletteProps>) {
+  return isOpen ? (
+    <CommandPaletteDialog
+      dialogId={dialogId}
+      groups={groups}
+      inputRef={inputRef}
+      isOpen={isOpen}
+      onClose={onClose}
+      onQueryChange={onQueryChange}
+      query={query}
+      returnFocusRef={returnFocusRef}
+    />
+  ) : null;
+}
+
+function CommandPaletteDialog({
+  dialogId,
+  groups,
+  inputRef,
+  isOpen,
+  onClose,
+  onQueryChange,
+  query,
+  returnFocusRef,
+}: Readonly<CommandPaletteProps>) {
   const paletteId = useId();
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const internalInputRef = useRef<HTMLInputElement | null>(null);
@@ -527,7 +551,7 @@ export function CommandPalette({
     [activeItemId, groups, handleItemSelect, handleNavigate],
   );
 
-  return isOpen ? (
+  return (
     <dialog
       ref={dialogRef}
       id={dialogId}
@@ -535,7 +559,7 @@ export function CommandPalette({
       aria-modal="true"
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
-      open
+      open={isOpen}
       tabIndex={-1}
       onCancel={handleDialogCancel}
       onKeyDown={handleDialogKeyDown}
@@ -571,5 +595,5 @@ export function CommandPalette({
         <CommandPaletteFooter />
       </div>
     </dialog>
-  ) : null;
+  );
 }
