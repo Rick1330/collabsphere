@@ -591,6 +591,12 @@ type CommandPaletteKeyAction =
   | { kind: "select" }
   | null;
 
+const commandPaletteStaticKeyActions: Readonly<Record<string, CommandPaletteKeyAction>> = {
+  ArrowDown: { kind: "navigate", direction: "next" },
+  ArrowUp: { kind: "navigate", direction: "previous" },
+  Enter: { kind: "select" },
+};
+
 function getCommandPaletteKeyAction(
   event: React.KeyboardEvent<HTMLInputElement>,
 ): CommandPaletteKeyAction {
@@ -599,18 +605,11 @@ function getCommandPaletteKeyAction(
     return null;
   }
 
-  switch (event.key) {
-    case "ArrowDown":
-      return { kind: "navigate", direction: "next" };
-    case "ArrowUp":
-      return { kind: "navigate", direction: "previous" };
-    case "Tab":
-      return { kind: "group", direction: event.shiftKey ? "previous" : "next" };
-    case "Enter":
-      return { kind: "select" };
-    default:
-      return null;
+  if (event.key === "Tab") {
+    return { kind: "group", direction: event.shiftKey ? "previous" : "next" };
   }
+
+  return commandPaletteStaticKeyActions[event.key] ?? null;
 }
 
 function useCommandPaletteSearchKeyDown({
