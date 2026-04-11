@@ -594,31 +594,23 @@ type CommandPaletteKeyAction =
 function getCommandPaletteKeyAction(
   event: React.KeyboardEvent<HTMLInputElement>,
 ): CommandPaletteKeyAction {
-  if (event.defaultPrevented) {
+  const hasModifier = event.altKey || event.metaKey || event.ctrlKey;
+  if (event.defaultPrevented || hasModifier) {
     return null;
   }
 
-  if (event.altKey || event.metaKey || event.ctrlKey) {
-    return null;
+  switch (event.key) {
+    case "ArrowDown":
+      return { kind: "navigate", direction: "next" };
+    case "ArrowUp":
+      return { kind: "navigate", direction: "previous" };
+    case "Tab":
+      return { kind: "group", direction: event.shiftKey ? "previous" : "next" };
+    case "Enter":
+      return { kind: "select" };
+    default:
+      return null;
   }
-
-  if (event.key === "ArrowDown") {
-    return { kind: "navigate", direction: "next" };
-  }
-
-  if (event.key === "ArrowUp") {
-    return { kind: "navigate", direction: "previous" };
-  }
-
-  if (event.key === "Tab") {
-    return { kind: "group", direction: event.shiftKey ? "previous" : "next" };
-  }
-
-  if (event.key === "Enter") {
-    return { kind: "select" };
-  }
-
-  return null;
 }
 
 function useCommandPaletteSearchKeyDown({
