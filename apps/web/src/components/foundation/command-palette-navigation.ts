@@ -73,25 +73,17 @@ export const getNextSelectableItemId = ({
   activeItemId: string | null;
   direction: CommandPaletteNavigationDirection;
 }>) => {
-  const selectable = getSelectableItems(groups);
+  const selectable = getSelectableItems(groups).map((entry) => entry.item.id);
 
   if (selectable.length === 0) {
     return null;
   }
 
-  const activeIndex = activeItemId
-    ? selectable.findIndex((entry) => entry.item.id === activeItemId)
-    : -1;
-
-  if (activeIndex === -1) {
-    return direction === "next"
-      ? selectable[0]?.item.id ?? null
-      : selectable.at(-1)?.item.id ?? null;
-  }
-
+  const activeIndex = activeItemId ? selectable.indexOf(activeItemId) : -1;
   const delta = direction === "next" ? 1 : -1;
-  const nextIndex = (activeIndex + delta + selectable.length) % selectable.length;
-  return selectable[nextIndex]?.item.id ?? null;
+  const baseIndex = activeIndex >= 0 ? activeIndex : direction === "next" ? -1 : 0;
+  const nextIndex = (baseIndex + delta + selectable.length) % selectable.length;
+  return selectable[nextIndex] ?? null;
 };
 
 const getGroupIndexForItemId = (groups: readonly CommandPaletteGroup[], itemId: string | null) => {
