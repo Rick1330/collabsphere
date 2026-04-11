@@ -267,6 +267,83 @@ function CommandPaletteFooter() {
   );
 }
 
+function useCommandPaletteBodyScrollLock(isOpen: boolean) {
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen]);
+}
+
+function useCommandPaletteEscapeToClose({
+  closePalette,
+  isOpen,
+}: Readonly<{ isOpen: boolean; closePalette: () => void }>) {
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (!isCommandPaletteCloseKey(event.key) || event.defaultPrevented) {
+        return;
+      }
+
+      event.preventDefault();
+      closePalette();
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [closePalette, isOpen]);
+}
+
+function useCommandPaletteGuardActiveItem({
+  activeItemId,
+  groups,
+  isOpen,
+  onInvalid,
+}: Readonly<{
+  isOpen: boolean;
+  groups: readonly CommandPaletteGroup[];
+  activeItemId: string | null;
+  onInvalid: () => void;
+}>) {
+  useEffect(() => {
+    if (!isOpen || activeItemId == null) {
+      return;
+    }
+
+    if (!findItemById(groups, activeItemId)) {
+      onInvalid();
+    }
+  }, [activeItemId, groups, isOpen, onInvalid]);
+}
+
+function useCommandPaletteScrollActiveDescendant({
+  activeDescendantId,
+  isOpen,
+}: Readonly<{ isOpen: boolean; activeDescendantId: string | undefined }>) {
+  useEffect(() => {
+    if (!isOpen || !activeDescendantId) {
+      return;
+    }
+
+    const element = document.getElementById(activeDescendantId);
+    element?.scrollIntoView({ block: "nearest" });
+  }, [activeDescendantId, isOpen]);
+}
+
 export function CommandPalette({
   dialogId,
   groups,
@@ -292,6 +369,20 @@ export function CommandPalette({
     onClose();
   }, [onClose, returnFocusRef]);
 
+  const clearActiveItem = useCallback(() => {
+    setActiveItemId(null);
+  }, []);
+
+  useCommandPaletteBodyScrollLock(isOpen);
+  useCommandPaletteEscapeToClose({ isOpen, closePalette });
+  useCommandPaletteGuardActiveItem({
+    isOpen,
+    groups,
+    activeItemId,
+    onInvalid: clearActiveItem,
+  });
+  useCommandPaletteScrollActiveDescendant({ isOpen, activeDescendantId });
+
   useEffect(() => {
     if (!isOpen) {
       return;
@@ -300,54 +391,6 @@ export function CommandPalette({
     searchInputRef.current?.focus();
     setActiveItemId(null);
   }, [isOpen, searchInputRef]);
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (!isCommandPaletteCloseKey(event.key) || event.defaultPrevented) {
-        return;
-      }
-
-      event.preventDefault();
-      closePalette();
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [closePalette, isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    if (activeItemId == null) {
-      return;
-    }
-
-    if (!findItemById(groups, activeItemId)) {
-      setActiveItemId(null);
-    }
-  }, [activeItemId, groups, isOpen]);
 
   const handleDialogCancel = (event: React.SyntheticEvent<HTMLDialogElement>) => {
     event.preventDefault();
@@ -483,15 +526,6 @@ export function CommandPalette({
     },
     [activeItemId, groups, handleItemSelect, handleNavigate],
   );
-
-  useEffect(() => {
-    if (!isOpen || !activeDescendantId) {
-      return;
-    }
-
-    const element = document.getElementById(activeDescendantId);
-    element?.scrollIntoView({ block: "nearest" });
-  }, [activeDescendantId, isOpen]);
 
   return isOpen ? (
     <dialog

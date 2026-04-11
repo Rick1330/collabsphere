@@ -10,6 +10,11 @@ type PaletteItemRef = {
 
 const isSelectableItem = (item: CommandPaletteItem) => !item.disabled;
 
+type PaletteGroupRef = {
+  groupIndex: number;
+  firstItemId: string;
+};
+
 export const getSelectableItems = (groups: readonly CommandPaletteGroup[]) => {
   const items: PaletteItemRef[] = [];
 
@@ -24,6 +29,21 @@ export const getSelectableItems = (groups: readonly CommandPaletteGroup[]) => {
   });
 
   return items;
+};
+
+const getSelectableGroups = (groups: readonly CommandPaletteGroup[]) => {
+  const selectable: PaletteGroupRef[] = [];
+
+  groups.forEach((group, groupIndex) => {
+    const firstItemId = group.items.find(isSelectableItem)?.id;
+    if (!firstItemId) {
+      return;
+    }
+
+    selectable.push({ groupIndex, firstItemId });
+  });
+
+  return selectable;
 };
 
 export const findItemById = (
@@ -88,17 +108,6 @@ const getGroupIndexForItemId = (groups: readonly CommandPaletteGroup[], itemId: 
   return null;
 };
 
-const getFirstSelectableItemIdInGroup = (
-  group: CommandPaletteGroup | undefined,
-): string | null => {
-  if (!group) {
-    return null;
-  }
-
-  const match = group.items.find(isSelectableItem);
-  return match?.id ?? null;
-};
-
 export const getNextGroupItemId = ({
   activeItemId,
   direction,
@@ -108,45 +117,25 @@ export const getNextGroupItemId = ({
   activeItemId: string | null;
   direction: CommandPaletteNavigationDirection;
 }>) => {
-  if (groups.length === 0) {
+  const selectableGroups = getSelectableGroups(groups);
+
+  if (selectableGroups.length === 0) {
     return null;
   }
 
-  const startIndex = getGroupIndexForItemId(groups, activeItemId);
+  const activeGroupIndex = getGroupIndexForItemId(groups, activeItemId);
+  const activePosition =
+    activeGroupIndex == null
+      ? -1
+      : selectableGroups.findIndex((entry) => entry.groupIndex === activeGroupIndex);
 
-  if (startIndex == null) {
-    if (direction === "next") {
-      for (const group of groups) {
-        const id = getFirstSelectableItemIdInGroup(group);
-        if (id) {
-          return id;
-        }
-      }
-
-      return null;
-    }
-
-    for (let index = groups.length - 1; index >= 0; index -= 1) {
-      const id = getFirstSelectableItemIdInGroup(groups[index]);
-      if (id) {
-        return id;
-      }
-    }
-
-    return null;
+  if (activePosition === -1) {
+    return direction === "next"
+      ? selectableGroups[0]?.firstItemId ?? null
+      : selectableGroups.at(-1)?.firstItemId ?? null;
   }
 
   const delta = direction === "next" ? 1 : -1;
-
-  for (let offset = 1; offset <= groups.length; offset += 1) {
-    const candidateIndex = (startIndex + offset * delta + groups.length) % groups.length;
-    const candidateGroup = groups[candidateIndex];
-    const id = getFirstSelectableItemIdInGroup(candidateGroup);
-    if (id) {
-      return id;
-    }
-  }
-
-  return null;
+  const nextPosition = (activePosition + delta + selectableGroups.length) % selectableGroups.length;
+  return selectableGroups[nextPosition]?.firstItemId ?? null;
 };
-
