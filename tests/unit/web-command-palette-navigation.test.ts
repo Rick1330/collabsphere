@@ -5,8 +5,8 @@ import {
   findItemById,
   getNextGroupItemId,
   getNextSelectableItemId,
-} from "../../apps/web/src/components/foundation/command-palette-navigation";
-import type { CommandPaletteGroup } from "../../apps/web/src/components/foundation/command-palette";
+} from "../../apps/web/src/components/shell/command-palette-navigation";
+import type { CommandPaletteGroup } from "../../apps/web/src/components/shell/command-palette";
 
 const groups: CommandPaletteGroup[] = [
   {

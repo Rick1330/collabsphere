@@ -1,12 +1,12 @@
 import type { ReactNode } from "react";
 
-import { CollapsibleShellFrame } from "../../components/foundation/collapsible-shell-frame";
-import { GlobalSidebar } from "../../components/foundation/global-sidebar";
-import { globalNavItems } from "../../components/foundation/navigation";
-import { NotificationBell } from "../../components/foundation/notification-bell";
-import { TopNavBar } from "../../components/foundation/top-nav-bar";
-import { ThemeUserMenu } from "../../components/foundation/user-theme-menu";
-import { WorkspaceSwitcher } from "../../components/foundation/workspace-switcher";
+import { CollapsibleShellFrame } from "../../components/shell/collapsible-shell-frame";
+import { GlobalSidebar } from "../../components/shell/global-sidebar";
+import { globalNavItems } from "../../components/shell/navigation";
+import { NotificationBell } from "../../components/shell/notification-bell";
+import { TopNavBar } from "../../components/shell/top-nav-bar";
+import { ThemeUserMenu } from "../../components/shell/user-theme-menu";
+import { WorkspaceSwitcher } from "../../components/shell/workspace-switcher";
 
 export default function AuthenticatedLayout({
   children,

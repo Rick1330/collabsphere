@@ -5,7 +5,7 @@ import {
   handleDesktopSidebarShortcut,
   isDesktopSidebarShortcut,
   isMacLikePlatform,
-} from "../../apps/web/src/components/foundation/desktop-sidebar-shortcut";
+} from "../../apps/web/src/components/shell/desktop-sidebar-shortcut";
 
 type ShortcutEventStub = {
   altKey: boolean;

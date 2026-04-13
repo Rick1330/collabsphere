@@ -1,12 +1,12 @@
 import type { ReactNode } from "react";
 
-import { CollapsibleShellFrame } from "../../../../components/foundation/collapsible-shell-frame";
-import { NotificationBell } from "../../../../components/foundation/notification-bell";
-import { TopNavBar } from "../../../../components/foundation/top-nav-bar";
-import { ThemeUserMenu } from "../../../../components/foundation/user-theme-menu";
-import { WorkspaceSwitcher } from "../../../../components/foundation/workspace-switcher";
-import { WorkspaceSidebar } from "../../../../components/foundation/workspace-sidebar";
-import { workspaceNavItems } from "../../../../components/foundation/navigation";
+import { CollapsibleShellFrame } from "../../../../components/shell/collapsible-shell-frame";
+import { NotificationBell } from "../../../../components/shell/notification-bell";
+import { TopNavBar } from "../../../../components/shell/top-nav-bar";
+import { ThemeUserMenu } from "../../../../components/shell/user-theme-menu";
+import { WorkspaceSwitcher } from "../../../../components/shell/workspace-switcher";
+import { WorkspaceSidebar } from "../../../../components/shell/workspace-sidebar";
+import { workspaceNavItems } from "../../../../components/shell/navigation";
 
 type WorkspaceLayoutProps = {
   children: ReactNode;

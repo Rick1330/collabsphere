@@ -2,8 +2,8 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
-import { MobileMenu } from "../components/foundation/mobile-menu";
-import { globalNavItems } from "../components/foundation/navigation";
+import { MobileMenu } from "../mobile-menu";
+import { globalNavItems } from "../navigation";
 import { renderWithProviders } from "./render-with-providers";
 
 describe("mobile menu interactions", () => {

@@ -2,8 +2,8 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
-import { ThemeUserMenu } from "../components/foundation/user-theme-menu";
-import { themePreferenceStorageKey } from "../lib/theme";
+import { ThemeUserMenu } from "../user-theme-menu";
+import { themePreferenceStorageKey } from "../../../lib/theme";
 import { renderWithProviders } from "./render-with-providers";
 
 describe("theme user menu interactions", () => {

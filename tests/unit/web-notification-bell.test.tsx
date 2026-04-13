@@ -17,7 +17,7 @@ import {
   getNotificationTypeMark,
   isNotificationMenuNavigationKey,
   isNotificationMenuOpenKey,
-} from "../../apps/web/src/components/foundation/notification-bell";
+} from "../../apps/web/src/components/shell/notification-bell";
 import {
   NotificationApiError,
   listRecentNotifications,

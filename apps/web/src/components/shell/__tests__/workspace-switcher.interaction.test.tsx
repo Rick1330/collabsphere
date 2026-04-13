@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   WorkspaceSwitcherMenu,
   type WorkspaceSwitcherDataState,
-} from "../components/foundation/workspace-switcher";
+} from "../workspace-switcher";
 import { renderWithProviders } from "./render-with-providers";
 
 const loadedState: WorkspaceSwitcherDataState = {

@@ -11,8 +11,8 @@ import {
   isWorkspaceRoleAllowed,
   isWorkspaceSidebarItemActive,
   workspaceSidebarPrimaryItems,
-} from "../../apps/web/src/components/foundation/navigation";
-import { WorkspaceSidebarView } from "../../apps/web/src/components/foundation/workspace-sidebar";
+} from "../../apps/web/src/components/shell/navigation";
+import { WorkspaceSidebarView } from "../../apps/web/src/components/shell/workspace-sidebar";
 
 const workspace: WorkspaceSummary = {
   id: "workspace-alpha",

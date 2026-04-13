@@ -1,7 +1,7 @@
 import { render, type RenderOptions } from "@testing-library/react";
 import * as React from "react";
 
-import { AppProviders } from "../components/providers/app-providers";
+import { AppProviders } from "../../providers/app-providers";
 
 export const renderWithProviders = (
   ui: React.ReactElement,

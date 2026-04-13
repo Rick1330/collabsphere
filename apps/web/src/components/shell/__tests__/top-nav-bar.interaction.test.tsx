@@ -2,16 +2,16 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("../components/foundation/use-command-palette-search", () => ({
+vi.mock("../use-command-palette-search", () => ({
   useCommandPaletteSearch: () => ({
     status: { kind: "idle" },
   }),
 }));
 
-import { TopNavBar } from "../components/foundation/top-nav-bar";
-import { globalNavItems } from "../components/foundation/navigation";
-import { ThemeUserMenu } from "../components/foundation/user-theme-menu";
-import { WorkspaceSwitcherMenu } from "../components/foundation/workspace-switcher";
+import { TopNavBar } from "../top-nav-bar";
+import { globalNavItems } from "../navigation";
+import { ThemeUserMenu } from "../user-theme-menu";
+import { WorkspaceSwitcherMenu } from "../workspace-switcher";
 import { renderWithProviders } from "./render-with-providers";
 
 describe("top nav interactions", () => {
