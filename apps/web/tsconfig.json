@@ -12,6 +12,9 @@
       "@/*": [
         "./src/*"
       ],
+      "@collabsphere/ui": [
+        "../../packages/ui/src/index.ts"
+      ],
       "@collabsphere/shared": [
         "../../packages/shared/src/index.ts"
       ]

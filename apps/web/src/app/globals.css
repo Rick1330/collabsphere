@@ -1,6 +1,10 @@
 @import url("../styles/theme.css");
 @import url("../styles/tokens.css");
 
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 * {
   box-sizing: border-box;
 }

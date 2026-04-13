@@ -1,0 +1,20 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "default",
+  "rsc": true,
+  "tsx": true,
+  "tailwind": {
+    "config": "../../apps/web/tailwind.config.ts",
+    "css": "../../apps/web/src/app/globals.css",
+    "baseColor": "stone",
+    "cssVariables": true
+  },
+  "aliases": {
+    "components": "@collabsphere/ui/components",
+    "utils": "@collabsphere/ui/lib/utils",
+    "ui": "@collabsphere/ui/components",
+    "lib": "@collabsphere/ui/lib",
+    "hooks": "@collabsphere/ui/hooks"
+  },
+  "iconLibrary": "lucide"
+}
