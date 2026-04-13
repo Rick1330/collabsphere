@@ -88,5 +88,6 @@ beforeAll(() => {
 });
 
 afterEach(() => {
+  mediaQueryListeners.clear();
   cleanup();
 });
