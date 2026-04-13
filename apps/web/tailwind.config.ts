@@ -4,6 +4,7 @@ import tailwindcssAnimate from "tailwindcss-animate";
 const config: Config = {
   content: [
     "./src/**/*.{ts,tsx,mdx}",
+    "../../packages/ui/src/**/*.{ts,tsx}",
   ],
   corePlugins: {
     preflight: false,
