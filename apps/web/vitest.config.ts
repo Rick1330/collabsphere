@@ -11,9 +11,22 @@ export default defineConfig({
   resolve: {
     alias: [
       { find: "@", replacement: path.resolve(rootDir, "src") },
-      { find: "@collabsphere/ui", replacement: path.resolve(rootDir, "../../packages/ui/src/index.ts") },
-      { find: /^@collabsphere\/ui\/(.*)$/, replacement: path.resolve(rootDir, "../../packages/ui/src/$1") },
-      { find: "@collabsphere/shared", replacement: path.resolve(rootDir, "../../packages/shared/src/index.ts") },
+      {
+        find: /^@collabsphere\/ui$/,
+        replacement: path.resolve(rootDir, "../../packages/ui/src/index.ts"),
+      },
+      {
+        find: "@collabsphere/ui/components/dialog",
+        replacement: path.resolve(rootDir, "../../packages/ui/src/components/dialog.tsx"),
+      },
+      {
+        find: "@collabsphere/ui/components/dropdown-menu",
+        replacement: path.resolve(rootDir, "../../packages/ui/src/components/dropdown-menu.tsx"),
+      },
+      {
+        find: /^@collabsphere\/shared$/,
+        replacement: path.resolve(rootDir, "../../packages/shared/src/index.ts"),
+      },
     ],
   },
   test: {
