@@ -41,7 +41,7 @@ Provide a concise prompt contract for frontend batons that preserves governance,
 - live merge-readiness based on checks and unresolved current-head review threads only
 
 ### 8. Required Report
-- target report path in `D:\coloe\decision`
+- target report path or report naming convention for the active workflow
 - concise required sections
 
 ## Prompt Style Rules

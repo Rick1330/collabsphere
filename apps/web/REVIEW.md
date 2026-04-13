@@ -17,7 +17,7 @@ Tier B frontend review defaults for `apps/web`. These guide review depth and qua
 
 ### Design And Visual Quality
 - Review for hierarchy, spacing rhythm, and state clarity, not just correctness.
-- Reject obviously generic AI-template aesthetics when the baton includes meaningful UI work.
+- When the baton includes meaningful UI work, evaluate the result against the design review rubric below and flag observable issues such as weak information hierarchy, inconsistent typographic scale, uneven spacing and composition, unclear state affordances, or poor product fit.
 - Art direction preferences are strong defaults, not hard merge blockers by themselves:
   - avoid purple or violet as the primary product accent unless explicitly requested
   - avoid decorative gradient-heavy chrome for core product surfaces
