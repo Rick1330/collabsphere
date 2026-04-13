@@ -3,14 +3,18 @@
 import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
+
 import {
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type KeyboardEvent,
-  type PointerEvent as ReactPointerEvent,
-} from "react";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@collabsphere/ui/components/dropdown-menu";
 
 import { AuthApiError, logoutCurrentSession } from "../../lib/api/auth";
 import type { ThemePreference } from "../../lib/theme";
@@ -69,7 +73,7 @@ type ThemeUserMenuSignOutState =
   | { kind: "error"; message: string; requestId: string | null }
   | null;
 
-type UserMenuItemElement = HTMLAnchorElement | HTMLButtonElement;
+type UserMenuItemElement = HTMLElement;
 
 const placeholderIdentity = {
   badge: "Shell",
@@ -77,7 +81,6 @@ const placeholderIdentity = {
     "Profile, email, and role details will appear here once the current-user API contract is wired into the web shell.",
   initials: "CS",
   name: "CollabSphere member",
-  triggerMeta: "Account shell with local theme controls",
 } as const;
 
 const navigationSectionLabel = "Account shortcuts";
@@ -141,9 +144,8 @@ const signOutAction: UserMenuSignOutAction = {
 export const isThemeMenuOpenKey = (key: string): key is ThemeMenuOpenKey =>
   key === "Enter" || key === " " || key === "ArrowDown" || key === "ArrowUp";
 
-export const isThemeMenuNavigationKey = (
-  key: string,
-): key is ThemeMenuOptionKey => themeMenuNavigationKeys.has(key as ThemeMenuOptionKey);
+export const isThemeMenuNavigationKey = (key: string): key is ThemeMenuOptionKey =>
+  themeMenuNavigationKeys.has(key as ThemeMenuOptionKey);
 
 export const isThemeMenuLinkActivationKey = (
   key: string,
@@ -245,11 +247,7 @@ const getThemeActions = (): UserMenuThemeAction[] =>
     preference: option.value,
   }));
 
-const getUserMenuActions = (): UserMenuAction[] => [
-  ...navigationActions,
-  ...getThemeActions(),
-  signOutAction,
-];
+const getUserMenuActions = (): UserMenuAction[] => [...navigationActions, ...getThemeActions(), signOutAction];
 
 const redirectToLogin = () => {
   if (typeof window === "undefined") {
@@ -259,39 +257,25 @@ const redirectToLogin = () => {
   window.location.assign("/login");
 };
 
-export function ThemeUserMenu({ initialOpen = false }: ThemeUserMenuProps) {
+export function ThemeUserMenu({ initialOpen = false }: Readonly<ThemeUserMenuProps>) {
   const queryClient = useQueryClient();
   const { preference, resolvedTheme, setThemePreference } = useTheme();
   const menuId = useId();
   const triggerId = `${menuId}-trigger`;
-  const itemRefs = useRef<Array<UserMenuItemElement | null>>([]);
-  const rootRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const itemRefs = useRef<Array<UserMenuItemElement | null>>([]);
   const [hasMounted, setHasMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(initialOpen);
+  const [openIndex, setOpenIndex] = useState(0);
   const actions = getUserMenuActions();
-  const [activeIndex, setActiveIndex] = useState(0);
   const statusLabel = hasMounted
     ? getThemeMenuStatusLabel(preference, resolvedTheme)
     : "Account menu";
 
-  const openMenu = (nextIndex = 0) => {
-    setActiveIndex(nextIndex);
-    setIsOpen(true);
-  };
-
-  const closeMenu = (restoreFocus = false) => {
-    setIsOpen(false);
-
-    if (restoreFocus) {
-      triggerRef.current?.focus();
-    }
-  };
-
   const signOutMutation = useMutation({
     mutationFn: () => logoutCurrentSession(),
     onSuccess: () => {
-      closeMenu();
+      setIsOpen(false);
       queryClient.clear();
       redirectToLogin();
     },
@@ -306,82 +290,12 @@ export function ThemeUserMenu({ initialOpen = false }: ThemeUserMenuProps) {
       return;
     }
 
-    itemRefs.current[activeIndex]?.focus();
-  }, [activeIndex, isOpen]);
+    itemRefs.current[openIndex]?.focus();
+  }, [isOpen, openIndex]);
 
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target;
-
-      if (target instanceof Node && !rootRef.current?.contains(target)) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener("pointerdown", handlePointerDown);
-
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-    };
-  }, [isOpen]);
-
-  const handleTriggerKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
-    if (!isThemeMenuOpenKey(event.key)) {
-      return;
-    }
-
-    event.preventDefault();
-    openMenu(getThemeMenuOpenIndex(event.key, 0, actions.length));
-  };
-
-  const handleMenuKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      closeMenu(true);
-      return;
-    }
-
-    if (event.key === "Tab") {
-      setIsOpen(false);
-      return;
-    }
-
-    if (!isThemeMenuNavigationKey(event.key)) {
-      return;
-    }
-
-    event.preventDefault();
-    setActiveIndex(getThemeMenuNextIndex(activeIndex, event.key, actions.length));
-  };
-
-  const handleActionPointerMove = (
-    event: ReactPointerEvent<HTMLElement>,
-    index: number,
-  ) => {
-    if (event.pointerType !== "mouse" && event.pointerType !== "pen") {
-      return;
-    }
-
-    setActiveIndex(index);
-  };
-
-  const handleActionSelect = (action: UserMenuThemeAction | UserMenuSignOutAction) => {
-    if (action.kind === "theme") {
-      setThemePreference(action.preference);
-      closeMenu(true);
-      return;
-    }
-
-    if (signOutMutation.isPending) {
-      return;
-    }
-
-    signOutMutation.reset();
-    signOutMutation.mutate();
+  const openMenu = (nextIndex = 0) => {
+    setOpenIndex(nextIndex);
+    setIsOpen(true);
   };
 
   const signOutStatus = getThemeUserMenuSignOutState({
@@ -391,203 +305,176 @@ export function ThemeUserMenu({ initialOpen = false }: ThemeUserMenuProps) {
   });
 
   return (
-    <div ref={rootRef} className="shell-user-menu">
-      <button
-        ref={triggerRef}
-        id={triggerId}
-        type="button"
-        className="shell-user-menu__trigger"
-        aria-expanded={isOpen}
-        aria-haspopup="menu"
-        aria-controls={menuId}
-        onClick={() => {
-          if (isOpen) {
-            closeMenu();
-            return;
-          }
+    <DropdownMenu modal={false} open={isOpen} onOpenChange={setIsOpen}>
+      <DropdownMenuTrigger asChild>
+        <button
+          ref={triggerRef}
+          id={triggerId}
+          type="button"
+          className="shell-user-menu__trigger"
+          aria-expanded={isOpen}
+          aria-haspopup="menu"
+          aria-controls={menuId}
+          onClick={() => {
+            if (isOpen) {
+              setIsOpen(false);
+              return;
+            }
 
-          openMenu(0);
-        }}
-        onKeyDown={handleTriggerKeyDown}
-      >
-        <span className="shell-user-menu__avatar" aria-hidden="true">
-          {placeholderIdentity.initials}
-        </span>
-        <span className="shell-user-menu__trigger-copy">
-          <span className="shell-user-menu__trigger-label">
-            {placeholderIdentity.name}
+            openMenu(0);
+          }}
+          onKeyDown={(event: KeyboardEvent<HTMLButtonElement>) => {
+            if (!isThemeMenuOpenKey(event.key)) {
+              return;
+            }
+
+            event.preventDefault();
+            openMenu(getThemeMenuOpenIndex(event.key, 0, actions.length));
+          }}
+        >
+          <span className="shell-user-menu__avatar" aria-hidden="true">
+            {placeholderIdentity.initials}
           </span>
-          <span
-            className="shell-user-menu__trigger-state"
-            suppressHydrationWarning
-          >
-            {statusLabel}
+          <span className="shell-user-menu__trigger-copy">
+            <span className="shell-user-menu__trigger-label">{placeholderIdentity.name}</span>
+            <span className="shell-user-menu__trigger-state" suppressHydrationWarning>
+              {statusLabel}
+            </span>
           </span>
-        </span>
-        <span className="shell-user-menu__trigger-caret" aria-hidden="true">
-          {isOpen ? "▴" : "▾"}
-        </span>
-      </button>
+          <span className="shell-user-menu__trigger-caret" aria-hidden="true">
+            {isOpen ? "▴" : "▾"}
+          </span>
+        </button>
+      </DropdownMenuTrigger>
+
       {isOpen ? (
-        <div id={menuId} className="shell-user-menu__panel">
+        <DropdownMenuContent
+          id={menuId}
+          className="shell-user-menu__panel"
+          align="end"
+          sideOffset={12}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            triggerRef.current?.focus();
+          }}
+        >
           <div className="shell-user-menu__identity" role="presentation">
             <span className="shell-user-menu__identity-avatar" aria-hidden="true">
               {placeholderIdentity.initials}
             </span>
             <div className="shell-user-menu__identity-copy">
-              <span className="shell-user-menu__identity-name">
-                {placeholderIdentity.name}
-              </span>
-              <span className="shell-user-menu__identity-meta">
-                {placeholderIdentity.description}
-              </span>
+              <span className="shell-user-menu__identity-name">{placeholderIdentity.name}</span>
+              <span className="shell-user-menu__identity-meta">{placeholderIdentity.description}</span>
             </div>
-            <span className="shell-user-menu__identity-badge">
-              {placeholderIdentity.badge}
-            </span>
+            <span className="shell-user-menu__identity-badge">{placeholderIdentity.badge}</span>
           </div>
-          <div className="shell-user-menu__divider" role="presentation" />
-          <div
-            className="shell-user-menu__menu"
-            role="menu"
-            aria-labelledby={triggerId}
-            onKeyDown={handleMenuKeyDown}
-          >
+
+          <DropdownMenuSeparator className="shell-user-menu__divider" />
+
+          <div className="shell-user-menu__menu">
             <p className="shell-user-menu__section-label" role="presentation" aria-hidden="true">
               {navigationSectionLabel}
             </p>
-            <div className="shell-user-menu__options" role="group" aria-label={navigationSectionLabel}>
+            <DropdownMenuGroup className="shell-user-menu__options" aria-label={navigationSectionLabel}>
               {navigationActions.map((action, index) => (
-                <Link
-                  key={action.key}
-                  ref={(node) => {
-                    itemRefs.current[index] = node;
-                  }}
-                  href={action.href}
-                  role="menuitem"
-                  tabIndex={index === activeIndex ? 0 : -1}
-                  className="shell-user-menu__option shell-user-menu__option--link"
-                  onClick={() => {
-                    closeMenu();
-                  }}
-                  onFocus={() => {
-                    setActiveIndex(index);
-                  }}
-                  onKeyDown={(event) => {
-                    if (!isThemeMenuLinkActivationKey(event.key)) {
-                      return;
-                    }
-
-                    event.preventDefault();
-                    event.currentTarget.click();
-                  }}
-                  onPointerMove={(event) => {
-                    handleActionPointerMove(event, index);
-                  }}
-                >
-                  <span className="shell-user-menu__action-mark" aria-hidden="true">
-                    {action.mark}
-                  </span>
-                  <span className="shell-user-menu__option-copy">
-                    <span className="shell-user-menu__option-label">{action.label}</span>
-                    <span className="shell-user-menu__option-description">
-                      {action.description}
-                    </span>
-                  </span>
-                </Link>
-              ))}
-            </div>
-
-            <div className="shell-user-menu__divider" role="presentation" />
-            <p className="shell-user-menu__section-label" role="presentation" aria-hidden="true">
-              {themeSectionLabel}
-            </p>
-            <div className="shell-user-menu__options" role="group" aria-label={themeSectionLabel}>
-              {themeMenuOptions.map((option, optionIndex) => {
-                const index = navigationActions.length + optionIndex;
-                const checked = option.value === preference;
-                const action = actions[index];
-
-                if (!action || action.kind !== "theme") {
-                  return null;
-                }
-
-                return (
-                  <button
-                    key={option.value}
+                <DropdownMenuItem key={action.key} asChild className="shell-user-menu__option shell-user-menu__option--link">
+                  <Link
                     ref={(node) => {
                       itemRefs.current[index] = node;
                     }}
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={checked}
-                    tabIndex={index === activeIndex ? 0 : -1}
-                    className="shell-user-menu__option shell-user-menu__option--theme"
-                    data-selected={checked}
-                    onClick={() => {
-                      handleActionSelect(action);
-                    }}
-                    onFocus={() => {
-                      setActiveIndex(index);
-                    }}
-                    onPointerMove={(event) => {
-                      handleActionPointerMove(event, index);
+                    href={action.href}
+                    onKeyDown={(event) => {
+                      if (!isThemeMenuLinkActivationKey(event.key)) {
+                        return;
+                      }
+
+                      event.preventDefault();
+                      event.currentTarget.click();
                     }}
                   >
-                    <span
-                      className="shell-user-menu__option-indicator"
-                      aria-hidden="true"
-                    />
-                    <span className="shell-user-menu__option-copy">
-                      <span className="shell-user-menu__option-label">
-                        {option.label}
-                      </span>
-                      <span className="shell-user-menu__option-description">
-                        {option.description}
-                      </span>
+                    <span className="shell-user-menu__action-mark" aria-hidden="true">
+                      {action.mark}
                     </span>
-                  </button>
-                );
-              })}
-            </div>
+                    <span className="shell-user-menu__option-copy">
+                      <span className="shell-user-menu__option-label">{action.label}</span>
+                      <span className="shell-user-menu__option-description">{action.description}</span>
+                    </span>
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
 
-            <div className="shell-user-menu__divider" role="presentation" />
+            <DropdownMenuSeparator className="shell-user-menu__divider" />
+
+            <p className="shell-user-menu__section-label" role="presentation" aria-hidden="true">
+              {themeSectionLabel}
+            </p>
+            <DropdownMenuRadioGroup
+              value={preference}
+              onValueChange={(value) => {
+                setThemePreference(value as ThemePreference);
+                setIsOpen(false);
+              }}
+            >
+              <DropdownMenuGroup className="shell-user-menu__options" aria-label={themeSectionLabel}>
+                {themeMenuOptions.map((option, optionIndex) => {
+                  const index = navigationActions.length + optionIndex;
+                  const checked = option.value === preference;
+
+                  return (
+                    <DropdownMenuRadioItem
+                      key={option.value}
+                      ref={(node) => {
+                        itemRefs.current[index] = node;
+                      }}
+                      value={option.value}
+                      className="shell-user-menu__option shell-user-menu__option--theme"
+                      data-selected={checked || undefined}
+                    >
+                      <span className="shell-user-menu__option-indicator" aria-hidden="true" />
+                      <span className="shell-user-menu__option-copy">
+                        <span className="shell-user-menu__option-label">{option.label}</span>
+                        <span className="shell-user-menu__option-description">{option.description}</span>
+                      </span>
+                    </DropdownMenuRadioItem>
+                  );
+                })}
+              </DropdownMenuGroup>
+            </DropdownMenuRadioGroup>
+
+            <DropdownMenuSeparator className="shell-user-menu__divider" />
+
             <p className="shell-user-menu__section-label" role="presentation" aria-hidden="true">
               {signOutSectionLabel}
             </p>
-            <div className="shell-user-menu__options" role="group" aria-label={signOutSectionLabel}>
-              <button
+            <DropdownMenuGroup className="shell-user-menu__options" aria-label={signOutSectionLabel}>
+              <DropdownMenuItem
                 ref={(node) => {
                   itemRefs.current[actions.length - 1] = node;
                 }}
-                type="button"
-                role="menuitem"
-                tabIndex={actions.length - 1 === activeIndex ? 0 : -1}
                 className="shell-user-menu__option shell-user-menu__option--signout"
-                onClick={() => {
-                  handleActionSelect(signOutAction);
-                }}
-                onFocus={() => {
-                  setActiveIndex(actions.length - 1);
-                }}
-                onPointerMove={(event) => {
-                  handleActionPointerMove(event, actions.length - 1);
-                }}
                 aria-disabled={signOutMutation.isPending}
                 data-pending={signOutMutation.isPending || undefined}
+                onSelect={(event) => {
+                  event.preventDefault();
+
+                  if (signOutMutation.isPending) {
+                    return;
+                  }
+
+                  signOutMutation.reset();
+                  signOutMutation.mutate();
+                }}
               >
                 <span className="shell-user-menu__action-mark" aria-hidden="true">
                   {signOutAction.mark}
                 </span>
                 <span className="shell-user-menu__option-copy">
-                  <span className="shell-user-menu__option-label">
-                    {signOutAction.label}
-                  </span>
-                  <span className="shell-user-menu__option-description">
-                    {signOutAction.description}
-                  </span>
+                  <span className="shell-user-menu__option-label">{signOutAction.label}</span>
+                  <span className="shell-user-menu__option-description">{signOutAction.description}</span>
                 </span>
-              </button>
+              </DropdownMenuItem>
+
               {signOutStatus ? (
                 <>
                   <p
@@ -603,10 +490,10 @@ export function ThemeUserMenu({ initialOpen = false }: ThemeUserMenuProps) {
                   ) : null}
                 </>
               ) : null}
-            </div>
+            </DropdownMenuGroup>
           </div>
-        </div>
+        </DropdownMenuContent>
       ) : null}
-    </div>
+    </DropdownMenu>
   );
 }

@@ -1,9 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { useCallback, useEffect, useId, useRef, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 
-import { getFocusableElements, getFocusTrapTarget } from "./dialog-focus-trap";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogOverlay,
+  DialogTitle,
+} from "@collabsphere/ui/components/dialog";
+
 import {
   findItemById,
   getNextGroupItemId,
@@ -40,21 +47,46 @@ type CommandPaletteProps = {
 
 type CommandPaletteCloseKey = "Escape";
 
+type CommandPaletteKeyAction =
+  | { kind: "navigate"; direction: CommandPaletteNavigationDirection }
+  | { kind: "group"; direction: CommandPaletteNavigationDirection }
+  | { kind: "select" }
+  | null;
+
+const commandPaletteStaticKeyActions: Readonly<Record<string, CommandPaletteKeyAction>> = {
+  ArrowDown: { kind: "navigate", direction: "next" },
+  ArrowUp: { kind: "navigate", direction: "previous" },
+  Enter: { kind: "select" },
+};
+
 export const isCommandPaletteCloseKey = (key: string): key is CommandPaletteCloseKey =>
   key === "Escape";
 
 const getCommandPaletteItemDomId = (value: string) =>
   `command-palette-item-${value.replaceAll(/[^a-zA-Z0-9_-]/g, "-")}`;
 
+function getCommandPaletteKeyAction(
+  event: React.KeyboardEvent<HTMLInputElement>,
+): CommandPaletteKeyAction {
+  const hasModifier = event.altKey || event.metaKey || event.ctrlKey;
+  if (event.defaultPrevented || hasModifier) {
+    return null;
+  }
+
+  if (event.key === "Tab") {
+    return { kind: "group", direction: event.shiftKey ? "previous" : "next" };
+  }
+
+  return commandPaletteStaticKeyActions[event.key] ?? null;
+}
+
 type CommandPaletteHeaderProps = {
-  closeButtonRef: React.RefObject<HTMLButtonElement | null>;
   descriptionId: string;
   titleId: string;
   onClose: () => void;
 };
 
 function CommandPaletteHeader({
-  closeButtonRef,
   descriptionId,
   titleId,
   onClose,
@@ -62,15 +94,14 @@ function CommandPaletteHeader({
   return (
     <header className="command-palette__header">
       <div className="command-palette__header-copy">
-        <p id={titleId} className="command-palette__title">
+        <DialogTitle id={titleId} className="command-palette__title">
           Command palette
-        </p>
-        <p id={descriptionId} className="command-palette__description">
+        </DialogTitle>
+        <DialogDescription id={descriptionId} className="command-palette__description">
           Type a command or search across your workspace.
-        </p>
+        </DialogDescription>
       </div>
       <button
-        ref={closeButtonRef}
         type="button"
         className="command-palette__close"
         aria-label="Close command palette"
@@ -130,66 +161,9 @@ type CommandPaletteResultsProps = {
   groups: readonly CommandPaletteGroup[];
   activeItemId: string | null;
   resultsId: string;
+  searchInputRef: React.RefObject<HTMLInputElement | null>;
   onItemSelect: (item: CommandPaletteItem) => void;
 };
-
-type CommandPaletteResultItemProps = {
-  activeItemId: string | null;
-  item: CommandPaletteItem;
-  searchInputRef: React.RefObject<HTMLInputElement | null>;
-  onSelect: () => void;
-};
-
-function CommandPaletteResultItem({
-  activeItemId,
-  item,
-  searchInputRef,
-  onSelect,
-}: Readonly<CommandPaletteResultItemProps>) {
-  const optionId = getCommandPaletteItemDomId(item.id);
-  const descriptionId = item.description ? `${optionId}-description` : undefined;
-  const isActive = activeItemId === item.id;
-
-  return (
-    <button
-      id={optionId}
-      type="button"
-      className="command-palette__item-button"
-      role="option"
-      aria-selected={isActive}
-      aria-disabled={item.disabled ?? false}
-      aria-describedby={descriptionId}
-      disabled={item.disabled}
-      onMouseDown={(event) => {
-        if (item.disabled) {
-          return;
-        }
-
-        // Keep focus anchored in the input so aria-activedescendant remains the active model.
-        event.preventDefault();
-        searchInputRef.current?.focus();
-      }}
-      onClick={onSelect}
-    >
-      <span className="command-palette__item-icon" aria-hidden="true">
-        {item.icon ?? "•"}
-      </span>
-      <span className="command-palette__item-copy">
-        <span className="command-palette__item-label">{item.label}</span>
-        {item.description ? (
-          <span id={descriptionId} className="command-palette__item-description">
-            {item.description}
-          </span>
-        ) : null}
-      </span>
-      {item.pill ? (
-        <span className="command-palette__item-pill" aria-hidden="true">
-          {item.pill}
-        </span>
-      ) : null}
-    </button>
-  );
-}
 
 function CommandPaletteResults({
   activeItemId,
@@ -197,9 +171,7 @@ function CommandPaletteResults({
   onItemSelect,
   resultsId,
   searchInputRef,
-}: Readonly<
-  CommandPaletteResultsProps & { searchInputRef: React.RefObject<HTMLInputElement | null> }
->) {
+}: Readonly<CommandPaletteResultsProps>) {
   return (
     <section
       id={resultsId}
@@ -219,18 +191,54 @@ function CommandPaletteResults({
               {group.label}
             </h3>
             <ul className="command-palette__group-list" role="presentation">
-              {group.items.map((item) => (
-                <li key={item.id} className="command-palette__item" role="presentation">
-                  <CommandPaletteResultItem
-                    activeItemId={activeItemId}
-                    item={item}
-                    searchInputRef={searchInputRef}
-                    onSelect={() => {
-                      onItemSelect(item);
-                    }}
-                  />
-                </li>
-              ))}
+              {group.items.map((item) => {
+                const optionId = getCommandPaletteItemDomId(item.id);
+                const descriptionId = item.description ? `${optionId}-description` : undefined;
+                const isActive = activeItemId === item.id;
+
+                return (
+                  <li key={item.id} className="command-palette__item" role="presentation">
+                    <button
+                      id={optionId}
+                      type="button"
+                      className="command-palette__item-button"
+                      role="option"
+                      aria-selected={isActive}
+                      aria-disabled={item.disabled ?? false}
+                      aria-describedby={descriptionId}
+                      disabled={item.disabled}
+                      onMouseDown={(event) => {
+                        if (item.disabled) {
+                          return;
+                        }
+
+                        event.preventDefault();
+                        searchInputRef.current?.focus();
+                      }}
+                      onClick={() => {
+                        onItemSelect(item);
+                      }}
+                    >
+                      <span className="command-palette__item-icon" aria-hidden="true">
+                        {item.icon ?? "•"}
+                      </span>
+                      <span className="command-palette__item-copy">
+                        <span className="command-palette__item-label">{item.label}</span>
+                        {item.description ? (
+                          <span id={descriptionId} className="command-palette__item-description">
+                            {item.description}
+                          </span>
+                        ) : null}
+                      </span>
+                      {item.pill ? (
+                        <span className="command-palette__item-pill" aria-hidden="true">
+                          {item.pill}
+                        </span>
+                      ) : null}
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         ) : null,
@@ -259,119 +267,6 @@ function CommandPaletteFooter() {
   );
 }
 
-function useCommandPaletteBodyScrollLock(isOpen: boolean) {
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [isOpen]);
-}
-
-function useCommandPaletteEscapeToClose({
-  closePalette,
-  isOpen,
-}: Readonly<{ isOpen: boolean; closePalette: () => void }>) {
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (!isCommandPaletteCloseKey(event.key) || event.defaultPrevented) {
-        return;
-      }
-
-      event.preventDefault();
-      closePalette();
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [closePalette, isOpen]);
-}
-
-function useCommandPaletteGuardActiveItem({
-  activeItemId,
-  groups,
-  isOpen,
-  onInvalid,
-}: Readonly<{
-  isOpen: boolean;
-  groups: readonly CommandPaletteGroup[];
-  activeItemId: string | null;
-  onInvalid: () => void;
-}>) {
-  useEffect(() => {
-    if (!isOpen || activeItemId == null) {
-      return;
-    }
-
-    if (!findItemById(groups, activeItemId)) {
-      onInvalid();
-    }
-  }, [activeItemId, groups, isOpen, onInvalid]);
-}
-
-function useCommandPaletteScrollActiveDescendant({
-  activeDescendantId,
-  isOpen,
-}: Readonly<{ isOpen: boolean; activeDescendantId: string | undefined }>) {
-  useEffect(() => {
-    if (!isOpen || !activeDescendantId) {
-      return;
-    }
-
-    const element = document.getElementById(activeDescendantId);
-    element?.scrollIntoView({ block: "nearest" });
-  }, [activeDescendantId, isOpen]);
-}
-
-function handleCommandPaletteDialogTabKeyDown({
-  closeButtonRef,
-  dialogRef,
-  event,
-}: Readonly<{
-  event: KeyboardEvent<HTMLDialogElement>;
-  dialogRef: React.RefObject<HTMLDialogElement | null>;
-  closeButtonRef: React.RefObject<HTMLButtonElement | null>;
-}>) {
-  const focusableElements = getFocusableElements(dialogRef.current);
-  const lastElement = focusableElements.at(-1);
-
-  if (focusableElements.length === 0) {
-    event.preventDefault();
-    if (closeButtonRef.current) {
-      closeButtonRef.current.focus();
-      return;
-    }
-
-    dialogRef.current?.focus();
-    return;
-  }
-
-  const target = getFocusTrapTarget({
-    activeElement: document.activeElement,
-    firstElement: focusableElements[0],
-    lastElement,
-    shiftKey: event.shiftKey,
-  });
-
-  if (target != null) {
-    event.preventDefault();
-    target.focus();
-  }
-}
-
 export function CommandPalette({
   dialogId,
   groups,
@@ -382,7 +277,11 @@ export function CommandPalette({
   query,
   returnFocusRef,
 }: Readonly<CommandPaletteProps>) {
-  return isOpen ? (
+  if (!isOpen) {
+    return null;
+  }
+
+  return (
     <CommandPaletteDialog
       dialogId={dialogId}
       groups={groups}
@@ -393,7 +292,7 @@ export function CommandPalette({
       query={query}
       returnFocusRef={returnFocusRef}
     />
-  ) : null;
+  );
 }
 
 function CommandPaletteDialog({
@@ -406,137 +305,65 @@ function CommandPaletteDialog({
   query,
   returnFocusRef,
 }: Readonly<CommandPaletteProps>) {
-  const controller = useCommandPaletteDialogController({
-    dialogId,
-    groups,
-    inputRef,
-    isOpen,
-    onClose,
-    onQueryChange,
-    query,
-    returnFocusRef,
-  });
+  const paletteId = useId();
+  const internalInputRef = useRef<HTMLInputElement | null>(null);
+  const searchInputRef = inputRef ?? internalInputRef;
+  const [activeItemId, setActiveItemId] = useState<string | null>(null);
 
-  return (
-    <dialog
-      ref={controller.dialogRef}
-      id={controller.dialogId}
-      className="command-palette__dialog"
-      aria-modal="true"
-      aria-labelledby={controller.titleId}
-      aria-describedby={controller.descriptionId}
-      open={controller.isOpen}
-      tabIndex={-1}
-      onCancel={controller.handleDialogCancel}
-      onKeyDown={controller.handleDialogKeyDown}
-    >
-      <button
-        type="button"
-        className="command-palette__overlay"
-        aria-label="Close command palette"
-        onClick={controller.closePalette}
-      />
-      <div className="command-palette__panel">
-        <CommandPaletteHeader
-          closeButtonRef={controller.closeButtonRef}
-          descriptionId={controller.descriptionId}
-          titleId={controller.titleId}
-          onClose={controller.closePalette}
-        />
-        <CommandPaletteSearch
-          activeDescendantId={controller.activeDescendantId}
-          inputRef={controller.searchInputRef}
-          query={controller.query}
-          onQueryChange={controller.onQueryChange}
-          onKeyDown={controller.handleSearchKeyDown}
-          resultsId={controller.resultsId}
-        />
-        <CommandPaletteResults
-          groups={controller.groups}
-          activeItemId={controller.activeItemId}
-          onItemSelect={controller.handleItemSelect}
-          resultsId={controller.resultsId}
-          searchInputRef={controller.searchInputRef}
-        />
-        <CommandPaletteFooter />
-      </div>
-    </dialog>
-  );
-}
+  const titleId = `${paletteId}-title`;
+  const descriptionId = `${paletteId}-description`;
+  const resultsId = `${paletteId}-results`;
+  const activeDescendantId = activeItemId ? getCommandPaletteItemDomId(activeItemId) : undefined;
 
-type CommandPaletteDialogController = {
-  dialogId: string | undefined;
-  groups: readonly CommandPaletteGroup[];
-  isOpen: boolean;
-  query: string;
-  onQueryChange: (value: string) => void;
-  titleId: string;
-  descriptionId: string;
-  resultsId: string;
-  activeItemId: string | null;
-  activeDescendantId: string | undefined;
-  dialogRef: React.RefObject<HTMLDialogElement | null>;
-  closeButtonRef: React.RefObject<HTMLButtonElement | null>;
-  searchInputRef: React.RefObject<HTMLInputElement | null>;
-  closePalette: () => void;
-  handleDialogCancel: (event: React.SyntheticEvent<HTMLDialogElement>) => void;
-  handleDialogKeyDown: (event: KeyboardEvent<HTMLDialogElement>) => void;
-  handleSearchKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
-  handleItemSelect: (item: CommandPaletteItem) => void;
-};
-
-function useCommandPaletteClosePalette({
-  onClose,
-  returnFocusRef,
-}: Readonly<{
-  onClose: () => void;
-  returnFocusRef?: React.RefObject<HTMLElement | null>;
-}>) {
-  return useCallback(() => {
+  const closePalette = useCallback(() => {
     returnFocusRef?.current?.focus();
     onClose();
   }, [onClose, returnFocusRef]);
-}
 
-function useCommandPaletteClearActiveItem(setActiveItemId: (value: string | null) => void) {
-  return useCallback(() => {
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    searchInputRef.current?.focus();
     setActiveItemId(null);
-  }, [setActiveItemId]);
-}
+  }, [isOpen, searchInputRef]);
 
-function useCommandPaletteDialogCancel(closePalette: () => void) {
-  return useCallback(
-    (event: React.SyntheticEvent<HTMLDialogElement>) => {
-      event.preventDefault();
-      closePalette();
+  useEffect(() => {
+    if (!isOpen || activeItemId == null) {
+      return;
+    }
+
+    if (!findItemById(groups, activeItemId)) {
+      setActiveItemId(null);
+    }
+  }, [activeItemId, groups, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !activeDescendantId) {
+      return;
+    }
+
+    document.getElementById(activeDescendantId)?.scrollIntoView({ block: "nearest" });
+  }, [activeDescendantId, isOpen]);
+
+  const navigate = useCallback(
+    (direction: CommandPaletteNavigationDirection) => {
+      setActiveItemId((current) =>
+        getNextSelectableItemId({
+          groups,
+          activeItemId: current,
+          direction,
+        }),
+      );
     },
-    [closePalette],
+    [groups],
   );
-}
 
-function useCommandPaletteDialogKeyDown({
-  closeButtonRef,
-  dialogRef,
-}: Readonly<{
-  dialogRef: React.RefObject<HTMLDialogElement | null>;
-  closeButtonRef: React.RefObject<HTMLButtonElement | null>;
-}>) {
-  return useCallback(
-    (event: KeyboardEvent<HTMLDialogElement>) => {
-      if (event.key !== "Tab" || event.defaultPrevented) {
-        return;
-      }
-
-      handleCommandPaletteDialogTabKeyDown({ event, dialogRef, closeButtonRef });
-    },
-    [closeButtonRef, dialogRef],
-  );
-}
-
-function useCommandPaletteItemSelect(closePalette: () => void) {
-  return useCallback(
+  const handleItemSelect = useCallback(
     (item: CommandPaletteItem) => {
       let result: void | Promise<void>;
+
       try {
         result = item.onSelect?.();
       } catch (error_) {
@@ -559,70 +386,8 @@ function useCommandPaletteItemSelect(closePalette: () => void) {
     },
     [closePalette],
   );
-}
 
-function useCommandPaletteNavigate({
-  groups,
-  setActiveItemId,
-}: Readonly<{
-  groups: readonly CommandPaletteGroup[];
-  setActiveItemId: React.Dispatch<React.SetStateAction<string | null>>;
-}>) {
-  return useCallback(
-    (direction: CommandPaletteNavigationDirection) => {
-      setActiveItemId((current) =>
-        getNextSelectableItemId({
-          groups,
-          activeItemId: current,
-          direction,
-        }),
-      );
-    },
-    [groups, setActiveItemId],
-  );
-}
-
-type CommandPaletteKeyAction =
-  | { kind: "navigate"; direction: CommandPaletteNavigationDirection }
-  | { kind: "group"; direction: CommandPaletteNavigationDirection }
-  | { kind: "select" }
-  | null;
-
-const commandPaletteStaticKeyActions: Readonly<Record<string, CommandPaletteKeyAction>> = {
-  ArrowDown: { kind: "navigate", direction: "next" },
-  ArrowUp: { kind: "navigate", direction: "previous" },
-  Enter: { kind: "select" },
-};
-
-function getCommandPaletteKeyAction(
-  event: React.KeyboardEvent<HTMLInputElement>,
-): CommandPaletteKeyAction {
-  const hasModifier = event.altKey || event.metaKey || event.ctrlKey;
-  if (event.defaultPrevented || hasModifier) {
-    return null;
-  }
-
-  if (event.key === "Tab") {
-    return { kind: "group", direction: event.shiftKey ? "previous" : "next" };
-  }
-
-  return commandPaletteStaticKeyActions[event.key] ?? null;
-}
-
-function useCommandPaletteSearchKeyDown({
-  activeItemId,
-  groups,
-  handleItemSelect,
-  navigate,
-  setActiveItemId,
-}: Readonly<{
-  groups: readonly CommandPaletteGroup[];
-  activeItemId: string | null;
-  handleItemSelect: (item: CommandPaletteItem) => void;
-  navigate: (direction: CommandPaletteNavigationDirection) => void;
-  setActiveItemId: React.Dispatch<React.SetStateAction<string | null>>;
-}>) {
-  return useCallback(
+  const handleSearchKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
       const action = getCommandPaletteKeyAction(event);
       if (!action) {
@@ -659,84 +424,57 @@ function useCommandPaletteSearchKeyDown({
       event.preventDefault();
       handleItemSelect(activeItem);
     },
-    [activeItemId, groups, handleItemSelect, navigate, setActiveItemId],
+    [activeItemId, groups, handleItemSelect, navigate],
   );
-}
 
-function useCommandPaletteDialogController({
-  dialogId,
-  groups,
-  inputRef,
-  isOpen,
-  onClose,
-  onQueryChange,
-  query,
-  returnFocusRef,
-}: Readonly<CommandPaletteProps>): CommandPaletteDialogController {
-  const paletteId = useId();
-  const dialogRef = useRef<HTMLDialogElement | null>(null);
-  const internalInputRef = useRef<HTMLInputElement | null>(null);
-  const searchInputRef = inputRef ?? internalInputRef;
-  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
-  const [activeItemId, setActiveItemId] = React.useState<string | null>(null);
-
-  const titleId = `${paletteId}-title`;
-  const descriptionId = `${paletteId}-description`;
-  const resultsId = `${paletteId}-results`;
-  const activeDescendantId = activeItemId ? getCommandPaletteItemDomId(activeItemId) : undefined;
-
-  const closePalette = useCommandPaletteClosePalette({ onClose, returnFocusRef });
-  const clearActiveItem = useCommandPaletteClearActiveItem(setActiveItemId);
-
-  useCommandPaletteBodyScrollLock(isOpen);
-  useCommandPaletteEscapeToClose({ isOpen, closePalette });
-  useCommandPaletteGuardActiveItem({
-    isOpen,
-    groups,
-    activeItemId,
-    onInvalid: clearActiveItem,
-  });
-  useCommandPaletteScrollActiveDescendant({ isOpen, activeDescendantId });
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    searchInputRef.current?.focus();
-    clearActiveItem();
-  }, [clearActiveItem, isOpen, searchInputRef]);
-
-  const handleDialogCancel = useCommandPaletteDialogCancel(closePalette);
-  const handleDialogKeyDown = useCommandPaletteDialogKeyDown({ dialogRef, closeButtonRef });
-  const handleItemSelect = useCommandPaletteItemSelect(closePalette);
-  const navigate = useCommandPaletteNavigate({ groups, setActiveItemId });
-  const handleSearchKeyDown = useCommandPaletteSearchKeyDown({
-    groups,
-    activeItemId,
-    handleItemSelect,
-    navigate,
-    setActiveItemId,
-  });
-
-  return {
-    dialogId,
-    groups,
-    isOpen,
-    query,
-    onQueryChange,
-    titleId,
-    descriptionId,
-    resultsId,
-    activeItemId,
-    activeDescendantId,
-    dialogRef,
-    closeButtonRef,
-    searchInputRef,
-    closePalette,
-    handleDialogCancel,
-    handleDialogKeyDown,
-    handleSearchKeyDown,
-    handleItemSelect,
-  };
+  return (
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          closePalette();
+        }
+      }}
+    >
+      <div className="command-palette__dialog">
+        <DialogOverlay className="command-palette__overlay" />
+        <DialogContent
+          id={dialogId}
+          className="command-palette__panel"
+          aria-describedby={descriptionId}
+          aria-labelledby={titleId}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            returnFocusRef?.current?.focus();
+          }}
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            searchInputRef.current?.focus();
+          }}
+        >
+          <CommandPaletteHeader
+            descriptionId={descriptionId}
+            titleId={titleId}
+            onClose={closePalette}
+          />
+          <CommandPaletteSearch
+            activeDescendantId={activeDescendantId}
+            inputRef={searchInputRef}
+            query={query}
+            onQueryChange={onQueryChange}
+            onKeyDown={handleSearchKeyDown}
+            resultsId={resultsId}
+          />
+          <CommandPaletteResults
+            groups={groups}
+            activeItemId={activeItemId}
+            onItemSelect={handleItemSelect}
+            resultsId={resultsId}
+            searchInputRef={searchInputRef}
+          />
+          <CommandPaletteFooter />
+        </DialogContent>
+      </div>
+    </Dialog>
+  );
 }

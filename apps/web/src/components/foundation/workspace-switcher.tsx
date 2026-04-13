@@ -2,15 +2,16 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
+import * as React from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+
 import {
-  default as React,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type KeyboardEvent as ReactKeyboardEvent,
-  type PointerEvent as ReactPointerEvent,
-} from "react";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@collabsphere/ui/components/dropdown-menu";
 
 import {
   WorkspaceApiError,
@@ -109,9 +110,7 @@ export const getClampedWorkspaceMenuIndex = (currentIndex: number, itemCount: nu
 export const isWorkspaceMenuOpenKey = (key: string): key is WorkspaceMenuOpenKey =>
   key === "Enter" || key === " " || key === "ArrowDown" || key === "ArrowUp";
 
-export const isWorkspaceMenuNavigationKey = (
-  key: string,
-): key is WorkspaceMenuNavigationKey =>
+export const isWorkspaceMenuNavigationKey = (key: string): key is WorkspaceMenuNavigationKey =>
   workspaceMenuNavigationKeys.has(key as WorkspaceMenuNavigationKey);
 
 export const getWorkspaceMenuNextIndex = (
@@ -154,9 +153,7 @@ export const getWorkspaceMenuOpenIndex = (
   return currentWorkspaceIndex >= 0 ? currentWorkspaceIndex : 0;
 };
 
-export const getCurrentWorkspaceIdFromPathname = (
-  pathname: string | null | undefined,
-) => {
+export const getCurrentWorkspaceIdFromPathname = (pathname: string | null | undefined) => {
   if (!pathname || !pathname.startsWith("/w/")) {
     return null;
   }
@@ -184,14 +181,10 @@ const getWorkspaceInitials = (workspace: Pick<WorkspaceSummary, "icon" | "name">
 const getWorkspaceMeta = (workspace: WorkspaceSummary) =>
   `${workspace.roleLabel} · ${workspaceTypeLabels[workspace.type]}`;
 
-const getWorkspaceContextLabel = (
-  currentWorkspaceId: string | null,
-  fallbackLabel: string,
-) => (currentWorkspaceId ? "Current workspace" : fallbackLabel);
+const getWorkspaceContextLabel = (currentWorkspaceId: string | null, fallbackLabel: string) =>
+  currentWorkspaceId ? "Current workspace" : fallbackLabel;
 
-const createWorkspaceAction = (
-  description: string,
-): WorkspaceSwitcherAction => ({
+const createWorkspaceAction = (description: string): WorkspaceSwitcherAction => ({
   kind: "create",
   key: createWorkspaceActionKey,
   label: "Create workspace",
@@ -363,61 +356,36 @@ export function WorkspaceSwitcherMenu({
   onRetry,
   onSelectWorkspace,
   onCreateWorkspace,
-}: WorkspaceSwitcherMenuProps) {
+}: Readonly<WorkspaceSwitcherMenuProps>) {
   const menuId = useId();
-  const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const rootRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const itemRefs = useRef<Array<HTMLElement | null>>([]);
   const [isOpen, setIsOpen] = useState(initialOpen);
   const actions = getWorkspaceSwitcherActions(dataState, currentWorkspaceId);
   const currentWorkspaceIndex = actions.findIndex(
     (action) => action.kind === "workspace" && action.current,
   );
-  const [activeIndex, setActiveIndex] = useState(() =>
+  const [openIndex, setOpenIndex] = useState(() =>
     getDefaultActiveIndex(currentWorkspaceIndex),
   );
   const triggerCopy = getWorkspaceTriggerCopy(dataState, currentWorkspaceId);
 
   useEffect(() => {
-    setActiveIndex((currentIndex) => {
-      const nextIndex = getClampedWorkspaceMenuIndex(
-        currentIndex,
-        actions.length,
-      );
-      return nextIndex === currentIndex ? currentIndex : nextIndex;
-    });
-  }, [actions.length, currentWorkspaceIndex]);
+    setOpenIndex((currentIndex) =>
+      getClampedWorkspaceMenuIndex(currentIndex, actions.length),
+    );
+  }, [actions.length]);
 
   useEffect(() => {
     if (!isOpen) {
       return;
     }
 
-    itemRefs.current[activeIndex]?.focus();
-  }, [activeIndex, isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target;
-
-      if (target instanceof Node && !rootRef.current?.contains(target)) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener("pointerdown", handlePointerDown);
-
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-    };
-  }, [isOpen]);
+    itemRefs.current[openIndex]?.focus();
+  }, [isOpen, openIndex]);
 
   const openMenu = (nextIndex = getDefaultActiveIndex(currentWorkspaceIndex)) => {
-    setActiveIndex(getClampedWorkspaceMenuIndex(nextIndex, actions.length));
+    setOpenIndex(getClampedWorkspaceMenuIndex(nextIndex, actions.length));
     setIsOpen(true);
   };
 
@@ -429,43 +397,10 @@ export function WorkspaceSwitcherMenu({
     }
   };
 
-  const handleTriggerKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
-    if (!isWorkspaceMenuOpenKey(event.key)) {
-      return;
-    }
-
-    event.preventDefault();
-    openMenu(
-      getWorkspaceMenuOpenIndex(event.key, currentWorkspaceIndex, actions.length),
-    );
-  };
-
-  const handleMenuKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      closeMenu(true);
-      return;
-    }
-
-    if (event.key === "Tab") {
-      setIsOpen(false);
-      return;
-    }
-
-    if (!isWorkspaceMenuNavigationKey(event.key)) {
-      return;
-    }
-
-    event.preventDefault();
-    setActiveIndex(
-      getWorkspaceMenuNextIndex(activeIndex, event.key, actions.length),
-    );
-  };
-
   const handleActionSelect = (action: WorkspaceSwitcherAction) => {
     if (action.kind === "workspace") {
       onSelectWorkspace?.(action.workspace.id);
-      closeMenu(true);
+      closeMenu();
       return;
     }
 
@@ -479,181 +414,163 @@ export function WorkspaceSwitcherMenu({
     closeMenu(true);
   };
 
-  const handleActionPointerMove = (
-    event: ReactPointerEvent<HTMLButtonElement>,
-    index: number,
-  ) => {
-    if (event.pointerType !== "mouse" && event.pointerType !== "pen") {
-      return;
-    }
-
-    setActiveIndex(index);
-  };
-
   return (
-    <div ref={rootRef} className="workspace-switcher">
-      <button
-        ref={triggerRef}
-        id={`${menuId}-trigger`}
-        type="button"
-        className="workspace-switcher__trigger"
-        aria-expanded={isOpen}
-        aria-haspopup="menu"
-        aria-controls={menuId}
-        onClick={() => {
-          if (isOpen) {
-            closeMenu();
-            return;
-          }
+    <DropdownMenu modal={false} open={isOpen} onOpenChange={setIsOpen}>
+      <div className="workspace-switcher">
+        <DropdownMenuTrigger asChild>
+          <button
+            ref={triggerRef}
+            id={`${menuId}-trigger`}
+            type="button"
+            className="workspace-switcher__trigger"
+            aria-expanded={isOpen}
+            aria-haspopup="menu"
+            aria-controls={menuId}
+            onClick={() => {
+              if (isOpen) {
+                closeMenu(true);
+                return;
+              }
 
-          openMenu(getDefaultActiveIndex(currentWorkspaceIndex));
-        }}
-        onKeyDown={handleTriggerKeyDown}
-      >
-        <span className="workspace-switcher__trigger-mark" aria-hidden="true">
-          {triggerCopy.icon}
-        </span>
-        <span className="workspace-switcher__trigger-copy">
-          <span className="workspace-switcher__trigger-label">{triggerCopy.label}</span>
-          <span className="workspace-switcher__trigger-meta">{triggerCopy.meta}</span>
-        </span>
-        <span className="workspace-switcher__trigger-caret" aria-hidden="true">
-          {isOpen ? "▴" : "▾"}
-        </span>
-      </button>
+              openMenu(getDefaultActiveIndex(currentWorkspaceIndex));
+            }}
+            onKeyDown={(event: ReactKeyboardEvent<HTMLButtonElement>) => {
+              if (!isWorkspaceMenuOpenKey(event.key)) {
+                return;
+              }
 
-      {isOpen ? (
-        <div id={menuId} className="workspace-switcher__panel">
-          <div className="workspace-switcher__panel-header">
-            <p className="workspace-switcher__panel-eyebrow">Workspace switcher</p>
-            <p className="workspace-switcher__panel-title">
-              {currentWorkspaceId ? "Switch workspace context" : "Select Workspace"}
-            </p>
-          </div>
-
-          {dataState.kind === "loading" ? (
-            <div
-              className="workspace-switcher__state workspace-switcher__state--loading"
-              role="status"
-              aria-live="polite"
-            >
-              <LoadingWorkspaceSkeleton />
-              <p className="workspace-switcher__state-copy">
-                Loading member workspaces.
-              </p>
-            </div>
-          ) : null}
-
-          {dataState.kind === "empty" ? (
-            <div
-              className="workspace-switcher__state workspace-switcher__state--empty"
-              role="status"
-              aria-live="polite"
-            >
-              <strong className="workspace-switcher__state-title">
-                No workspaces yet
-              </strong>
-              <p className="workspace-switcher__state-copy">
-                Create your first workspace or join one through an invitation.
-              </p>
-            </div>
-          ) : null}
-
-          {dataState.kind === "error" ? (
-            <div
-              className="workspace-switcher__state workspace-switcher__state--error"
-              role="status"
-              aria-live="polite"
-            >
-              <strong className="workspace-switcher__state-title">
-                Workspace list unavailable
-              </strong>
-              <p className="workspace-switcher__state-copy">{dataState.message}</p>
-              {dataState.requestId ? (
-                <p className="workspace-switcher__state-meta">
-                  Request ID: {dataState.requestId}
-                </p>
-              ) : null}
-            </div>
-          ) : null}
-
-          <div
-            className="workspace-switcher__menu"
-            role="menu"
-            aria-labelledby={`${menuId}-trigger`}
-            onKeyDown={handleMenuKeyDown}
+              event.preventDefault();
+              openMenu(getWorkspaceMenuOpenIndex(event.key, currentWorkspaceIndex, actions.length));
+            }}
           >
-            {actions.map((action, index) => {
-              const isCurrent = action.kind === "workspace" && action.current;
+            <span className="workspace-switcher__trigger-mark" aria-hidden="true">
+              {triggerCopy.icon}
+            </span>
+            <span className="workspace-switcher__trigger-copy">
+              <span className="workspace-switcher__trigger-label">{triggerCopy.label}</span>
+              <span className="workspace-switcher__trigger-meta">{triggerCopy.meta}</span>
+            </span>
+            <span className="workspace-switcher__trigger-caret" aria-hidden="true">
+              {isOpen ? "▴" : "▾"}
+            </span>
+          </button>
+        </DropdownMenuTrigger>
 
-              return (
-                <button
-                  key={action.key}
-                  ref={(node) => {
-                    itemRefs.current[index] = node;
-                  }}
-                  type="button"
-                  role="menuitem"
-                  tabIndex={index === activeIndex ? 0 : -1}
-                  className="workspace-switcher__item"
-                  data-current={isCurrent}
-                  aria-current={isCurrent ? "page" : undefined}
-                  aria-label={
-                    action.kind === "workspace" && action.current
-                      ? `${action.workspace.name}, current workspace`
-                      : undefined
-                  }
-                  onClick={() => {
-                    handleActionSelect(action);
-                  }}
-                  onFocus={() => {
-                    setActiveIndex(index);
-                  }}
-                  onPointerMove={(event) => {
-                    handleActionPointerMove(event, index);
-                  }}
-                >
-                  {action.kind === "workspace" ? (
-                    <>
-                      <span className="workspace-switcher__item-mark" aria-hidden="true">
-                        {getWorkspaceInitials(action.workspace)}
-                      </span>
-                      <span className="workspace-switcher__item-copy">
-                        <span className="workspace-switcher__item-label-row">
-                          <span className="workspace-switcher__item-label">
-                            {action.workspace.name}
+        {isOpen ? (
+          <DropdownMenuContent
+            id={menuId}
+            className="workspace-switcher__panel"
+            align="start"
+            sideOffset={12}
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+              triggerRef.current?.focus();
+            }}
+          >
+            <div className="workspace-switcher__panel-header">
+              <p className="workspace-switcher__panel-eyebrow">Workspace switcher</p>
+              <p className="workspace-switcher__panel-title">
+                {currentWorkspaceId ? "Switch workspace context" : "Select Workspace"}
+              </p>
+            </div>
+
+            {dataState.kind === "loading" ? (
+              <div
+                className="workspace-switcher__state workspace-switcher__state--loading"
+                role="status"
+                aria-live="polite"
+              >
+                <LoadingWorkspaceSkeleton />
+                <p className="workspace-switcher__state-copy">Loading member workspaces.</p>
+              </div>
+            ) : null}
+
+            {dataState.kind === "empty" ? (
+              <div
+                className="workspace-switcher__state workspace-switcher__state--empty"
+                role="status"
+                aria-live="polite"
+              >
+                <strong className="workspace-switcher__state-title">No workspaces yet</strong>
+                <p className="workspace-switcher__state-copy">
+                  Create your first workspace or join one through an invitation.
+                </p>
+              </div>
+            ) : null}
+
+            {dataState.kind === "error" ? (
+              <div
+                className="workspace-switcher__state workspace-switcher__state--error"
+                role="status"
+                aria-live="polite"
+              >
+                <strong className="workspace-switcher__state-title">Workspace list unavailable</strong>
+                <p className="workspace-switcher__state-copy">{dataState.message}</p>
+                {dataState.requestId ? (
+                  <p className="workspace-switcher__state-meta">Request ID: {dataState.requestId}</p>
+                ) : null}
+              </div>
+            ) : null}
+
+            <DropdownMenuGroup className="workspace-switcher__menu">
+              {actions.map((action, index) => {
+                const isCurrent = action.kind === "workspace" && action.current;
+
+                return (
+                  <DropdownMenuItem
+                    key={action.key}
+                    ref={(node) => {
+                      itemRefs.current[index] = node;
+                    }}
+                    className="workspace-switcher__item"
+                    data-current={isCurrent || undefined}
+                    aria-current={isCurrent ? "page" : undefined}
+                    aria-label={
+                      action.kind === "workspace" && action.current
+                        ? `${action.workspace.name}, current workspace`
+                        : undefined
+                    }
+                    onSelect={(event) => {
+                      event.preventDefault();
+                      handleActionSelect(action);
+                    }}
+                  >
+                    {action.kind === "workspace" ? (
+                      <>
+                        <span className="workspace-switcher__item-mark" aria-hidden="true">
+                          {getWorkspaceInitials(action.workspace)}
+                        </span>
+                        <span className="workspace-switcher__item-copy">
+                          <span className="workspace-switcher__item-label-row">
+                            <span className="workspace-switcher__item-label">{action.workspace.name}</span>
+                            {action.current ? (
+                              <span className="workspace-switcher__item-badge">Current</span>
+                            ) : null}
                           </span>
-                          {action.current ? (
-                            <span className="workspace-switcher__item-badge">Current</span>
-                          ) : null}
+                          <span className="workspace-switcher__item-description">
+                            {getWorkspaceMeta(action.workspace)}
+                          </span>
                         </span>
-                        <span className="workspace-switcher__item-description">
-                          {getWorkspaceMeta(action.workspace)}
+                      </>
+                    ) : (
+                      <>
+                        <span className="workspace-switcher__item-mark" aria-hidden="true">
+                          {action.kind === "retry" ? "↺" : "+"}
                         </span>
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="workspace-switcher__item-mark" aria-hidden="true">
-                        {action.kind === "retry" ? "↺" : "+"}
-                      </span>
-                      <span className="workspace-switcher__item-copy">
-                        <span className="workspace-switcher__item-label">
-                          {action.label}
+                        <span className="workspace-switcher__item-copy">
+                          <span className="workspace-switcher__item-label">{action.label}</span>
+                          <span className="workspace-switcher__item-description">{action.description}</span>
                         </span>
-                        <span className="workspace-switcher__item-description">
-                          {action.description}
-                        </span>
-                      </span>
-                    </>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ) : null}
-    </div>
+                      </>
+                    )}
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        ) : null}
+      </div>
+    </DropdownMenu>
   );
 }
 
@@ -661,7 +578,7 @@ export function WorkspaceSwitcher({
   initialOpen = false,
   pathnameOverride,
   stateOverride,
-}: WorkspaceSwitcherProps) {
+}: Readonly<WorkspaceSwitcherProps>) {
   const pathnameFromRouter = usePathname();
   const pathname = pathnameOverride ?? pathnameFromRouter;
   const router = useRouter();
