@@ -9,11 +9,12 @@ const rootDir = fileURLToPath(new URL(".", import.meta.url));
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: {
-      "@": path.resolve(rootDir, "src"),
-      "@collabsphere/ui": path.resolve(rootDir, "../../packages/ui/src/index.ts"),
-      "@collabsphere/shared": path.resolve(rootDir, "../../packages/shared/src/index.ts"),
-    },
+    alias: [
+      { find: "@", replacement: path.resolve(rootDir, "src") },
+      { find: "@collabsphere/ui", replacement: path.resolve(rootDir, "../../packages/ui/src/index.ts") },
+      { find: /^@collabsphere\/ui\/(.*)$/, replacement: path.resolve(rootDir, "../../packages/ui/src/$1") },
+      { find: "@collabsphere/shared", replacement: path.resolve(rootDir, "../../packages/shared/src/index.ts") },
+    ],
   },
   test: {
     environment: "jsdom",
