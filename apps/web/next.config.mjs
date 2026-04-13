@@ -6,6 +6,7 @@ const outputFileTracingRoot = fileURLToPath(new URL("../../", import.meta.url));
 const nextConfig = {
   // Trace from the monorepo root so prebuilt Vercel deploys include hoisted runtime files.
   outputFileTracingRoot,
+  transpilePackages: ["@collabsphere/ui"],
   reactStrictMode: true,
   eslint: {
     // Repo-wide lint runs from the root flat config; avoid duplicate Next lint passes during build.

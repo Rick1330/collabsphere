@@ -7,7 +7,10 @@
     "tsconfig.base.json",
     "packages/shared/src/**",
     "packages/shared/package.json",
-    "packages/shared/tsconfig.json"
+    "packages/shared/tsconfig.json",
+    "packages/ui/src/**",
+    "packages/ui/package.json",
+    "packages/ui/tsconfig.json"
   ],
   "tasks": {
     "//#lint": {
