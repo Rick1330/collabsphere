@@ -436,9 +436,10 @@ function CommandPaletteDialog({
         }
       }}
     >
-      <div id={dialogId} className="command-palette__dialog">
+      <div className="command-palette__dialog">
         <DialogOverlay className="command-palette__overlay" />
         <DialogContent
+          id={dialogId}
           className="command-palette__panel"
           aria-describedby={descriptionId}
           aria-labelledby={titleId}

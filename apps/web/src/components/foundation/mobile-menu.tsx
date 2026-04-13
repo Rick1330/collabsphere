@@ -129,9 +129,10 @@ export function MobileMenu({
         }}
       >
         {isOpen ? (
-          <div id={menuId} className="mobile-menu__dialog">
+          <div className="mobile-menu__dialog">
             <DialogOverlay className="mobile-menu__overlay" />
             <DialogContent
+              id={menuId}
               ref={panelRef}
               className="mobile-menu__panel"
               aria-describedby={`${menuId}-description`}
