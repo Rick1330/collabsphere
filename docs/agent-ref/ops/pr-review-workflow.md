@@ -17,6 +17,7 @@ Define the expected branch, PR, review, and merge workflow for CollabSphere deli
 - Every PR should map to one issue.
 - Every issue should have one active working branch at a time.
 - Validation evidence is required in the PR description or linked issue/handoff.
+- Merge claims should be based on live checks and unresolved current-head review threads, not stale report text.
 
 ## Branch Naming
 
@@ -49,8 +50,19 @@ Every PR should include:
 - validation commands and outcomes
 - risks, waivers, or follow-ups
 - handoff note if the issue requires one
+- concise markdown only; no malformed literal `\n`, broken checklists, or pseudo-markdown
 
 Use `.github/pull_request_template.md`.
+
+## Frontend Baton Contract
+
+For frontend-heavy batons:
+
+- reconcile stale issue-body paths against the live tree before implementation expands
+- keep prompt scope explicit about UI composition, API integration, or validation focus
+- do not hand the baton back while more in-scope implementation or review cleanup is still executable
+- prefer concise evidence over large pasted logs
+- require local CodeRabbit CLI review before final push when the branch changed materially
 
 ## Review Sources
 
@@ -89,6 +101,7 @@ After review-driven changes:
 - re-run local CodeRabbit CLI review (`pnpm review:coderabbit`) when touched files changed materially
 - update the PR summary if behavior changed
 - update the handoff if risks or follow-ups changed
+- resolve or explicitly disposition late-arriving current-head comments before asserting merge-readiness
 
 ## Merge Rules
 
@@ -98,6 +111,13 @@ Do not merge until:
 - review state is acceptable for the issue risk level
 - validation evidence is present
 - required handoff details are captured
+- current-head unresolved review threads are cleared or explicitly dispositioned
+- branch freshness is acceptable for the target branch
+
+Merge method:
+
+- prefer squash merge for normal delivery work
+- delete the feature branch after merge
 
 ## Elevated and Critical Work
 
@@ -115,3 +135,4 @@ For `review:elevated` or `review:critical` work:
 - `docs/agent-ref/ops/handoff-format.md`
 - `docs/agent-ref/ops/branch-protection.md`
 - `docs/agent-ref/ops/review-automation.md`
+- `docs/agent-ref/ops/frontend-baton-prompt-template.md`
