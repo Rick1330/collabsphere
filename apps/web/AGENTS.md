@@ -48,6 +48,7 @@ Local hard rules for `apps/web` implementation work. These are the Tier A fronte
 
 ## Tests / Validation
 - Add/update unit and component tests for UI behavior changes.
+- For interactive web surfaces, place behavior tests under `apps/web/src/**` using Vitest + Testing Library; do not add new root `tests/unit/web-*.test.tsx` static-markup tests for those interactions.
 - Validate page-state coverage (Loading/Empty/Error/Loaded).
 - Verify optimistic updates roll back correctly on errors.
 - Re-run affected validations after review-driven code changes.

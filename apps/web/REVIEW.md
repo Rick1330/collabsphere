@@ -31,6 +31,7 @@ Tier B frontend review defaults for `apps/web`. These guide review depth and qua
 ### Testing Expectations
 - Interactive components should have behavior-based coverage.
 - Prefer role-based queries and user interactions over implementation-detail assertions.
+- `renderToStaticMarkup` is not sufficient evidence for interactive shell behavior once the surface is migrated to the web Vitest contract.
 - If a gap is consciously left open, the PR should state the gap and the risk.
 
 ### Review Automation
