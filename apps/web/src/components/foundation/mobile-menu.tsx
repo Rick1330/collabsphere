@@ -83,7 +83,7 @@ export function MobileMenu({
     enabled: isMobileViewport,
     isOpen,
     onClose: () => {
-      closeMenu();
+      closeMenu(true);
     },
     onOpen: openMenu,
     panelRef,
@@ -121,7 +121,7 @@ export function MobileMenu({
         open={isOpen}
         onOpenChange={(nextOpen) => {
           if (!nextOpen) {
-            closeMenu();
+            closeMenu(true);
             return;
           }
 
@@ -177,7 +177,7 @@ export function MobileMenu({
                         className="mobile-menu__link"
                         href={item.href}
                         onClick={() => {
-                          closeMenu();
+                          closeMenu(true);
                         }}
                       >
                         <span className="mobile-menu__link-label">{item.label}</span>

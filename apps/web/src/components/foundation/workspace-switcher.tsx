@@ -389,21 +389,29 @@ export function WorkspaceSwitcherMenu({
     setIsOpen(true);
   };
 
+  const closeMenu = (restoreFocus = false) => {
+    setIsOpen(false);
+
+    if (restoreFocus) {
+      triggerRef.current?.focus();
+    }
+  };
+
   const handleActionSelect = (action: WorkspaceSwitcherAction) => {
     if (action.kind === "workspace") {
       onSelectWorkspace?.(action.workspace.id);
-      setIsOpen(false);
+      closeMenu();
       return;
     }
 
     if (action.kind === "retry") {
       onRetry?.();
-      setIsOpen(false);
+      closeMenu(true);
       return;
     }
 
     onCreateWorkspace?.();
-    setIsOpen(false);
+    closeMenu(true);
   };
 
   return (
@@ -420,7 +428,7 @@ export function WorkspaceSwitcherMenu({
             aria-controls={menuId}
             onClick={() => {
               if (isOpen) {
-                setIsOpen(false);
+                closeMenu(true);
                 return;
               }
 
