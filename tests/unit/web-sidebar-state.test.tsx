@@ -6,9 +6,9 @@ import test from "node:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { CollapsibleShellFrame } from "../../apps/web/src/components/foundation/collapsible-shell-frame";
-import { GlobalSidebarView } from "../../apps/web/src/components/foundation/global-sidebar";
-import { WorkspaceSidebarView } from "../../apps/web/src/components/foundation/workspace-sidebar";
+import { CollapsibleShellFrame } from "../../apps/web/src/components/shell/collapsible-shell-frame";
+import { GlobalSidebarView } from "../../apps/web/src/components/shell/global-sidebar";
+import { WorkspaceSidebarView } from "../../apps/web/src/components/shell/workspace-sidebar";
 import {
   defaultDesktopSidebarMode,
   desktopSidebarStorageKey,

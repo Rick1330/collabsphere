@@ -7,7 +7,7 @@ import {
   getSearchScopeFromPathname,
   normalizeCommandPaletteQuery,
   stripSearchSnippetMarkup,
-} from "../../apps/web/src/components/foundation/command-palette-search-helpers";
+} from "../../apps/web/src/components/shell/command-palette-search-helpers";
 
 const workspaceScopedLoadedStatus = {
   kind: "loaded" as const,

@@ -1,4 +1,4 @@
-import { RoutePlaceholder } from "../../../components/foundation/route-placeholder";
+import { RoutePlaceholder } from "../../../components/shared/route-placeholder";
 
 export default function WorkspacesPage() {
   return (

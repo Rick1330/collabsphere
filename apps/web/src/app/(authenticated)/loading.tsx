@@ -1,4 +1,4 @@
-import { SegmentLoading } from "../../components/foundation/segment-loading";
+import { SegmentLoading } from "../../components/shared/segment-loading";
 
 export default function AuthenticatedLoading() {
   return (

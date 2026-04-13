@@ -1,5 +1,5 @@
 import React from "react";
-import { RoutePlaceholder } from "../../../components/foundation/route-placeholder";
+import { RoutePlaceholder } from "../../../components/shared/route-placeholder";
 
 export default function DashboardPage() {
   return (

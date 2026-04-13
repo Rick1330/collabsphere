@@ -1,6 +1,6 @@
 "use client";
 
-import { SegmentError } from "../../../../components/foundation/segment-error";
+import { SegmentError } from "../../../../components/shared/segment-error";
 
 type WorkspaceErrorProps = {
   error: Error;

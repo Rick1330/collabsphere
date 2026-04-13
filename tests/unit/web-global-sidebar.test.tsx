@@ -4,13 +4,13 @@ import test from "node:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { GlobalSidebarView } from "../../apps/web/src/components/foundation/global-sidebar";
+import { GlobalSidebarView } from "../../apps/web/src/components/shell/global-sidebar";
 import {
   globalSidebarActionItems,
   globalSidebarPrimaryItems,
   isGlobalSidebarItemActive,
-} from "../../apps/web/src/components/foundation/navigation";
-import { ShellFrame } from "../../apps/web/src/components/foundation/shell-frame";
+} from "../../apps/web/src/components/shell/navigation";
+import { ShellFrame } from "../../apps/web/src/components/shell/shell-frame";
 
 test("global sidebar route matching keeps settings descendants active without overmatching peers", () => {
   assert.equal(

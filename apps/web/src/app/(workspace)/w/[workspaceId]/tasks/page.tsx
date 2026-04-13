@@ -1,4 +1,4 @@
-import { RoutePlaceholder } from "../../../../../components/foundation/route-placeholder";
+import { RoutePlaceholder } from "../../../../../components/shared/route-placeholder";
 
 type WorkspaceTasksPageProps = {
   params: Promise<{

@@ -8,7 +8,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import DashboardPage from "../../apps/web/src/app/(authenticated)/dashboard/page";
 import LandingPage from "../../apps/web/src/app/(public)/page";
 import { middleware } from "../../apps/web/src/middleware";
-import { RoutePlaceholder } from "../../apps/web/src/components/foundation/route-placeholder";
+import { RoutePlaceholder } from "../../apps/web/src/components/shared/route-placeholder";
 import {
   buildProtectedRouteRedirectUrl,
   getProtectedRouteScope,

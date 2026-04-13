@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 
-import { RoutePlaceholder } from "../../components/foundation/route-placeholder";
+import { RoutePlaceholder } from "../../components/shared/route-placeholder";
 
 export default function LandingPage() {
   return (

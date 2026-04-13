@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   handleCommandPaletteShortcut,
   isCommandPaletteShortcut,
-} from "../../apps/web/src/components/foundation/command-palette-shortcut";
+} from "../../apps/web/src/components/shell/command-palette-shortcut";
 
 const createShortcutEvent = ({
   altKey = false,

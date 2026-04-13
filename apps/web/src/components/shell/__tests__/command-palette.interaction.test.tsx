@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   CommandPalette,
   type CommandPaletteGroup,
-} from "../components/foundation/command-palette";
+} from "../command-palette";
 import { renderWithProviders } from "./render-with-providers";
 
 function CommandPaletteHarness({
