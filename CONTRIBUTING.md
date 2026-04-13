@@ -347,6 +347,9 @@ Current cache invalidation inputs include:
 - `packages/shared/src/**`
 - `packages/shared/package.json`
 - `packages/shared/tsconfig.json`
+- `packages/ui/src/**`
+- `packages/ui/package.json`
+- `packages/ui/tsconfig.json`
 
 Use normal repo scripts first:
 
