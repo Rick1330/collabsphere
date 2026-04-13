@@ -112,10 +112,11 @@ test("top nav can render an initially open command palette in the authenticated 
 
   assert.match(markup, /aria-expanded="true"/);
   assert.match(markup, /aria-controls="command-palette-/);
-  assert.match(markup, /<dialog/);
+  assert.match(markup, /class="command-palette__dialog"/);
+  assert.match(markup, /role="dialog"/);
   assert.match(markup, /Command palette/);
   assert.match(markup, /Search commands/);
-  assert.match(markup, /open=""/);
+  assert.match(markup, /data-state="open"/);
 });
 
 test("shell frame renders the top nav before the supporting header copy", () => {

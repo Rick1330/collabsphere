@@ -113,10 +113,9 @@ test("mobile menu renders the global navigation links when opened", () => {
   assert.match(markup, /Notifications/);
   assert.match(markup, /Settings/);
   assert.match(markup, /Close navigation menu/);
-  assert.match(markup, /<dialog/);
+  assert.match(markup, /class="mobile-menu__dialog"/);
   assert.match(markup, /role="dialog"/);
-  assert.match(markup, /aria-modal="true"/);
-  assert.match(markup, /open=""/);
+  assert.match(markup, /data-state="open"/);
 });
 
 test("globals.css keeps the mobile slide-over full-width and touch targets above 44px", () => {

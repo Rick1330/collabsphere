@@ -2,20 +2,16 @@
 
 import Link from "next/link";
 import * as React from "react";
+import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
+
 import {
-  useCallback,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type KeyboardEvent,
-} from "react";
+  Dialog,
+  DialogContent,
+  DialogOverlay,
+} from "@collabsphere/ui/components/dialog";
 
 import type { NavItem } from "./navigation";
-import {
-  mobileSidebarMediaQuery,
-} from "./mobile-sidebar-swipe";
-import { getFocusableElements, getFocusTrapTarget } from "./dialog-focus-trap";
+import { mobileSidebarMediaQuery } from "./mobile-sidebar-swipe";
 import { useMobileSidebarSwipe } from "./use-mobile-sidebar-swipe";
 
 type MobileMenuProps = {
@@ -40,39 +36,20 @@ export function MobileMenu({
   const triggerId = `${menuId}-trigger`;
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
-  const dialogRef = useRef<HTMLDialogElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const [isOpen, setIsOpen] = useState(initialOpen);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    closeButtonRef.current?.focus();
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [isOpen]);
 
   const openMenu = useCallback(() => {
     setIsOpen(true);
   }, []);
 
-  const closeMenu = useCallback(() => {
+  const closeMenu = useCallback((restoreFocus = false) => {
     setIsOpen(false);
-    triggerRef.current?.focus();
+
+    if (restoreFocus) {
+      triggerRef.current?.focus();
+    }
   }, []);
 
   useEffect(() => {
@@ -102,29 +79,12 @@ export function MobileMenu({
     };
   }, [closeMenu, isOpen]);
 
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        closeMenu();
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [closeMenu, isOpen]);
-
   useMobileSidebarSwipe({
     enabled: isMobileViewport,
     isOpen,
-    onClose: closeMenu,
+    onClose: () => {
+      closeMenu();
+    },
     onOpen: openMenu,
     panelRef,
   });
@@ -136,37 +96,6 @@ export function MobileMenu({
 
     event.preventDefault();
     openMenu();
-  };
-
-  const handleDialogCancel = (event: React.SyntheticEvent<HTMLDialogElement>) => {
-    event.preventDefault();
-    closeMenu();
-  };
-
-  const handleDialogKeyDown = (event: KeyboardEvent<HTMLDialogElement>) => {
-    if (event.key !== "Tab") {
-      return;
-    }
-
-    const focusableElements = getFocusableElements(dialogRef.current);
-
-    if (focusableElements.length === 0) {
-      event.preventDefault();
-      closeButtonRef.current?.focus();
-      return;
-    }
-
-    const target = getFocusTrapTarget({
-      activeElement: document.activeElement,
-      firstElement: focusableElements[0],
-      lastElement: focusableElements[focusableElements.length - 1],
-      shiftKey: event.shiftKey,
-    });
-
-    if (target != null) {
-      event.preventDefault();
-      target.focus();
-    }
   };
 
   return (
@@ -188,66 +117,79 @@ export function MobileMenu({
         </span>
       </button>
 
-      {isOpen ? (
-        <dialog
-          ref={dialogRef}
-          id={menuId}
-          className="mobile-menu__dialog"
-          role="dialog"
-          aria-labelledby={`${menuId}-title`}
-          aria-describedby={`${menuId}-description`}
-          aria-modal="true"
-          open
-          onCancel={handleDialogCancel}
-          onKeyDown={handleDialogKeyDown}
-        >
-          <button
-            type="button"
-            className="mobile-menu__overlay"
-            aria-label="Close navigation menu"
-            onClick={closeMenu}
-          />
-          <div ref={panelRef} className="mobile-menu__panel">
-            <div className="mobile-menu__header">
-              <div className="mobile-menu__header-copy">
-                <p className="mobile-menu__eyebrow">Mobile navigation</p>
-                <p id={`${menuId}-title`} className="mobile-menu__title">
-                  {title}
-                </p>
-                <p id={`${menuId}-description`} className="mobile-menu__description">
-                  {description}
-                </p>
-              </div>
-              <button
-                ref={closeButtonRef}
-                type="button"
-                className="mobile-menu__close"
-                aria-label="Close navigation menu"
-                onClick={closeMenu}
-              >
-                <span aria-hidden="true">✕</span>
-              </button>
-            </div>
+      <Dialog
+        open={isOpen}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            closeMenu();
+            return;
+          }
 
-            <nav className="mobile-menu__nav" aria-label="Mobile route navigation">
-              <ul className="mobile-menu__list">
-                {navItems.map((item) => (
-                  <li key={item.href} className="mobile-menu__item">
-                    <Link
-                      className="mobile-menu__link"
-                      href={item.href}
-                      onClick={closeMenu}
-                    >
-                      <span className="mobile-menu__link-label">{item.label}</span>
-                      <span className="mobile-menu__link-description">{item.hint}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </nav>
+          openMenu();
+        }}
+      >
+        {isOpen ? (
+          <div id={menuId} className="mobile-menu__dialog">
+            <DialogOverlay className="mobile-menu__overlay" />
+            <DialogContent
+              ref={panelRef}
+              className="mobile-menu__panel"
+              aria-describedby={`${menuId}-description`}
+              aria-labelledby={`${menuId}-title`}
+              onCloseAutoFocus={(event) => {
+                event.preventDefault();
+                triggerRef.current?.focus();
+              }}
+              onOpenAutoFocus={(event) => {
+                event.preventDefault();
+                closeButtonRef.current?.focus();
+              }}
+            >
+              <div className="mobile-menu__header">
+                <div className="mobile-menu__header-copy">
+                  <p className="mobile-menu__eyebrow">Mobile navigation</p>
+                  <p id={`${menuId}-title`} className="mobile-menu__title">
+                    {title}
+                  </p>
+                  <p id={`${menuId}-description`} className="mobile-menu__description">
+                    {description}
+                  </p>
+                </div>
+                <button
+                  ref={closeButtonRef}
+                  type="button"
+                  className="mobile-menu__close"
+                  aria-label="Close navigation menu"
+                  onClick={() => {
+                    closeMenu(true);
+                  }}
+                >
+                  <span aria-hidden="true">✕</span>
+                </button>
+              </div>
+
+              <nav className="mobile-menu__nav" aria-label="Mobile route navigation">
+                <ul className="mobile-menu__list">
+                  {navItems.map((item) => (
+                    <li key={item.href} className="mobile-menu__item">
+                      <Link
+                        className="mobile-menu__link"
+                        href={item.href}
+                        onClick={() => {
+                          closeMenu();
+                        }}
+                      >
+                        <span className="mobile-menu__link-label">{item.label}</span>
+                        <span className="mobile-menu__link-description">{item.hint}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            </DialogContent>
           </div>
-        </dialog>
-      ) : null}
+        ) : null}
+      </Dialog>
     </div>
   );
 }

@@ -56,8 +56,9 @@ test("command palette renders a dialog with autofocus input and grouped results"
     />,
   );
 
-  assert.match(markup, /<dialog/);
-  assert.match(markup, /aria-modal="true"/);
+  assert.match(markup, /class="command-palette__dialog"/);
+  assert.match(markup, /role="dialog"/);
+  assert.match(markup, /data-state="open"/);
   assert.match(markup, /Command palette/);
   assert.match(markup, /Type a command or search\.\.\./);
   assert.match(markup, /placeholder="Type a command or search\.\.\."/);
