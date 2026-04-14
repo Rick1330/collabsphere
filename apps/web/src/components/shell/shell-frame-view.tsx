@@ -105,11 +105,10 @@ export function ShellFrameView({
         <header className="shell__header">
           <div className="shell__header-intro">
             <span className="shell__eyebrow mb-3 block text-[0.8rem] font-bold uppercase tracking-[0.16em] text-[color:var(--color-text-tertiary)]">
-              Next.js App Router foundation
+              {sectionLabel}
             </span>
             <p className="shell__header-copy text-[color:var(--color-text-secondary)]">
-              Route/layout architecture is live. Feature stories still need to
-              layer in auth, navigation behavior, data fetching, and final UI.
+              {description}
             </p>
           </div>
           {headerAction == null ? null : (
