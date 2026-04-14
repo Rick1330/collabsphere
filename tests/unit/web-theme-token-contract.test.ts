@@ -118,25 +118,34 @@ test("globals.css imports the canonical theme/token styles and removes the old a
   assert.ok(globalsCss.includes("var(--color-accent)"));
 });
 
-test("globals.css keeps grid sidebar layout scoped to the concrete sidebar variants", () => {
-  const shellRailRule = getCssBlock(globalsCss, ".shell__rail");
-  const defaultRailRule = getCssBlock(globalsCss, ".shell__rail--default");
-  const globalSidebarRule = getCssBlock(globalsCss, ".global-sidebar");
-  const workspaceSidebarRule = getCssBlock(globalsCss, ".workspace-sidebar");
+test("globals.css preserves shell state selectors while leaving migrated rail layout ownership in components", () => {
+  const shellRailRule = getCssBlock(globalsCss, ".shell__rail::before");
 
-  assert.ok(shellRailRule, "expected .shell__rail rule to exist");
-  assert.ok(defaultRailRule, "expected .shell__rail--default rule to exist");
-  assert.ok(globalSidebarRule, "expected .global-sidebar rule to exist");
-  assert.ok(workspaceSidebarRule, "expected .workspace-sidebar rule to exist");
-
+  assert.ok(shellRailRule, "expected .shell__rail::before rule to exist");
   assert.equal(hasCssDeclaration(shellRailRule, "display"), false);
   assert.equal(hasCssDeclaration(shellRailRule, "gap"), false);
   assert.equal(hasCssDeclaration(shellRailRule, "align-content"), false);
-  assert.ok(hasCssDeclaration(defaultRailRule, "display"));
-  assert.ok(hasCssDeclaration(defaultRailRule, "gap"));
-  assert.ok(hasCssDeclaration(defaultRailRule, "align-content"));
-  assert.ok(hasCssDeclaration(globalSidebarRule, "display"));
-  assert.ok(hasCssDeclaration(globalSidebarRule, "align-content"));
-  assert.ok(hasCssDeclaration(workspaceSidebarRule, "display"));
-  assert.ok(hasCssDeclaration(workspaceSidebarRule, "align-content"));
+
+  for (const removedRootSelector of [
+    ".shell__rail--default",
+    ".global-sidebar",
+    ".workspace-sidebar",
+  ]) {
+    assert.equal(
+      new RegExp(`(^|\\n)${removedRootSelector.replace(".", "\\.")}\\s*\\{`, "m").test(globalsCss),
+      false,
+      `${removedRootSelector} root layout rule should not remain in globals.css`,
+    );
+  }
+
+  for (const retainedStateSelector of [
+    '.global-sidebar[data-collapsed="true"]',
+    '.workspace-sidebar[data-collapsed="true"]',
+    '.shell[data-sidebar-state="collapsed"]',
+  ]) {
+    assert.ok(
+      globalsCss.includes(retainedStateSelector),
+      `${retainedStateSelector} state selector should stay in globals.css`,
+    );
+  }
 });

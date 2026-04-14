@@ -73,6 +73,49 @@ type WorkspaceSidebarPresentation = {
   title: string;
 };
 
+const workspaceSidebarRailStyle = {
+  background: `linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 12%, var(--surface-card-subtle)) 0%,
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 4%, var(--surface-card)) 100%
+  )`,
+} satisfies React.CSSProperties;
+
+const workspaceSidebarIdentityMarkStyle = {
+  background: `linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 78%, white),
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 24%, transparent)
+  )`,
+} satisfies React.CSSProperties;
+
+const workspaceSidebarRoleBadgeStyle = {
+  background: `color-mix(in srgb, var(--section-accent, var(--color-accent)) 14%, var(--surface-card))`,
+} satisfies React.CSSProperties;
+
+const workspaceSidebarLockedStyle = {
+  borderColor: `color-mix(in srgb, var(--color-border) 82%, var(--section-accent, var(--color-accent)) 18%)`,
+  background: `color-mix(in srgb, var(--section-accent, var(--color-accent)) 4%, var(--surface-card))`,
+} satisfies React.CSSProperties;
+
+const workspaceSidebarLockedRestrictedStyle = {
+  borderColor: `color-mix(in srgb, var(--color-warning) 28%, var(--border-subtle))`,
+  background: `color-mix(in srgb, var(--color-warning) 7%, var(--surface-card))`,
+} satisfies React.CSSProperties;
+
+const workspaceSidebarLinkMarkStyle = {
+  background: `linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 20%, var(--surface-card)),
+    color-mix(in srgb, var(--surface-card-subtle) 92%, var(--surface-card))
+  )`,
+  boxShadow: `inset 0 0 0 1px color-mix(in srgb, var(--color-border) 62%, transparent)`,
+} satisfies React.CSSProperties;
+
+const workspaceSidebarGateTagStyle = {
+  background: `color-mix(in srgb, var(--section-accent, var(--color-accent)) 12%, var(--surface-card))`,
+} satisfies React.CSSProperties;
+
 const getWorkspaceSidebarSections = (workspaceId: string) =>
   [
     {
@@ -264,11 +307,19 @@ function WorkspaceSidebarStatus({
   status,
 }: Readonly<{ status: WorkspaceSidebarStatusState }>) {
   return (
-    <div className="workspace-sidebar__status" role="status" aria-live="polite">
-      <strong className="workspace-sidebar__status-title">{status.title}</strong>
-      <p className="workspace-sidebar__status-copy">{status.copy}</p>
+    <div
+      className="workspace-sidebar__status grid gap-1.5 rounded-[1rem] border border-[color:var(--border-subtle)] bg-[var(--surface-card)] px-4 py-[0.95rem]"
+      role="status"
+      aria-live="polite"
+    >
+      <strong className="workspace-sidebar__status-title m-0">{status.title}</strong>
+      <p className="workspace-sidebar__status-copy m-0 text-[0.88rem] text-[color:var(--color-text-secondary)]">
+        {status.copy}
+      </p>
       {status.requestId ? (
-        <p className="workspace-sidebar__status-meta">Request ID: {status.requestId}</p>
+        <p className="workspace-sidebar__status-meta m-0 text-[0.88rem] text-[color:var(--color-text-secondary)]">
+          Request ID: {status.requestId}
+        </p>
       ) : null}
     </div>
   );
@@ -287,20 +338,33 @@ function WorkspaceSidebarLinkContent({
 }>) {
   if (gateLabel) {
     return (
-      <span className="workspace-sidebar__link-copy">
-        <span className="workspace-sidebar__link-label-row">
-          <span className="workspace-sidebar__link-label">{label}</span>
-          <span className="workspace-sidebar__gate-tag">{gateLabel}</span>
+      <span className="workspace-sidebar__link-copy grid min-w-0 gap-[0.18rem]">
+        <span className="workspace-sidebar__link-label-row flex min-w-0 items-center gap-2">
+          <span className="workspace-sidebar__link-label font-bold text-[color:var(--color-text-primary)]">
+            {label}
+          </span>
+          <span
+            className="workspace-sidebar__gate-tag inline-flex items-center justify-center rounded-full px-2 py-[0.2rem] text-[0.74rem] font-bold whitespace-nowrap text-[color:var(--color-text-secondary)]"
+            style={workspaceSidebarGateTagStyle}
+          >
+            {gateLabel}
+          </span>
         </span>
-        <span className="workspace-sidebar__link-description">{meta}</span>
+        <span className="workspace-sidebar__link-description text-[0.88rem] text-[color:var(--color-text-secondary)]">
+          {meta}
+        </span>
       </span>
     );
   }
 
   return (
-    <span className="workspace-sidebar__link-copy">
-      <span className="workspace-sidebar__link-label">{label}</span>
-      <span className="workspace-sidebar__link-description">{description}</span>
+    <span className="workspace-sidebar__link-copy grid min-w-0 gap-[0.18rem]">
+      <span className="workspace-sidebar__link-label font-bold text-[color:var(--color-text-primary)]">
+        {label}
+      </span>
+      <span className="workspace-sidebar__link-description text-[0.88rem] text-[color:var(--color-text-secondary)]">
+        {description}
+      </span>
     </span>
   );
 }
@@ -326,14 +390,18 @@ function WorkspaceSidebarItemRow({
     return (
       <li className="shell__nav-item">
         <Link
-          className="shell__nav-link workspace-sidebar__link"
+          className="shell__nav-link workspace-sidebar__link grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-[var(--radius-md)] border border-[color:var(--border-subtle)] bg-[var(--surface-card)] px-[1.1rem] py-4 no-underline shadow-[var(--shadow-soft)]"
           data-active={itemState.isActive}
           aria-current={itemState.isActive ? "page" : undefined}
           aria-label={collapsed ? item.label : undefined}
           href={item.href}
           title={collapsed ? item.label : undefined}
         >
-          <span className="workspace-sidebar__link-mark" aria-hidden="true">
+          <span
+            className="workspace-sidebar__link-mark inline-grid min-h-10 w-10 place-items-center rounded-[0.9rem] text-[0.76rem] font-extrabold tracking-[0.08em] text-[color:var(--color-text-secondary)]"
+            style={workspaceSidebarLinkMarkStyle}
+            aria-hidden="true"
+          >
             {item.mark}
           </span>
           <WorkspaceSidebarLinkContent
@@ -352,12 +420,17 @@ function WorkspaceSidebarItemRow({
   return (
     <li className="shell__nav-item">
       <div
-        className="workspace-sidebar__locked"
+        className="workspace-sidebar__locked grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-[var(--radius-md)] border border-dashed px-[1.1rem] py-4"
         data-locked={!itemState.hasAccess}
         aria-label={ariaLabel}
         title={collapsed ? ariaLabel : undefined}
+        style={itemState.hasAccess ? workspaceSidebarLockedStyle : workspaceSidebarLockedRestrictedStyle}
       >
-        <span className="workspace-sidebar__link-mark" aria-hidden="true">
+        <span
+          className="workspace-sidebar__link-mark inline-grid min-h-10 w-10 place-items-center rounded-[0.9rem] text-[0.76rem] font-extrabold tracking-[0.08em] text-[color:var(--color-text-secondary)]"
+          style={workspaceSidebarLinkMarkStyle}
+          aria-hidden="true"
+        >
           {itemState.hasAccess ? item.mark : "🔒"}
         </span>
         <WorkspaceSidebarLinkContent
@@ -381,13 +454,16 @@ function WorkspaceSidebarSection({
 }: Readonly<WorkspaceSidebarSectionProps>) {
   return (
     <section
-      className="workspace-sidebar__section"
+      className="workspace-sidebar__section grid gap-[0.7rem]"
       aria-labelledby={`workspace-sidebar-${sectionId}`}
     >
-      <p id={`workspace-sidebar-${sectionId}`} className="workspace-sidebar__section-label">
+      <p
+        id={`workspace-sidebar-${sectionId}`}
+        className="workspace-sidebar__section-label m-0 text-[0.76rem] font-bold uppercase tracking-[0.14em] text-[color:var(--color-text-tertiary)]"
+      >
         {label}
       </p>
-      <ul className="shell__nav-list workspace-sidebar__list">
+      <ul className="shell__nav-list workspace-sidebar__list m-0 grid list-none gap-3 p-0">
         {items.map((item) => (
           <WorkspaceSidebarItemRow
             key={item.href}
@@ -418,7 +494,8 @@ export function WorkspaceSidebarView({
   return (
     <aside
       id={effectiveSidebarId}
-      className="shell__rail workspace-sidebar"
+      className="shell__rail workspace-sidebar relative grid content-start gap-[1.35rem] border-r border-[color:var(--border-subtle)] px-6 py-6 text-[color:var(--color-text-primary)]"
+      style={workspaceSidebarRailStyle}
       aria-label="Workspace navigation"
       data-collapsed={collapsed}
     >
@@ -435,9 +512,9 @@ export function WorkspaceSidebarView({
           <span aria-hidden="true">{collapsed ? ">" : "<"}</span>
         </button>
       ) : null}
-      <div className="workspace-sidebar__header">
+      <div className="workspace-sidebar__header grid gap-4">
         <Link
-          className="workspace-sidebar__back-link"
+          className="workspace-sidebar__back-link inline-flex w-fit items-center gap-[0.45rem] rounded-full bg-[color:color-mix(in_srgb,var(--section-accent,var(--color-accent))_7%,var(--surface-card))] px-[0.7rem] py-[0.45rem] no-underline text-[color:var(--color-text-secondary)]"
           aria-label={collapsed ? "Back to dashboard" : undefined}
           href="/dashboard"
           title={collapsed ? "Back to dashboard" : undefined}
@@ -445,16 +522,27 @@ export function WorkspaceSidebarView({
           <span aria-hidden="true">←</span>
           <span>Back to dashboard</span>
         </Link>
-        <div className="workspace-sidebar__identity">
-          <span className="workspace-sidebar__identity-mark" aria-hidden="true">
+        <div className="workspace-sidebar__identity grid grid-cols-[auto_minmax(0,1fr)] items-start gap-[0.85rem]">
+          <span
+            className="workspace-sidebar__identity-mark inline-grid h-[2.7rem] w-[2.7rem] place-items-center rounded-[1rem] text-[0.92rem] font-extrabold tracking-[0.08em] text-[color:var(--color-bg-primary)]"
+            style={workspaceSidebarIdentityMarkStyle}
+            aria-hidden="true"
+          >
             {presentation.mark}
           </span>
-          <div className="workspace-sidebar__identity-copy">
-            <p className="workspace-sidebar__title">{presentation.title}</p>
-            <p className="workspace-sidebar__description">{presentation.description}</p>
+          <div className="workspace-sidebar__identity-copy grid min-w-0 gap-1">
+            <p className="workspace-sidebar__title m-0 text-[1.15rem] font-extrabold text-[color:var(--color-text-primary)]">
+              {presentation.title}
+            </p>
+            <p className="workspace-sidebar__description m-0 text-[0.9rem] text-[color:var(--color-text-secondary)]">
+              {presentation.description}
+            </p>
           </div>
           {presentation.roleLabel ? (
-            <span className="workspace-sidebar__role-badge">
+            <span
+              className="workspace-sidebar__role-badge ml-[3.55rem] inline-flex justify-self-start rounded-full px-[0.6rem] py-[0.24rem] text-[0.75rem] font-bold uppercase tracking-[0.08em] text-[color:var(--color-text-secondary)]"
+              style={workspaceSidebarRoleBadgeStyle}
+            >
               {presentation.roleLabel}
             </span>
           ) : null}
@@ -463,7 +551,7 @@ export function WorkspaceSidebarView({
 
       {presentation.status ? <WorkspaceSidebarStatus status={presentation.status} /> : null}
 
-      <nav className="workspace-sidebar__nav" aria-label="Workspace route groups">
+      <nav className="workspace-sidebar__nav grid gap-4" aria-label="Workspace route groups">
         {sections.map((section) => (
           <WorkspaceSidebarSection
             key={section.label}
