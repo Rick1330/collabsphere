@@ -389,6 +389,229 @@ const LoadingWorkspaceSkeleton = () => (
   </div>
 );
 
+type WorkspaceSwitcherTriggerProps = {
+  actionsLength: number;
+  currentWorkspaceIndex: number;
+  isOpen: boolean;
+  menuId: string;
+  onCloseMenu: (restoreFocus?: boolean) => void;
+  onOpenMenu: (nextIndex?: number) => void;
+  triggerCopy: ReturnType<typeof getWorkspaceTriggerCopy>;
+  triggerRef: React.RefObject<HTMLButtonElement | null>;
+};
+
+const WorkspaceSwitcherTrigger = ({
+  actionsLength,
+  currentWorkspaceIndex,
+  isOpen,
+  menuId,
+  onCloseMenu,
+  onOpenMenu,
+  triggerCopy,
+  triggerRef,
+}: Readonly<WorkspaceSwitcherTriggerProps>) => (
+  <DropdownMenuTrigger asChild>
+    <button
+      ref={triggerRef}
+      id={`${menuId}-trigger`}
+      type="button"
+      className="workspace-switcher__trigger grid min-h-16 w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-[1.15rem] border px-[0.9rem] py-[0.8rem] text-left"
+      style={workspaceSwitcherTriggerStyle}
+      aria-expanded={isOpen}
+      aria-haspopup="menu"
+      aria-controls={menuId}
+      onClick={() => {
+        if (isOpen) {
+          onCloseMenu(true);
+          return;
+        }
+
+        onOpenMenu(getDefaultActiveIndex(currentWorkspaceIndex));
+      }}
+      onKeyDown={(event: ReactKeyboardEvent<HTMLButtonElement>) => {
+        if (!isWorkspaceMenuOpenKey(event.key)) {
+          return;
+        }
+
+        event.preventDefault();
+        onOpenMenu(getWorkspaceMenuOpenIndex(event.key, currentWorkspaceIndex, actionsLength));
+      }}
+    >
+      <span
+        className="workspace-switcher__trigger-mark inline-grid h-[2.45rem] w-[2.45rem] place-items-center rounded-full text-[0.84rem] font-extrabold tracking-[0.06em] text-[color:var(--color-bg-primary)]"
+        style={workspaceSwitcherMarkStyle}
+        aria-hidden="true"
+      >
+        {triggerCopy.icon}
+      </span>
+      <span className="workspace-switcher__trigger-copy grid min-w-0 gap-[0.16rem]">
+        <span className="workspace-switcher__trigger-label text-[0.98rem] font-bold text-[color:var(--color-text-primary)]">
+          {triggerCopy.label}
+        </span>
+        <span className="workspace-switcher__trigger-meta text-[0.86rem] text-[color:var(--color-text-secondary)]">
+          {triggerCopy.meta}
+        </span>
+      </span>
+      <span
+        className="workspace-switcher__trigger-caret text-[0.88rem] text-[color:var(--color-text-tertiary)]"
+        aria-hidden="true"
+      >
+        {isOpen ? "▴" : "▾"}
+      </span>
+    </button>
+  </DropdownMenuTrigger>
+);
+
+type WorkspaceSwitcherStatePanelProps = {
+  dataState: WorkspaceSwitcherDataState;
+};
+
+const WorkspaceSwitcherStatePanel = ({ dataState }: Readonly<WorkspaceSwitcherStatePanelProps>) => {
+  if (dataState.kind === "loading") {
+    return (
+      <div
+        className="workspace-switcher__state workspace-switcher__state--loading mb-[0.85rem] grid gap-2 rounded-[1rem] border border-[color:var(--border-subtle)] px-4 py-[0.95rem]"
+        style={workspaceSwitcherStateStyle}
+        role="status"
+        aria-live="polite"
+      >
+        <LoadingWorkspaceSkeleton />
+        <p className="workspace-switcher__state-copy m-0 text-[0.86rem] text-[color:var(--color-text-secondary)]">
+          Loading member workspaces.
+        </p>
+      </div>
+    );
+  }
+
+  if (dataState.kind === "empty") {
+    return (
+      <div
+        className="workspace-switcher__state workspace-switcher__state--empty mb-[0.85rem] grid gap-2 rounded-[1rem] border border-[color:var(--border-subtle)] px-4 py-[0.95rem]"
+        style={workspaceSwitcherStateStyle}
+        role="status"
+        aria-live="polite"
+      >
+        <strong className="workspace-switcher__state-title m-0 text-[0.98rem] font-bold text-[color:var(--color-text-primary)]">
+          No workspaces yet
+        </strong>
+        <p className="workspace-switcher__state-copy m-0 text-[0.86rem] text-[color:var(--color-text-secondary)]">
+          Create your first workspace or join one through an invitation.
+        </p>
+      </div>
+    );
+  }
+
+  if (dataState.kind === "error") {
+    return (
+      <div
+        className="workspace-switcher__state workspace-switcher__state--error mb-[0.85rem] grid gap-2 rounded-[1rem] border border-[color:var(--border-subtle)] px-4 py-[0.95rem]"
+        style={workspaceSwitcherStateStyle}
+        role="status"
+        aria-live="polite"
+      >
+        <strong className="workspace-switcher__state-title m-0 text-[0.98rem] font-bold text-[color:var(--color-text-primary)]">
+          Workspace list unavailable
+        </strong>
+        <p className="workspace-switcher__state-copy m-0 text-[0.86rem] text-[color:var(--color-text-secondary)]">
+          {dataState.message}
+        </p>
+        {dataState.requestId ? (
+          <p className="workspace-switcher__state-meta m-0 text-[0.86rem] text-[color:var(--color-text-secondary)]">
+            Request ID: {dataState.requestId}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
+  return null;
+};
+
+type WorkspaceSwitcherMenuItemProps = {
+  action: WorkspaceSwitcherAction;
+  index: number;
+  itemRefs: React.MutableRefObject<Array<HTMLElement | null>>;
+  onSelectAction: (action: WorkspaceSwitcherAction) => void;
+};
+
+const WorkspaceSwitcherMenuItem = ({
+  action,
+  index,
+  itemRefs,
+  onSelectAction,
+}: Readonly<WorkspaceSwitcherMenuItemProps>) => {
+  const isCurrent = action.kind === "workspace" && action.current;
+  const icon = action.kind === "retry" ? "↺" : "+";
+
+  return (
+    <DropdownMenuItem
+      ref={(node) => {
+        itemRefs.current[index] = node;
+      }}
+      className="workspace-switcher__item grid w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-[1rem] border border-[color:var(--border-subtle)] bg-[var(--surface-card)] px-[0.95rem] py-[0.9rem] text-left"
+      data-current={isCurrent || undefined}
+      aria-current={isCurrent ? "page" : undefined}
+      aria-label={
+        action.kind === "workspace" && action.current
+          ? `${action.workspace.name}, current workspace`
+          : undefined
+      }
+      onSelect={(event) => {
+        event.preventDefault();
+        onSelectAction(action);
+      }}
+    >
+      {action.kind === "workspace" ? (
+        <>
+          <span
+            className="workspace-switcher__item-mark inline-grid h-[2.45rem] w-[2.45rem] place-items-center rounded-full text-[0.84rem] font-extrabold tracking-[0.06em] text-[color:var(--color-bg-primary)]"
+            style={workspaceSwitcherMarkStyle}
+            aria-hidden="true"
+          >
+            {getWorkspaceInitials(action.workspace)}
+          </span>
+          <span className="workspace-switcher__item-copy grid min-w-0 gap-[0.16rem]">
+            <span className="workspace-switcher__item-label-row flex min-w-0 items-center gap-[0.55rem]">
+              <span className="workspace-switcher__item-label text-[0.98rem] font-bold text-[color:var(--color-text-primary)]">
+                {action.workspace.name}
+              </span>
+              {action.current ? (
+                <span
+                  className="workspace-switcher__item-badge rounded-full px-[0.48rem] py-[0.18rem] text-[0.74rem] font-bold whitespace-nowrap text-[color:var(--color-text-secondary)]"
+                  style={workspaceSwitcherItemBadgeStyle}
+                >
+                  Current
+                </span>
+              ) : null}
+            </span>
+            <span className="workspace-switcher__item-description text-[0.86rem] text-[color:var(--color-text-secondary)]">
+              {getWorkspaceMeta(action.workspace)}
+            </span>
+          </span>
+        </>
+      ) : (
+        <>
+          <span
+            className="workspace-switcher__item-mark inline-grid h-[2.45rem] w-[2.45rem] place-items-center rounded-full text-[0.84rem] font-extrabold tracking-[0.06em] text-[color:var(--color-bg-primary)]"
+            style={workspaceSwitcherMarkStyle}
+            aria-hidden="true"
+          >
+            {icon}
+          </span>
+          <span className="workspace-switcher__item-copy grid min-w-0 gap-[0.16rem]">
+            <span className="workspace-switcher__item-label text-[0.98rem] font-bold text-[color:var(--color-text-primary)]">
+              {action.label}
+            </span>
+            <span className="workspace-switcher__item-description text-[0.86rem] text-[color:var(--color-text-secondary)]">
+              {action.description}
+            </span>
+          </span>
+        </>
+      )}
+    </DropdownMenuItem>
+  );
+};
+
 export function WorkspaceSwitcherMenu({
   currentWorkspaceId,
   dataState,
@@ -457,56 +680,16 @@ export function WorkspaceSwitcherMenu({
   return (
     <DropdownMenu modal={false} open={isOpen} onOpenChange={setIsOpen}>
       <div className="workspace-switcher relative">
-        <DropdownMenuTrigger asChild>
-          <button
-            ref={triggerRef}
-            id={`${menuId}-trigger`}
-            type="button"
-            className="workspace-switcher__trigger grid min-h-16 w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-[1.15rem] border px-[0.9rem] py-[0.8rem] text-left"
-            style={workspaceSwitcherTriggerStyle}
-            aria-expanded={isOpen}
-            aria-haspopup="menu"
-            aria-controls={menuId}
-            onClick={() => {
-              if (isOpen) {
-                closeMenu(true);
-                return;
-              }
-
-              openMenu(getDefaultActiveIndex(currentWorkspaceIndex));
-            }}
-            onKeyDown={(event: ReactKeyboardEvent<HTMLButtonElement>) => {
-              if (!isWorkspaceMenuOpenKey(event.key)) {
-                return;
-              }
-
-              event.preventDefault();
-              openMenu(getWorkspaceMenuOpenIndex(event.key, currentWorkspaceIndex, actions.length));
-            }}
-          >
-            <span
-              className="workspace-switcher__trigger-mark inline-grid h-[2.45rem] w-[2.45rem] place-items-center rounded-full text-[0.84rem] font-extrabold tracking-[0.06em] text-[color:var(--color-bg-primary)]"
-              style={workspaceSwitcherMarkStyle}
-              aria-hidden="true"
-            >
-              {triggerCopy.icon}
-            </span>
-            <span className="workspace-switcher__trigger-copy grid min-w-0 gap-[0.16rem]">
-              <span className="workspace-switcher__trigger-label text-[0.98rem] font-bold text-[color:var(--color-text-primary)]">
-                {triggerCopy.label}
-              </span>
-              <span className="workspace-switcher__trigger-meta text-[0.86rem] text-[color:var(--color-text-secondary)]">
-                {triggerCopy.meta}
-              </span>
-            </span>
-            <span
-              className="workspace-switcher__trigger-caret text-[0.88rem] text-[color:var(--color-text-tertiary)]"
-              aria-hidden="true"
-            >
-              {isOpen ? "▴" : "▾"}
-            </span>
-          </button>
-        </DropdownMenuTrigger>
+        <WorkspaceSwitcherTrigger
+          actionsLength={actions.length}
+          currentWorkspaceIndex={currentWorkspaceIndex}
+          isOpen={isOpen}
+          menuId={menuId}
+          onCloseMenu={closeMenu}
+          onOpenMenu={openMenu}
+          triggerCopy={triggerCopy}
+          triggerRef={triggerRef}
+        />
 
         {isOpen ? (
           <DropdownMenuContent
@@ -529,130 +712,18 @@ export function WorkspaceSwitcherMenu({
               </p>
             </div>
 
-            {dataState.kind === "loading" ? (
-              <div
-                className="workspace-switcher__state workspace-switcher__state--loading mb-[0.85rem] grid gap-2 rounded-[1rem] border border-[color:var(--border-subtle)] px-4 py-[0.95rem]"
-                style={workspaceSwitcherStateStyle}
-                role="status"
-                aria-live="polite"
-              >
-                <LoadingWorkspaceSkeleton />
-                <p className="workspace-switcher__state-copy m-0 text-[0.86rem] text-[color:var(--color-text-secondary)]">
-                  Loading member workspaces.
-                </p>
-              </div>
-            ) : null}
-
-            {dataState.kind === "empty" ? (
-              <div
-                className="workspace-switcher__state workspace-switcher__state--empty mb-[0.85rem] grid gap-2 rounded-[1rem] border border-[color:var(--border-subtle)] px-4 py-[0.95rem]"
-                style={workspaceSwitcherStateStyle}
-                role="status"
-                aria-live="polite"
-              >
-                <strong className="workspace-switcher__state-title m-0 text-[0.98rem] font-bold text-[color:var(--color-text-primary)]">
-                  No workspaces yet
-                </strong>
-                <p className="workspace-switcher__state-copy m-0 text-[0.86rem] text-[color:var(--color-text-secondary)]">
-                  Create your first workspace or join one through an invitation.
-                </p>
-              </div>
-            ) : null}
-
-            {dataState.kind === "error" ? (
-              <div
-                className="workspace-switcher__state workspace-switcher__state--error mb-[0.85rem] grid gap-2 rounded-[1rem] border border-[color:var(--border-subtle)] px-4 py-[0.95rem]"
-                style={workspaceSwitcherStateStyle}
-                role="status"
-                aria-live="polite"
-              >
-                <strong className="workspace-switcher__state-title m-0 text-[0.98rem] font-bold text-[color:var(--color-text-primary)]">
-                  Workspace list unavailable
-                </strong>
-                <p className="workspace-switcher__state-copy m-0 text-[0.86rem] text-[color:var(--color-text-secondary)]">
-                  {dataState.message}
-                </p>
-                {dataState.requestId ? (
-                  <p className="workspace-switcher__state-meta m-0 text-[0.86rem] text-[color:var(--color-text-secondary)]">
-                    Request ID: {dataState.requestId}
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
+            <WorkspaceSwitcherStatePanel dataState={dataState} />
 
             <DropdownMenuGroup className="workspace-switcher__menu grid gap-[0.55rem]">
-              {actions.map((action, index) => {
-                const isCurrent = action.kind === "workspace" && action.current;
-
-                return (
-                  <DropdownMenuItem
-                    key={action.key}
-                    ref={(node) => {
-                      itemRefs.current[index] = node;
-                    }}
-                    className="workspace-switcher__item grid w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-[1rem] border border-[color:var(--border-subtle)] bg-[var(--surface-card)] px-[0.95rem] py-[0.9rem] text-left"
-                    data-current={isCurrent || undefined}
-                    aria-current={isCurrent ? "page" : undefined}
-                    aria-label={
-                      action.kind === "workspace" && action.current
-                        ? `${action.workspace.name}, current workspace`
-                        : undefined
-                    }
-                    onSelect={(event) => {
-                      event.preventDefault();
-                      handleActionSelect(action);
-                    }}
-                  >
-                    {action.kind === "workspace" ? (
-                      <>
-                        <span
-                          className="workspace-switcher__item-mark inline-grid h-[2.45rem] w-[2.45rem] place-items-center rounded-full text-[0.84rem] font-extrabold tracking-[0.06em] text-[color:var(--color-bg-primary)]"
-                          style={workspaceSwitcherMarkStyle}
-                          aria-hidden="true"
-                        >
-                          {getWorkspaceInitials(action.workspace)}
-                        </span>
-                        <span className="workspace-switcher__item-copy grid min-w-0 gap-[0.16rem]">
-                          <span className="workspace-switcher__item-label-row flex min-w-0 items-center gap-[0.55rem]">
-                            <span className="workspace-switcher__item-label text-[0.98rem] font-bold text-[color:var(--color-text-primary)]">
-                              {action.workspace.name}
-                            </span>
-                            {action.current ? (
-                              <span
-                                className="workspace-switcher__item-badge rounded-full px-[0.48rem] py-[0.18rem] text-[0.74rem] font-bold whitespace-nowrap text-[color:var(--color-text-secondary)]"
-                                style={workspaceSwitcherItemBadgeStyle}
-                              >
-                                Current
-                              </span>
-                            ) : null}
-                          </span>
-                          <span className="workspace-switcher__item-description text-[0.86rem] text-[color:var(--color-text-secondary)]">
-                            {getWorkspaceMeta(action.workspace)}
-                          </span>
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <span
-                          className="workspace-switcher__item-mark inline-grid h-[2.45rem] w-[2.45rem] place-items-center rounded-full text-[0.84rem] font-extrabold tracking-[0.06em] text-[color:var(--color-bg-primary)]"
-                          style={workspaceSwitcherMarkStyle}
-                          aria-hidden="true"
-                        >
-                          {action.kind === "retry" ? "↺" : "+"}
-                        </span>
-                        <span className="workspace-switcher__item-copy grid min-w-0 gap-[0.16rem]">
-                          <span className="workspace-switcher__item-label text-[0.98rem] font-bold text-[color:var(--color-text-primary)]">
-                            {action.label}
-                          </span>
-                          <span className="workspace-switcher__item-description text-[0.86rem] text-[color:var(--color-text-secondary)]">
-                            {action.description}
-                          </span>
-                        </span>
-                      </>
-                    )}
-                  </DropdownMenuItem>
-                );
-              })}
+              {actions.map((action, index) => (
+                <WorkspaceSwitcherMenuItem
+                  key={action.key}
+                  action={action}
+                  index={index}
+                  itemRefs={itemRefs}
+                  onSelectAction={handleActionSelect}
+                />
+              ))}
             </DropdownMenuGroup>
           </DropdownMenuContent>
         ) : null}
