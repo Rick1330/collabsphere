@@ -14,6 +14,7 @@ Tier B frontend review defaults for `apps/web`. These guide review depth and qua
 - Prefer feature-scoped files and extracted helpers when a single component becomes difficult to review.
 - Avoid growing one-off foundation components into catch-all surfaces.
 - Reuse shared state components and primitive layers before adding new ad hoc patterns.
+- Check `docs/agent-ref/ui/owned-primitives.md` before accepting new one-off interaction mechanics in feature code.
 
 ### Design And Visual Quality
 - Review for hierarchy, spacing rhythm, and state clarity, not just correctness.
@@ -60,6 +61,7 @@ Tier B frontend review defaults for `apps/web`. These guide review depth and qua
 - `apps/web/AGENTS.md`
 - `docs/agent-ref/ui/accessibility.md`
 - `docs/agent-ref/ui/component-patterns.md`
+- `docs/agent-ref/ui/owned-primitives.md`
 - `docs/agent-ref/ui/page-states.md`
 - `docs/agent-ref/ui/responsive-rules.md`
 - `docs/agent-ref/ops/pr-review-workflow.md`

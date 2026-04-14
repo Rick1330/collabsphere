@@ -17,6 +17,7 @@ Local hard rules for `apps/web` implementation work. These are the Tier A fronte
 ### Styling And Component Rules
 - Style from tokens first; do not introduce raw ad hoc colors in feature components when tokenized or semantic styling already exists.
 - Prefer source-owned UI primitives for standard interaction patterns; do not hand-build menu, dialog, sheet, popover, or command behaviors if the accepted primitive layer covers them.
+- The current owned primitive inventory is documented in `docs/agent-ref/ui/owned-primitives.md`; extend that inventory only when a near-term delivery surface justifies it.
 - Every page or major section must handle Loading, Empty, Error, and Loaded states when the surface is data-driven.
 - Keep responsive behavior and accessibility as first-class contracts, not afterthoughts.
 
@@ -58,6 +59,7 @@ Local hard rules for `apps/web` implementation work. These are the Tier A fronte
 - `docs/agent-ref/ui/routes.md`
 - `docs/agent-ref/ui/page-states.md`
 - `docs/agent-ref/ui/component-patterns.md`
+- `docs/agent-ref/ui/owned-primitives.md`
 - `docs/agent-ref/ui/accessibility.md`
 - `docs/agent-ref/ui/responsive-rules.md`
 - `docs/agent-ref/ops/frontend-baton-prompt-template.md`
