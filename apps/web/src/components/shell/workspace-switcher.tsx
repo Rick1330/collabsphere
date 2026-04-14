@@ -73,6 +73,43 @@ type WorkspaceMenuNavigationKey =
 const createWorkspaceActionKey = "action:create";
 const retryWorkspaceActionKey = "action:retry";
 
+const workspaceSwitcherTriggerStyle = {
+  borderColor: `color-mix(in srgb, var(--color-border) 78%, var(--section-accent, var(--color-accent)) 22%)`,
+  background: `linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-card) 94%, var(--color-bg-secondary)) 0%,
+    color-mix(in srgb, var(--surface-card-subtle) 88%, var(--section-accent, var(--color-accent))) 100%
+  )`,
+  boxShadow: "var(--shadow-soft)",
+} satisfies React.CSSProperties;
+
+const workspaceSwitcherMarkStyle = {
+  background: `linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 80%, white),
+    color-mix(in srgb, var(--section-accent, var(--color-accent)) 24%, transparent)
+  )`,
+  boxShadow: `inset 0 1px 0 color-mix(in srgb, white 30%, transparent), 0 0 0 1px color-mix(in srgb, var(--section-accent, var(--color-accent)) 24%, transparent)`,
+} satisfies React.CSSProperties;
+
+const workspaceSwitcherPanelStyle = {
+  borderColor: `color-mix(in srgb, var(--color-border) 80%, var(--section-accent, var(--color-accent)) 20%)`,
+  background: `linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-card) 96%, var(--color-bg-secondary)) 0%,
+    color-mix(in srgb, var(--surface-card-subtle) 92%, var(--section-accent, var(--color-accent))) 100%
+  )`,
+  boxShadow: "var(--shadow-elevated)",
+} satisfies React.CSSProperties;
+
+const workspaceSwitcherStateStyle = {
+  background: "var(--surface-card)",
+} satisfies React.CSSProperties;
+
+const workspaceSwitcherItemBadgeStyle = {
+  background: `color-mix(in srgb, var(--section-accent, var(--color-accent)) 16%, var(--surface-card))`,
+} satisfies React.CSSProperties;
+
 const workspaceMenuNavigationKeys = new Set<WorkspaceMenuNavigationKey>([
   "ArrowDown",
   "ArrowUp",
@@ -336,13 +373,16 @@ const getWorkspaceSwitcherActions = (
 };
 
 const LoadingWorkspaceSkeleton = () => (
-  <div className="workspace-switcher__skeleton-list" aria-hidden="true">
+  <div className="workspace-switcher__skeleton-list grid gap-[0.7rem]" aria-hidden="true">
     {Array.from({ length: 3 }, (_, index) => (
-      <div key={`workspace-skeleton-${index}`} className="workspace-switcher__skeleton-row">
-        <span className="workspace-switcher__skeleton-mark" />
-        <span className="workspace-switcher__skeleton-copy">
-          <span className="workspace-switcher__skeleton-line workspace-switcher__skeleton-line--primary" />
-          <span className="workspace-switcher__skeleton-line workspace-switcher__skeleton-line--secondary" />
+      <div
+        key={`workspace-skeleton-${index}`}
+        className="workspace-switcher__skeleton-row grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3"
+      >
+        <span className="workspace-switcher__skeleton-mark h-[2.45rem] w-[2.45rem] rounded-full bg-[var(--surface-card-muted)]" />
+        <span className="workspace-switcher__skeleton-copy grid gap-[0.35rem]">
+          <span className="workspace-switcher__skeleton-line workspace-switcher__skeleton-line--primary block h-[0.7rem] w-[58%] rounded-full bg-[var(--surface-card-muted)]" />
+          <span className="workspace-switcher__skeleton-line workspace-switcher__skeleton-line--secondary block h-[0.7rem] w-[76%] rounded-full bg-[var(--surface-card-muted)]" />
         </span>
       </div>
     ))}
@@ -416,13 +456,14 @@ export function WorkspaceSwitcherMenu({
 
   return (
     <DropdownMenu modal={false} open={isOpen} onOpenChange={setIsOpen}>
-      <div className="workspace-switcher">
+      <div className="workspace-switcher relative">
         <DropdownMenuTrigger asChild>
           <button
             ref={triggerRef}
             id={`${menuId}-trigger`}
             type="button"
-            className="workspace-switcher__trigger"
+            className="workspace-switcher__trigger grid min-h-16 w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-[1.15rem] border px-[0.9rem] py-[0.8rem] text-left"
+            style={workspaceSwitcherTriggerStyle}
             aria-expanded={isOpen}
             aria-haspopup="menu"
             aria-controls={menuId}
@@ -443,14 +484,25 @@ export function WorkspaceSwitcherMenu({
               openMenu(getWorkspaceMenuOpenIndex(event.key, currentWorkspaceIndex, actions.length));
             }}
           >
-            <span className="workspace-switcher__trigger-mark" aria-hidden="true">
+            <span
+              className="workspace-switcher__trigger-mark inline-grid h-[2.45rem] w-[2.45rem] place-items-center rounded-full text-[0.84rem] font-extrabold tracking-[0.06em] text-[color:var(--color-bg-primary)]"
+              style={workspaceSwitcherMarkStyle}
+              aria-hidden="true"
+            >
               {triggerCopy.icon}
             </span>
-            <span className="workspace-switcher__trigger-copy">
-              <span className="workspace-switcher__trigger-label">{triggerCopy.label}</span>
-              <span className="workspace-switcher__trigger-meta">{triggerCopy.meta}</span>
+            <span className="workspace-switcher__trigger-copy grid min-w-0 gap-[0.16rem]">
+              <span className="workspace-switcher__trigger-label text-[0.98rem] font-bold text-[color:var(--color-text-primary)]">
+                {triggerCopy.label}
+              </span>
+              <span className="workspace-switcher__trigger-meta text-[0.86rem] text-[color:var(--color-text-secondary)]">
+                {triggerCopy.meta}
+              </span>
             </span>
-            <span className="workspace-switcher__trigger-caret" aria-hidden="true">
+            <span
+              className="workspace-switcher__trigger-caret text-[0.88rem] text-[color:var(--color-text-tertiary)]"
+              aria-hidden="true"
+            >
               {isOpen ? "▴" : "▾"}
             </span>
           </button>
@@ -459,7 +511,8 @@ export function WorkspaceSwitcherMenu({
         {isOpen ? (
           <DropdownMenuContent
             id={menuId}
-            className="workspace-switcher__panel"
+            className="workspace-switcher__panel z-[8] max-h-[min(32rem,calc(100vh-6rem))] w-[min(28rem,calc(100vw-3rem))] overflow-y-auto rounded-[1.35rem] border p-4"
+            style={workspaceSwitcherPanelStyle}
             align="start"
             sideOffset={12}
             onCloseAutoFocus={(event) => {
@@ -467,32 +520,40 @@ export function WorkspaceSwitcherMenu({
               triggerRef.current?.focus();
             }}
           >
-            <div className="workspace-switcher__panel-header">
-              <p className="workspace-switcher__panel-eyebrow">Workspace switcher</p>
-              <p className="workspace-switcher__panel-title">
+            <div className="workspace-switcher__panel-header mb-[0.85rem] grid gap-[0.28rem]">
+              <p className="workspace-switcher__panel-eyebrow m-0 text-[0.76rem] font-bold uppercase tracking-[0.14em] text-[color:var(--color-text-tertiary)]">
+                Workspace switcher
+              </p>
+              <p className="workspace-switcher__panel-title m-0 text-[0.98rem] font-bold text-[color:var(--color-text-primary)]">
                 {currentWorkspaceId ? "Switch workspace context" : "Select Workspace"}
               </p>
             </div>
 
             {dataState.kind === "loading" ? (
               <div
-                className="workspace-switcher__state workspace-switcher__state--loading"
+                className="workspace-switcher__state workspace-switcher__state--loading mb-[0.85rem] grid gap-2 rounded-[1rem] border border-[color:var(--border-subtle)] px-4 py-[0.95rem]"
+                style={workspaceSwitcherStateStyle}
                 role="status"
                 aria-live="polite"
               >
                 <LoadingWorkspaceSkeleton />
-                <p className="workspace-switcher__state-copy">Loading member workspaces.</p>
+                <p className="workspace-switcher__state-copy m-0 text-[0.86rem] text-[color:var(--color-text-secondary)]">
+                  Loading member workspaces.
+                </p>
               </div>
             ) : null}
 
             {dataState.kind === "empty" ? (
               <div
-                className="workspace-switcher__state workspace-switcher__state--empty"
+                className="workspace-switcher__state workspace-switcher__state--empty mb-[0.85rem] grid gap-2 rounded-[1rem] border border-[color:var(--border-subtle)] px-4 py-[0.95rem]"
+                style={workspaceSwitcherStateStyle}
                 role="status"
                 aria-live="polite"
               >
-                <strong className="workspace-switcher__state-title">No workspaces yet</strong>
-                <p className="workspace-switcher__state-copy">
+                <strong className="workspace-switcher__state-title m-0 text-[0.98rem] font-bold text-[color:var(--color-text-primary)]">
+                  No workspaces yet
+                </strong>
+                <p className="workspace-switcher__state-copy m-0 text-[0.86rem] text-[color:var(--color-text-secondary)]">
                   Create your first workspace or join one through an invitation.
                 </p>
               </div>
@@ -500,19 +561,26 @@ export function WorkspaceSwitcherMenu({
 
             {dataState.kind === "error" ? (
               <div
-                className="workspace-switcher__state workspace-switcher__state--error"
+                className="workspace-switcher__state workspace-switcher__state--error mb-[0.85rem] grid gap-2 rounded-[1rem] border border-[color:var(--border-subtle)] px-4 py-[0.95rem]"
+                style={workspaceSwitcherStateStyle}
                 role="status"
                 aria-live="polite"
               >
-                <strong className="workspace-switcher__state-title">Workspace list unavailable</strong>
-                <p className="workspace-switcher__state-copy">{dataState.message}</p>
+                <strong className="workspace-switcher__state-title m-0 text-[0.98rem] font-bold text-[color:var(--color-text-primary)]">
+                  Workspace list unavailable
+                </strong>
+                <p className="workspace-switcher__state-copy m-0 text-[0.86rem] text-[color:var(--color-text-secondary)]">
+                  {dataState.message}
+                </p>
                 {dataState.requestId ? (
-                  <p className="workspace-switcher__state-meta">Request ID: {dataState.requestId}</p>
+                  <p className="workspace-switcher__state-meta m-0 text-[0.86rem] text-[color:var(--color-text-secondary)]">
+                    Request ID: {dataState.requestId}
+                  </p>
                 ) : null}
               </div>
             ) : null}
 
-            <DropdownMenuGroup className="workspace-switcher__menu">
+            <DropdownMenuGroup className="workspace-switcher__menu grid gap-[0.55rem]">
               {actions.map((action, index) => {
                 const isCurrent = action.kind === "workspace" && action.current;
 
@@ -522,7 +590,7 @@ export function WorkspaceSwitcherMenu({
                     ref={(node) => {
                       itemRefs.current[index] = node;
                     }}
-                    className="workspace-switcher__item"
+                    className="workspace-switcher__item grid w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-[1rem] border border-[color:var(--border-subtle)] bg-[var(--surface-card)] px-[0.95rem] py-[0.9rem] text-left"
                     data-current={isCurrent || undefined}
                     aria-current={isCurrent ? "page" : undefined}
                     aria-label={
@@ -537,29 +605,48 @@ export function WorkspaceSwitcherMenu({
                   >
                     {action.kind === "workspace" ? (
                       <>
-                        <span className="workspace-switcher__item-mark" aria-hidden="true">
+                        <span
+                          className="workspace-switcher__item-mark inline-grid h-[2.45rem] w-[2.45rem] place-items-center rounded-full text-[0.84rem] font-extrabold tracking-[0.06em] text-[color:var(--color-bg-primary)]"
+                          style={workspaceSwitcherMarkStyle}
+                          aria-hidden="true"
+                        >
                           {getWorkspaceInitials(action.workspace)}
                         </span>
-                        <span className="workspace-switcher__item-copy">
-                          <span className="workspace-switcher__item-label-row">
-                            <span className="workspace-switcher__item-label">{action.workspace.name}</span>
+                        <span className="workspace-switcher__item-copy grid min-w-0 gap-[0.16rem]">
+                          <span className="workspace-switcher__item-label-row flex min-w-0 items-center gap-[0.55rem]">
+                            <span className="workspace-switcher__item-label text-[0.98rem] font-bold text-[color:var(--color-text-primary)]">
+                              {action.workspace.name}
+                            </span>
                             {action.current ? (
-                              <span className="workspace-switcher__item-badge">Current</span>
+                              <span
+                                className="workspace-switcher__item-badge rounded-full px-[0.48rem] py-[0.18rem] text-[0.74rem] font-bold whitespace-nowrap text-[color:var(--color-text-secondary)]"
+                                style={workspaceSwitcherItemBadgeStyle}
+                              >
+                                Current
+                              </span>
                             ) : null}
                           </span>
-                          <span className="workspace-switcher__item-description">
+                          <span className="workspace-switcher__item-description text-[0.86rem] text-[color:var(--color-text-secondary)]">
                             {getWorkspaceMeta(action.workspace)}
                           </span>
                         </span>
                       </>
                     ) : (
                       <>
-                        <span className="workspace-switcher__item-mark" aria-hidden="true">
+                        <span
+                          className="workspace-switcher__item-mark inline-grid h-[2.45rem] w-[2.45rem] place-items-center rounded-full text-[0.84rem] font-extrabold tracking-[0.06em] text-[color:var(--color-bg-primary)]"
+                          style={workspaceSwitcherMarkStyle}
+                          aria-hidden="true"
+                        >
                           {action.kind === "retry" ? "↺" : "+"}
                         </span>
-                        <span className="workspace-switcher__item-copy">
-                          <span className="workspace-switcher__item-label">{action.label}</span>
-                          <span className="workspace-switcher__item-description">{action.description}</span>
+                        <span className="workspace-switcher__item-copy grid min-w-0 gap-[0.16rem]">
+                          <span className="workspace-switcher__item-label text-[0.98rem] font-bold text-[color:var(--color-text-primary)]">
+                            {action.label}
+                          </span>
+                          <span className="workspace-switcher__item-description text-[0.86rem] text-[color:var(--color-text-secondary)]">
+                            {action.description}
+                          </span>
                         </span>
                       </>
                     )}

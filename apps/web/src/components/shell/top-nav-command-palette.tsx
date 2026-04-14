@@ -55,6 +55,16 @@ type TopNavCommandPaletteProps = {
   initialOpen?: boolean;
 };
 
+const topNavSearchTriggerStyle = {
+  borderColor: `color-mix(in srgb, var(--color-border) 82%, var(--section-accent, var(--color-accent)) 18%)`,
+  background: `linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-card) 94%, var(--color-bg-secondary)) 0%,
+    color-mix(in srgb, var(--surface-card-subtle) 88%, var(--section-accent, var(--color-accent))) 100%
+  )`,
+  boxShadow: "var(--shadow-soft)",
+} satisfies React.CSSProperties;
+
 export function TopNavCommandPalette({
   initialOpen = false,
 }: Readonly<TopNavCommandPaletteProps>) {
@@ -146,11 +156,16 @@ export function TopNavCommandPalette({
 
   return (
     <>
-      <div className="top-nav__search top-nav__search--desktop-only" role="search">
+      <div
+        className="top-nav__search top-nav__search--desktop-only block"
+        style={{ gridArea: "search" }}
+        role="search"
+      >
         <button
           ref={triggerRef}
           type="button"
-          className="top-nav__search-trigger"
+          className="top-nav__search-trigger grid min-h-16 w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-[1.15rem] border px-[0.9rem] py-[0.8rem] text-left"
+          style={topNavSearchTriggerStyle}
           aria-controls={isOpen ? dialogId : undefined}
           aria-expanded={isOpen}
           aria-haspopup="dialog"

@@ -100,7 +100,7 @@ test("shell frame propagates a collapsed desktop sidebar state into the authenti
   );
 
   assert.match(markup, /data-sidebar-state="collapsed"/);
-  assert.match(markup, /class="shell__rail global-sidebar"/);
+  assert.match(markup, /class="[^"]*shell__rail[^"]*global-sidebar[^"]*"/);
   assert.match(markup, /data-collapsed="true"/);
   assert.match(markup, /aria-label="Expand sidebar"/);
   assert.match(markup, /aria-controls="[^"]+"/);
