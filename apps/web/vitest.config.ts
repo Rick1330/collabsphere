@@ -16,12 +16,12 @@ export default defineConfig({
         replacement: path.resolve(rootDir, "../../packages/ui/src/index.ts"),
       },
       {
-        find: "@collabsphere/ui/components/dialog",
-        replacement: path.resolve(rootDir, "../../packages/ui/src/components/dialog.tsx"),
+        find: /^@collabsphere\/ui\/components\/(.*)$/,
+        replacement: path.resolve(rootDir, "../../packages/ui/src/components/$1.tsx"),
       },
       {
-        find: "@collabsphere/ui/components/dropdown-menu",
-        replacement: path.resolve(rootDir, "../../packages/ui/src/components/dropdown-menu.tsx"),
+        find: /^@collabsphere\/ui\/lib\/(.*)$/,
+        replacement: path.resolve(rootDir, "../../packages/ui/src/lib/$1.ts"),
       },
       {
         find: /^@collabsphere\/shared$/,
