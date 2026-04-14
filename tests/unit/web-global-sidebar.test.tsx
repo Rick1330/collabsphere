@@ -60,7 +60,7 @@ test("shell frame can render a custom sidebar in place of the generic rail", () 
     </ShellFrame>,
   );
 
-  assert.match(markup, /class="[^"]*shell__rail[^"]*global-sidebar[^"]*"/);
+  assert.match(markup, /class="(?=[^"]*\bshell__rail\b)(?=[^"]*\bglobal-sidebar\b)[^"]*"/);
   assert.match(markup, /aria-current="page" href="\/dashboard"/);
   assert.doesNotMatch(markup, /Authenticated global context navigation/);
 });
@@ -84,7 +84,10 @@ test("shell frame honors an explicit null sidebar instead of falling back to the
   );
 
   assert.doesNotMatch(markup, /shell__rail--default/);
-  assert.match(markup, /class="[^"]*shell[^"]*shell--global[^"]*shell--no-rail[^"]*"/);
+  assert.match(
+    markup,
+    /class="(?=[^"]*\bshell\b)(?=[^"]*\bshell--global\b)(?=[^"]*\bshell--no-rail\b)[^"]*"/,
+  );
   assert.doesNotMatch(markup, /Authenticated global context navigation/);
 });
 
@@ -107,6 +110,9 @@ test("shell frame keeps the structured default rail layout when no custom sideba
     </ShellFrame>,
   );
 
-  assert.match(markup, /class="[^"]*shell__rail[^"]*shell__rail--default[^"]*"/);
+  assert.match(
+    markup,
+    /class="(?=[^"]*\bshell__rail\b)(?=[^"]*\bshell__rail--default\b)[^"]*"/,
+  );
   assert.doesNotMatch(markup, /shell--no-rail/);
 });

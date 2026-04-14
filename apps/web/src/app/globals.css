@@ -262,6 +262,10 @@ button {
   min-width: 0;
 }
 
+.top-nav {
+  grid-template-areas: "brand workspace search actions";
+}
+
 .top-nav__brand-label,
 .top-nav__control-label,
 .notification-bell__label {

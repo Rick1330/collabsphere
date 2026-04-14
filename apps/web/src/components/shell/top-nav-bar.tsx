@@ -25,7 +25,6 @@ const topNavSurfaceStyle = {
   )`,
   boxShadow: "var(--shadow-elevated)",
   backdropFilter: "blur(18px)",
-  gridTemplateAreas: `"brand workspace search actions"`,
 } satisfies React.CSSProperties;
 
 export function TopNavBar({
@@ -82,7 +81,7 @@ export function TopNavBar({
       <TopNavCommandPalette initialOpen={commandPaletteInitialOpen} />
 
       <div
-        className="top-nav__actions flex items-center justify-end gap-3"
+        className="top-nav__actions flex items-stretch justify-end gap-3"
         style={{ gridArea: "actions" }}
         role="group"
         aria-label="Notification and account controls"
