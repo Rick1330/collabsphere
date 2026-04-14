@@ -20,10 +20,10 @@ const sheetContentVariants = cva(
   {
     variants: {
       side: {
-        top: "inset-x-0 top-0 rounded-b-[1.25rem] border-x-0 border-t-0",
-        bottom: "inset-x-0 bottom-0 rounded-t-[1.25rem] border-x-0 border-b-0",
-        left: "inset-y-0 left-0 h-full w-full max-w-md rounded-r-[1.25rem] border-y-0 border-l-0",
-        right: "inset-y-0 right-0 h-full w-full max-w-md rounded-l-[1.25rem] border-y-0 border-r-0",
+        top: "inset-x-0 top-0 rounded-none rounded-b-[1.25rem] border-x-0 border-t-0",
+        bottom: "inset-x-0 bottom-0 rounded-none rounded-t-[1.25rem] border-x-0 border-b-0",
+        left: "inset-y-0 left-0 h-full w-full max-w-md rounded-none rounded-r-[1.25rem] border-y-0 border-l-0",
+        right: "inset-y-0 right-0 h-full w-full max-w-md rounded-none rounded-l-[1.25rem] border-y-0 border-r-0",
       },
     },
     defaultVariants: {

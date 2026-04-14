@@ -13,6 +13,7 @@ const Separator = React.forwardRef<HTMLDivElement, SeparatorProps>(
   ({ className, decorative = true, orientation = "horizontal", ...props }, ref) => (
     <div
       ref={ref}
+      {...props}
       role={decorative ? "presentation" : "separator"}
       aria-orientation={decorative ? undefined : orientation}
       className={cn(
@@ -20,7 +21,6 @@ const Separator = React.forwardRef<HTMLDivElement, SeparatorProps>(
         orientation === "horizontal" ? "h-px w-full" : "h-full w-px",
         className,
       )}
-      {...props}
     />
   ),
 );
