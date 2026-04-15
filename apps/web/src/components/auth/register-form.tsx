@@ -91,7 +91,9 @@ export function RegisterForm() {
   const resendMutation = useMutation({
     mutationFn: (values: { email: string }) => resendVerificationEmail(values),
     onSuccess: (result) => {
-      setResendMessage(result.message);
+      setResendMessage(
+        result.message || "If an account exists, a verification email has been sent.",
+      );
       setServerError(null);
     },
     onError: (error) => {

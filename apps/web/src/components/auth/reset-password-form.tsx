@@ -58,7 +58,7 @@ export function ResetPasswordForm({
     mutationFn: (values: { newPassword: string; token: string }) =>
       resetPassword(values),
     onSuccess: (result) => {
-      setSuccessMessage(result.message);
+      setSuccessMessage(result.message || "Password updated successfully.");
       setServerError(null);
     },
     onError: (error) => {

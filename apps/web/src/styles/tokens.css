@@ -33,7 +33,7 @@
   --page-orb-tertiary: color-mix(in srgb, var(--color-info) 10%, transparent);
   --tone-public: var(--color-accent);
   --tone-global: var(--color-accent);
-  --tone-workspace: #2563eb;
+  --tone-workspace: var(--color-workspace-blue);
   --tone-admin: var(--color-error);
 }
 

@@ -74,9 +74,9 @@ export function PublicAuthShell({
             <span className="text-[var(--color-text-primary)]">{accentValue}</span>
           </div>
           <div className="grid gap-4 md:grid-cols-3">
-            {highlights.map((highlight) => (
+            {highlights.map((highlight, index) => (
               <article
-                key={highlight}
+                key={`highlight-${index}`}
                 className="rounded-[1.5rem] border border-[var(--color-border)] bg-[rgba(12,25,24,0.8)] p-5 shadow-soft"
               >
                 <p className="text-sm leading-7 text-[var(--color-text-secondary)]">

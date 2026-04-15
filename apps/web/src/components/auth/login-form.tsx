@@ -56,7 +56,11 @@ export function LoginForm({
   const loginMutation = useMutation({
     mutationFn: (values: LoginFormValues) => loginWithPassword(values),
     onSuccess: () => {
-      const nextHref = searchParams.get("next") ?? "/dashboard";
+      const nextParam = searchParams.get("next");
+      const nextHref =
+        nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//")
+          ? nextParam
+          : "/dashboard";
       onSuccessRedirect(nextHref);
     },
     onError: (error) => {
@@ -174,6 +178,7 @@ export function LoginForm({
             className="mt-4 w-full"
             variant="secondary"
             size="lg"
+            type="button"
             onClick={requestAnotherVerification}
             disabled={resendMutation.isPending}
           >

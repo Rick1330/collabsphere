@@ -21,7 +21,7 @@ export default function PublicLayout({
           <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-5 lg:px-10">
             <Link
               href="/"
-              className="flex items-center gap-3 text-sm font-semibold uppercase tracking-[0.28em] text-[var(--color-text-primary)]"
+              className="flex items-center gap-3 rounded-full text-sm font-semibold uppercase tracking-[0.28em] text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg-primary)]"
             >
               <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-border)] bg-[rgba(12,25,24,0.9)] text-base tracking-normal text-[var(--color-accent)]">
                 CS
@@ -31,13 +31,13 @@ export default function PublicLayout({
             <nav aria-label="Public navigation" className="flex items-center gap-3">
               <Link
                 href="/login"
-                className="rounded-full px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
+                className="rounded-full px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg-primary)]"
               >
                 Sign in
               </Link>
               <Link
                 href="/register"
-                className="rounded-full border border-[var(--color-border)] bg-[rgba(12,25,24,0.9)] px-4 py-2 text-sm font-semibold text-[var(--color-text-primary)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+                className="rounded-full border border-[var(--color-border)] bg-[rgba(12,25,24,0.9)] px-4 py-2 text-sm font-semibold text-[var(--color-text-primary)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg-primary)]"
               >
                 Create account
               </Link>
@@ -51,10 +51,16 @@ export default function PublicLayout({
           <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-6 py-6 text-sm text-[var(--color-text-secondary)] lg:flex-row lg:items-center lg:justify-between lg:px-10">
             <p>One focused surface for workspaces, documents, tasks, and collaboration.</p>
             <div className="flex items-center gap-4">
-              <Link href="/register" className="hover:text-[var(--color-text-primary)]">
+              <Link
+                href="/register"
+                className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg-primary)] hover:text-[var(--color-text-primary)]"
+              >
                 Start free
               </Link>
-              <Link href="/login" className="hover:text-[var(--color-text-primary)]">
+              <Link
+                href="/login"
+                className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring-color)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg-primary)] hover:text-[var(--color-text-primary)]"
+              >
                 Continue to sign in
               </Link>
             </div>
