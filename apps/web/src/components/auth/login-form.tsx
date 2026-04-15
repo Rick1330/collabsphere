@@ -33,6 +33,28 @@ type LoginFormProps = {
   onSuccessRedirect?: (href: string) => void;
 };
 
+const resolveSafeNextHref = (nextParam: string | null) => {
+  if (!nextParam) {
+    return "/dashboard";
+  }
+
+  try {
+    const decoded = decodeURIComponent(nextParam);
+    if (!decoded.startsWith("/") || decoded.startsWith("//")) {
+      return "/dashboard";
+    }
+
+    const resolvedUrl = new URL(decoded, window.location.origin);
+    if (resolvedUrl.origin !== window.location.origin) {
+      return "/dashboard";
+    }
+
+    return `${resolvedUrl.pathname}${resolvedUrl.search}${resolvedUrl.hash}`;
+  } catch {
+    return "/dashboard";
+  }
+};
+
 export function LoginForm({
   onSuccessRedirect = (href) => window.location.assign(href),
 }: Readonly<LoginFormProps>) {
@@ -56,11 +78,7 @@ export function LoginForm({
   const loginMutation = useMutation({
     mutationFn: (values: LoginFormValues) => loginWithPassword(values),
     onSuccess: () => {
-      const nextParam = searchParams.get("next");
-      const nextHref =
-        nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//")
-          ? nextParam
-          : "/dashboard";
+      const nextHref = resolveSafeNextHref(searchParams.get("next"));
       onSuccessRedirect(nextHref);
     },
     onError: (error) => {

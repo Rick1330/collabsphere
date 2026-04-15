@@ -52,7 +52,9 @@ export function VerifyEmailPanel({ token }: Readonly<VerifyEmailPanelProps>) {
     },
     onError: (error) => {
       if (error instanceof AuthApiError) {
-        setServerError(error.message);
+        setServerError(
+          error.message || "Email verification could not be completed.",
+        );
         if (error.kind === "token-expired") {
           setVerificationState("expired");
           return;
@@ -61,6 +63,9 @@ export function VerifyEmailPanel({ token }: Readonly<VerifyEmailPanelProps>) {
           setVerificationState("invalid");
           return;
         }
+
+        setVerificationState("invalid");
+        return;
       }
 
       setVerificationState("invalid");
