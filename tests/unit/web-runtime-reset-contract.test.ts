@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readdirSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
-import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { repoRoot } from "./bootstrap-test-helpers";
@@ -27,7 +26,7 @@ test("root test:unit keeps legacy web tests covered until their migration is com
   assert.ok(legacyWebTests.length > 0);
 
   for (const filename of legacyWebTests) {
-    assert.match(rootTestUnit, new RegExp(`tests/unit/${filename.replaceAll(".", "\\.")}`));
+    assert.match(rootTestUnit, new RegExp(`tests/unit/${filename.replaceAll(".", String.raw`\.`)}`));
   }
 });
 
