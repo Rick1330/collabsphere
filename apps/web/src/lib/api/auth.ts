@@ -379,7 +379,7 @@ const readMessage = (payload: unknown) =>
 const readUser = (payload: unknown): AuthUser => {
   const data = readDataRecord(payload);
   if (!isRecord(data.user)) {
-    throw new Error("Auth response is missing a valid user.");
+    throw new AuthApiError("unknown", malformedAuthResponseMessage);
   }
 
   return {

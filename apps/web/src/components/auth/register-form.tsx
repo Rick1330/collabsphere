@@ -118,6 +118,7 @@ export function RegisterForm() {
   if (successEmail) {
     return (
       <div className="space-y-5">
+        {serverError ? <AuthErrorBanner message={serverError} /> : null}
         <AuthStatusCard
           eyebrow="Account created"
           title="Check your inbox before signing in"

@@ -95,6 +95,7 @@ export function LoginForm({
   const onSubmit = handleSubmit((values) => {
     setServerError(null);
     setResendMessage(null);
+    setShowResend(false);
     loginMutation.mutate(values);
   });
 
