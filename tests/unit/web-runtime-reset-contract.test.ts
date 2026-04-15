@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { readdirSync } from "node:fs";
 import test from "node:test";
 import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 
-const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+import { repoRoot } from "./bootstrap-test-helpers";
 
-test("root test:unit defers rebuilt web ownership to apps/web", () => {
+test("root test:unit keeps legacy web tests covered until their migration is complete", () => {
   const rootPackageJson = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8")) as {
     scripts?: Record<string, string>;
   };
@@ -19,9 +19,16 @@ test("root test:unit defers rebuilt web ownership to apps/web", () => {
 
   const rootTestUnit = rootPackageJson.scripts?.["test:unit"] ?? "";
   const webTestUnit = webPackageJson.scripts?.["test:unit"] ?? "";
+  const legacyWebTests = readdirSync(join(repoRoot, "tests", "unit")).filter(
+    (filename) => filename.startsWith("web-") && filename !== "web-runtime-reset-contract.test.ts",
+  );
 
-  assert.doesNotMatch(rootTestUnit, /tests\/unit\/web-(?!runtime-reset-contract)/);
   assert.match(webTestUnit, /vitest run/);
+  assert.ok(legacyWebTests.length > 0);
+
+  for (const filename of legacyWebTests) {
+    assert.match(rootTestUnit, new RegExp(`tests/unit/${filename.replaceAll(".", "\\.")}`));
+  }
 });
 
 test("apps/web/dist remains outside tracked source control", () => {

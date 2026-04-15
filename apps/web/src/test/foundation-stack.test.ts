@@ -3,6 +3,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { repoRoot } from "../../../../tests/unit/bootstrap-test-helpers";
 import { cn } from "@collabsphere/ui";
 
 describe("frontend foundation stack wiring", () => {
@@ -12,7 +13,7 @@ describe("frontend foundation stack wiring", () => {
 
   it("keeps app-level primitive configuration aligned to the shared ui package", () => {
     const componentsConfig = JSON.parse(
-      readFileSync(join(process.cwd(), "components.json"), "utf8"),
+      readFileSync(join(repoRoot, "apps", "web", "components.json"), "utf8"),
     ) as {
       aliases?: Record<string, string>;
       tailwind?: Record<string, string | boolean>;
