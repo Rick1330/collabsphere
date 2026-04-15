@@ -6,6 +6,8 @@ import { join } from "node:path";
 
 import { repoRoot } from "./bootstrap-test-helpers";
 
+const escapedDot = String.raw`\.`;
+
 test("root test:unit keeps legacy web tests covered until their migration is complete", () => {
   const rootPackageJson = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8")) as {
     scripts?: Record<string, string>;
@@ -26,7 +28,8 @@ test("root test:unit keeps legacy web tests covered until their migration is com
   assert.ok(legacyWebTests.length > 0);
 
   for (const filename of legacyWebTests) {
-    assert.match(rootTestUnit, new RegExp(`tests/unit/${filename.replaceAll(".", String.raw`\.`)}`));
+    const escapedFilename = filename.replaceAll(".", escapedDot);
+    assert.match(rootTestUnit, new RegExp(`tests/unit/${escapedFilename}`));
   }
 });
 
