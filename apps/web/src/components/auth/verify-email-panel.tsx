@@ -23,7 +23,7 @@ const resendSchema = z.object({
 type ResendVerificationValues = z.infer<typeof resendSchema>;
 
 type VerifyEmailPanelProps = {
-  token: string;
+  token?: string | null;
 };
 
 export function VerifyEmailPanel({ token }: Readonly<VerifyEmailPanelProps>) {
@@ -32,6 +32,7 @@ export function VerifyEmailPanel({ token }: Readonly<VerifyEmailPanelProps>) {
     "pending" | "success" | "invalid" | "expired" | "missing"
   >(token ? "pending" : "missing");
   const [serverError, setServerError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const {
     formState: { errors },
     handleSubmit,
@@ -70,9 +71,13 @@ export function VerifyEmailPanel({ token }: Readonly<VerifyEmailPanelProps>) {
   const resendMutation = useMutation({
     mutationFn: (values: ResendVerificationValues) => resendVerificationEmail(values),
     onSuccess: (result) => {
-      setServerError(result.message);
+      setSuccessMessage(
+        result.message || "If an account exists, a verification email has been sent.",
+      );
+      setServerError(null);
     },
     onError: (error) => {
+      setSuccessMessage(null);
       setServerError(
         error instanceof AuthApiError
           ? error.message
@@ -143,6 +148,14 @@ export function VerifyEmailPanel({ token }: Readonly<VerifyEmailPanelProps>) {
   return (
     <div className="space-y-5">
       {serverError ? <AuthErrorBanner message={serverError} /> : null}
+      {successMessage ? (
+        <AuthStatusCard
+          eyebrow="Verification email sent"
+          title="Check your inbox"
+          body={successMessage}
+          tone="success"
+        />
+      ) : null}
       <AuthStatusCard
         eyebrow={verificationState === "expired" ? "Expired token" : "Verification issue"}
         title={
@@ -164,7 +177,7 @@ export function VerifyEmailPanel({ token }: Readonly<VerifyEmailPanelProps>) {
             {...register("email")}
           />
           {errors.email ? (
-            <p className="text-sm text-rose-200">{errors.email.message}</p>
+            <p className="text-sm text-rose-400">{errors.email.message}</p>
           ) : null}
         </div>
         <Button

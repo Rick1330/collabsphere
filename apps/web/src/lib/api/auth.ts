@@ -206,9 +206,15 @@ const isAbortLikeError = (error: unknown): error is { name: string } =>
 const readNonEmptyString = (value: unknown) =>
   typeof value === "string" && value.length > 0 ? value : null;
 
+const malformedAuthResponseMessage =
+  "The authentication response was malformed. Please try again.";
+
 const readString = (value: unknown, field: string) => {
   if (typeof value !== "string" || value.length === 0) {
-    throw new Error(`Auth response is missing a valid ${field}.`);
+    throw new AuthApiError(
+      "unknown",
+      `${malformedAuthResponseMessage} Missing ${field}.`,
+    );
   }
 
   return value;
@@ -216,7 +222,10 @@ const readString = (value: unknown, field: string) => {
 
 const readBoolean = (value: unknown, field: string) => {
   if (typeof value !== "boolean") {
-    throw new Error(`Auth response is missing a valid ${field}.`);
+    throw new AuthApiError(
+      "unknown",
+      `${malformedAuthResponseMessage} Missing ${field}.`,
+    );
   }
 
   return value;
@@ -249,7 +258,7 @@ const readJsonSafely = async (response: Response) => {
 
 const readDataRecord = (payload: unknown) => {
   if (!isRecord(payload) || !isRecord(payload.data)) {
-    throw new Error("Auth response does not match the expected envelope.");
+    throw new AuthApiError("unknown", malformedAuthResponseMessage);
   }
 
   return payload.data;

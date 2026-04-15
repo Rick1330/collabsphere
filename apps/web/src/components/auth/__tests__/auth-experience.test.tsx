@@ -67,8 +67,8 @@ describe("public auth experience", () => {
           method: "POST",
         }),
       );
+      expect(redirectSpy).toHaveBeenCalledWith("/dashboard");
     });
-    expect(redirectSpy).toHaveBeenCalledWith("/dashboard");
   });
 
   it("shows the registration success state after account creation", async () => {

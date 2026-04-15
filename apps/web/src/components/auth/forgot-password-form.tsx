@@ -84,7 +84,7 @@ export function ForgotPasswordForm() {
           {...register("email")}
         />
         {errors.email ? (
-          <p className="text-sm text-rose-200">{errors.email.message}</p>
+          <p className="text-sm text-rose-400">{errors.email.message}</p>
         ) : null}
       </div>
       <Button
