@@ -182,7 +182,7 @@ export function VerifyEmailPanel({ token }: Readonly<VerifyEmailPanelProps>) {
             {...register("email")}
           />
           {errors.email ? (
-            <p className="text-sm text-rose-400">{errors.email.message}</p>
+            <p className="text-sm text-[var(--color-error)]">{errors.email.message}</p>
           ) : null}
         </div>
         <Button

@@ -36,6 +36,16 @@ type ResetPasswordFormProps = {
 };
 
 type ResetTokenState = "idle" | "invalid" | "expired";
+type ResetPasswordCardState =
+  | {
+      body: string;
+      eyebrow: string;
+      href: "/forgot-password" | "/login";
+      linkLabel: string;
+      title: string;
+      tone: "danger" | "success" | "warning";
+    }
+  | null;
 
 const buildResetTokenStateCopy = (tokenState: Exclude<ResetTokenState, "idle">) => ({
   body:
@@ -49,14 +59,62 @@ const buildResetTokenStateCopy = (tokenState: Exclude<ResetTokenState, "idle">) 
       : "This reset link cannot be used",
 });
 
+const getResetPasswordCardState = ({
+  successMessage,
+  token,
+  tokenState,
+}: {
+  successMessage: string | null;
+  token: string;
+  tokenState: ResetTokenState;
+}): ResetPasswordCardState => {
+  if (!token) {
+    return {
+      body: "Open the full reset link from your email or request a new reset message.",
+      eyebrow: "Missing token",
+      href: "/forgot-password",
+      linkLabel: "Request another reset link",
+      title: "This reset link is incomplete",
+      tone: "danger",
+    };
+  }
+
+  if (successMessage) {
+    return {
+      body: `${successMessage} Sign in again because existing sessions were invalidated.`,
+      eyebrow: "Password updated",
+      href: "/login",
+      linkLabel: "Continue to sign in",
+      title: "Your password has been changed",
+      tone: "success",
+    };
+  }
+
+  if (tokenState === "invalid" || tokenState === "expired") {
+    const stateCopy = buildResetTokenStateCopy(tokenState);
+    return {
+      ...stateCopy,
+      href: "/forgot-password",
+      linkLabel: "Request another reset link",
+      tone: "warning",
+    };
+  }
+
+  return null;
+};
+
 function ResetLinkStatusCard({
   body,
   eyebrow,
+  href,
+  linkLabel,
   title,
   tone,
 }: Readonly<{
   body: string;
   eyebrow: string;
+  href: "/forgot-password" | "/login";
+  linkLabel: string;
   title: string;
   tone: "danger" | "success" | "warning";
 }>) {
@@ -68,10 +126,10 @@ function ResetLinkStatusCard({
       tone={tone}
     >
       <Link
-        href="/forgot-password"
+        href={href}
         className="text-sm font-semibold text-[var(--color-accent)] hover:text-[var(--color-accent-hover)]"
       >
-        Request another reset link
+        {linkLabel}
       </Link>
     </AuthStatusCard>
   );
@@ -105,13 +163,13 @@ export function ResetPasswordForm({
     },
     onError: (error) => {
       if (error instanceof AuthApiError) {
-        setTokenState(
+        const nextTokenState =
           error.kind === "token-expired"
             ? "expired"
             : error.kind === "token-invalid"
               ? "invalid"
-              : "idle",
-        );
+              : "idle";
+        setTokenState(nextTokenState);
         setServerError(error.message);
         return;
       }
@@ -120,47 +178,6 @@ export function ResetPasswordForm({
     },
   });
 
-  if (!token) {
-    return (
-      <ResetLinkStatusCard
-        eyebrow="Missing token"
-        title="This reset link is incomplete"
-        body="Open the full reset link from your email or request a new reset message."
-        tone="danger"
-      />
-    );
-  }
-
-  if (successMessage) {
-    return (
-      <AuthStatusCard
-        eyebrow="Password updated"
-        title="Your password has been changed"
-        body={`${successMessage} Sign in again because existing sessions were invalidated.`}
-        tone="success"
-      >
-        <Link
-          href="/login"
-          className="text-sm font-semibold text-[var(--color-accent)] hover:text-[var(--color-accent-hover)]"
-        >
-          Continue to sign in
-        </Link>
-      </AuthStatusCard>
-    );
-  }
-
-  if (tokenState === "invalid" || tokenState === "expired") {
-    const stateCopy = buildResetTokenStateCopy(tokenState);
-    return (
-      <ResetLinkStatusCard
-        eyebrow={stateCopy.eyebrow}
-        title={stateCopy.title}
-        body={stateCopy.body}
-        tone="warning"
-      />
-    );
-  }
-
   const onSubmit = handleSubmit((values) => {
     setServerError(null);
     resetMutation.mutate({
@@ -168,6 +185,24 @@ export function ResetPasswordForm({
       token,
     });
   });
+
+  const cardState = getResetPasswordCardState({
+    successMessage,
+    token,
+    tokenState,
+  });
+  if (cardState) {
+    return (
+      <ResetLinkStatusCard
+        body={cardState.body}
+        eyebrow={cardState.eyebrow}
+        href={cardState.href}
+        linkLabel={cardState.linkLabel}
+        title={cardState.title}
+        tone={cardState.tone}
+      />
+    );
+  }
 
   return (
     <form className="space-y-5" onSubmit={onSubmit}>
@@ -184,7 +219,7 @@ export function ResetPasswordForm({
         />
         <PasswordStrength password={watch("password")} />
         {errors.password ? (
-          <p className="text-sm text-rose-200">{errors.password.message}</p>
+          <p className="text-sm text-[var(--color-error)]">{errors.password.message}</p>
         ) : null}
       </div>
 
@@ -198,7 +233,7 @@ export function ResetPasswordForm({
           {...register("confirmPassword")}
         />
         {errors.confirmPassword ? (
-          <p className="text-sm text-rose-200">{errors.confirmPassword.message}</p>
+          <p className="text-sm text-[var(--color-error)]">{errors.confirmPassword.message}</p>
         ) : null}
       </div>
 

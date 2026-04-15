@@ -165,7 +165,7 @@ export function RegisterForm() {
           {...register("fullName")}
         />
         {errors.fullName ? (
-          <p className="text-sm text-rose-200">{errors.fullName.message}</p>
+          <p className="text-sm text-[var(--color-error)]">{errors.fullName.message}</p>
         ) : null}
       </div>
 
@@ -179,7 +179,7 @@ export function RegisterForm() {
           {...register("email")}
         />
         {errors.email ? (
-          <p className="text-sm text-rose-200">{errors.email.message}</p>
+          <p className="text-sm text-[var(--color-error)]">{errors.email.message}</p>
         ) : null}
       </div>
 
@@ -194,7 +194,7 @@ export function RegisterForm() {
         />
         <PasswordStrength password={watch("password")} />
         {errors.password ? (
-          <p className="text-sm text-rose-200">{errors.password.message}</p>
+          <p className="text-sm text-[var(--color-error)]">{errors.password.message}</p>
         ) : null}
       </div>
 
@@ -208,7 +208,7 @@ export function RegisterForm() {
           {...register("confirmPassword")}
         />
         {errors.confirmPassword ? (
-          <p className="text-sm text-rose-200">{errors.confirmPassword.message}</p>
+          <p className="text-sm text-[var(--color-error)]">{errors.confirmPassword.message}</p>
         ) : null}
       </div>
 

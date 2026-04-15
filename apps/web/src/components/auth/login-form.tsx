@@ -149,7 +149,7 @@ export function LoginForm({
           {...register("email")}
         />
         {errors.email ? (
-          <p className="text-sm text-rose-200">{errors.email.message}</p>
+          <p className="text-sm text-[var(--color-error)]">{errors.email.message}</p>
         ) : null}
       </div>
 
@@ -171,7 +171,7 @@ export function LoginForm({
           {...register("password")}
         />
         {errors.password ? (
-          <p className="text-sm text-rose-200">{errors.password.message}</p>
+          <p className="text-sm text-[var(--color-error)]">{errors.password.message}</p>
         ) : null}
       </div>
 

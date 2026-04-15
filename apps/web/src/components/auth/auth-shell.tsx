@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 type PublicAuthShellProps = {
   eyebrow: string;
@@ -36,6 +36,25 @@ type AuthDividerProps = {
 type OAuthButtonProps = {
   href: string;
   label: string;
+};
+
+const authStatusStyles: Record<
+  NonNullable<AuthStatusCardProps["tone"]>,
+  CSSProperties | undefined
+> = {
+  default: undefined,
+  success: {
+    backgroundColor: "color-mix(in srgb, var(--color-success) 12%, transparent)",
+    borderColor: "color-mix(in srgb, var(--color-success) 40%, transparent)",
+  },
+  warning: {
+    backgroundColor: "color-mix(in srgb, var(--color-warning) 12%, transparent)",
+    borderColor: "color-mix(in srgb, var(--color-warning) 40%, transparent)",
+  },
+  danger: {
+    backgroundColor: "color-mix(in srgb, var(--color-error) 12%, transparent)",
+    borderColor: "color-mix(in srgb, var(--color-error) 40%, transparent)",
+  },
 };
 
 export function PublicAuthShell({
@@ -122,17 +141,11 @@ export function AuthStatusCard({
   title,
   tone = "default",
 }: Readonly<AuthStatusCardProps>) {
-  const toneClasses =
-    tone === "success"
-      ? "border-emerald-500/40 bg-emerald-500/10"
-      : tone === "warning"
-        ? "border-amber-400/40 bg-amber-400/10"
-        : tone === "danger"
-          ? "border-rose-400/40 bg-rose-400/10"
-          : "border-[var(--color-border)] bg-[rgba(12,25,24,0.74)]";
-
   return (
-    <section className={`rounded-[1.5rem] border p-5 ${toneClasses}`}>
+    <section
+      className="rounded-[1.5rem] border border-[var(--color-border)] bg-[rgba(12,25,24,0.74)] p-5"
+      style={authStatusStyles[tone]}
+    >
       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-text-tertiary)]">
         {eyebrow}
       </p>
@@ -151,7 +164,13 @@ export function AuthErrorBanner({ message }: Readonly<AuthErrorBannerProps>) {
   return (
     <div
       role="alert"
-      className="rounded-[1.25rem] border border-rose-400/45 bg-rose-500/10 px-4 py-3 text-sm text-rose-100"
+      className="rounded-[1.25rem] border px-4 py-3 text-sm text-[var(--color-error)]"
+      style={{
+        backgroundColor:
+          "color-mix(in srgb, var(--color-error) 12%, transparent)",
+        borderColor:
+          "color-mix(in srgb, var(--color-error) 45%, transparent)",
+      }}
     >
       {message}
     </div>
@@ -160,7 +179,7 @@ export function AuthErrorBanner({ message }: Readonly<AuthErrorBannerProps>) {
 
 export function AuthDivider({ label }: Readonly<AuthDividerProps>) {
   return (
-    <div className="flex items-center gap-3" aria-hidden="true">
+    <div className="flex items-center gap-3">
       <span className="h-px flex-1 bg-[var(--color-border)]" />
       <span className="text-xs uppercase tracking-[0.2em] text-[var(--color-text-tertiary)]">
         {label}

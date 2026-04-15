@@ -5,6 +5,22 @@ type PasswordStrength = {
   score: number;
 };
 
+const strengthColorByScore = (score: number) => {
+  if (score >= 5) {
+    return "var(--color-success)";
+  }
+
+  if (score >= 4) {
+    return "var(--color-accent)";
+  }
+
+  if (score >= 2) {
+    return "var(--color-warning)";
+  }
+
+  return "var(--color-error)";
+};
+
 const getPasswordScore = (password: string) => {
   let score = 0;
 
@@ -47,14 +63,7 @@ export const describePasswordStrength = (password: string): PasswordStrength => 
 
 export function PasswordStrength({ password }: Readonly<{ password: string }>) {
   const { label, score } = describePasswordStrength(password);
-  const fillClass =
-    score >= 5
-      ? "bg-emerald-400"
-      : score >= 4
-        ? "bg-teal-300"
-        : score >= 2
-          ? "bg-amber-300"
-          : "bg-rose-400";
+  const fillColor = strengthColorByScore(score);
 
   return (
     <div className="space-y-2" aria-live="polite">
@@ -66,9 +75,13 @@ export function PasswordStrength({ password }: Readonly<{ password: string }>) {
         {Array.from({ length: 5 }, (_, index) => (
           <span
             key={index}
-            className={`h-1.5 rounded-full ${
-              index < score ? fillClass : "bg-[rgba(19,78,74,0.42)]"
-            }`}
+            className="h-1.5 rounded-full"
+            style={{
+              backgroundColor:
+                index < score
+                  ? fillColor
+                  : "color-mix(in srgb, var(--color-border) 55%, transparent)",
+            }}
           />
         ))}
       </div>

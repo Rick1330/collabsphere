@@ -190,6 +190,10 @@ const authErrorKindsByCode: Partial<Record<AuthApiErrorCode, AuthApiErrorKind>> 
   VALIDATION_ERROR: "validation",
 };
 
+const authErrorCodes = new Set<AuthApiErrorCode>(
+  Object.keys(authErrorKindsByCode) as AuthApiErrorCode[],
+);
+
 export class AuthApiError extends Error {
   readonly kind: AuthApiErrorKind;
   readonly code: AuthApiErrorCode | null;
@@ -222,23 +226,20 @@ const readNonEmptyString = (value: unknown) =>
 const malformedAuthResponseMessage =
   "The authentication response was malformed. Please try again.";
 
-const readString = (value: unknown, field: string) => {
+const createMalformedAuthResponseError = () =>
+  new AuthApiError("unknown", malformedAuthResponseMessage);
+
+const readString = (value: unknown) => {
   if (typeof value !== "string" || value.length === 0) {
-    throw new AuthApiError(
-      "unknown",
-      `${malformedAuthResponseMessage} Missing ${field}.`,
-    );
+    throw createMalformedAuthResponseError();
   }
 
   return value;
 };
 
-const readBoolean = (value: unknown, field: string) => {
+const readBoolean = (value: unknown) => {
   if (typeof value !== "boolean") {
-    throw new AuthApiError(
-      "unknown",
-      `${malformedAuthResponseMessage} Missing ${field}.`,
-    );
+    throw createMalformedAuthResponseError();
   }
 
   return value;
@@ -258,7 +259,9 @@ const readErrorCode = (payload: unknown): AuthApiErrorCode | null => {
   }
 
   const code = readNonEmptyString(payload.error.code);
-  return code as AuthApiErrorCode | null;
+  return code && authErrorCodes.has(code as AuthApiErrorCode)
+    ? (code as AuthApiErrorCode)
+    : null;
 };
 
 const readJsonSafely = async (response: Response) => {
@@ -271,30 +274,22 @@ const readJsonSafely = async (response: Response) => {
 
 const readDataRecord = (payload: unknown) => {
   if (!isRecord(payload) || !isRecord(payload.data)) {
-    throw new AuthApiError("unknown", malformedAuthResponseMessage);
+    throw createMalformedAuthResponseError();
   }
 
   return payload.data;
 };
 
+const getAuthErrorKindFromCode = (code: AuthApiErrorCode | null) =>
+  code ? authErrorKindsByCode[code] ?? null : null;
+
+const getAuthErrorKindFromStatus = (status: number): AuthApiErrorKind =>
+  authErrorKindsByStatus[status] ?? (status >= 500 ? "server" : "unknown");
+
 const getAuthErrorKind = (
   status: number,
   code: AuthApiErrorCode | null,
-): AuthApiErrorKind => {
-  if (code) {
-    const kind = authErrorKindsByCode[code];
-    if (kind) {
-      return kind;
-    }
-  }
-
-  const exact = authErrorKindsByStatus[status];
-  if (exact) {
-    return exact;
-  }
-
-  return status >= 500 ? "server" : "unknown";
-};
+): AuthApiErrorKind => getAuthErrorKindFromCode(code) ?? getAuthErrorKindFromStatus(status);
 
 const createAuthApiError = (
   operation: AuthOperation,
@@ -328,6 +323,32 @@ const classifyUnexpectedAuthError = (
   throw new AuthApiError("unknown", authOperationMessages[operation].unknown);
 };
 
+const createAuthRequestInit = (
+  body: Record<string, unknown> | undefined,
+  signal: AbortSignal | undefined,
+): RequestInit => ({
+  method: "POST",
+  credentials: "include",
+  headers: {
+    Accept: "application/json",
+    ...(body ? { "Content-Type": "application/json" } : {}),
+  },
+  body: body ? JSON.stringify(body) : undefined,
+  signal,
+});
+
+const handleAuthResponse = async (
+  response: Response,
+  operation: AuthOperation,
+) => {
+  const payload = await readJsonSafely(response);
+  if (!response.ok) {
+    throw createAuthApiError(operation, response.status, payload);
+  }
+
+  return payload;
+};
+
 const postAuthJson = async (
   path: string,
   body: Record<string, unknown> | undefined,
@@ -338,23 +359,8 @@ const postAuthJson = async (
   }: AuthRequestOptions & { operation: AuthOperation },
 ) => {
   try {
-    const response = await fetchFn(path, {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        Accept: "application/json",
-        ...(body ? { "Content-Type": "application/json" } : {}),
-      },
-      body: body ? JSON.stringify(body) : undefined,
-      signal,
-    });
-
-    const payload = await readJsonSafely(response);
-    if (!response.ok) {
-      throw createAuthApiError(operation, response.status, payload);
-    }
-
-    return payload;
+    const response = await fetchFn(path, createAuthRequestInit(body, signal));
+    return await handleAuthResponse(response, operation);
   } catch (error) {
     if (error instanceof AuthApiError) {
       throw error;
@@ -365,25 +371,25 @@ const postAuthJson = async (
 };
 
 const readMessage = (payload: unknown) =>
-  readString(readDataRecord(payload).message, "message");
+  readString(readDataRecord(payload).message);
 
 const readUser = (payload: unknown): AuthUser => {
   const data = readDataRecord(payload);
   if (!isRecord(data.user)) {
-    throw new AuthApiError("unknown", malformedAuthResponseMessage);
+    throw createMalformedAuthResponseError();
   }
 
   return {
-    id: readString(data.user.id, "user id"),
-    email: readString(data.user.email, "user email"),
-    fullName: readString(data.user.fullName, "user full name"),
-    globalRole: readString(data.user.globalRole, "user role"),
-    isVerified: readBoolean(data.user.isVerified, "user verification flag"),
+    id: readString(data.user.id),
+    email: readString(data.user.email),
+    fullName: readString(data.user.fullName),
+    globalRole: readString(data.user.globalRole),
+    isVerified: readBoolean(data.user.isVerified),
   };
 };
 
 const readAccessToken = (payload: unknown) =>
-  readString(readDataRecord(payload).accessToken, "access token");
+  readString(readDataRecord(payload).accessToken);
 
 const runAuthOperation = async <T>(
   path: string,
@@ -424,8 +430,8 @@ export const loginWithPassword = async (
     input,
     "login",
     (payload) => ({
-    accessToken: readAccessToken(payload),
-    user: readUser(payload),
+      accessToken: readAccessToken(payload),
+      user: readUser(payload),
     }),
     options,
   );
