@@ -1,21 +1,27 @@
-import { RoutePlaceholder } from "../../../components/shared/route-placeholder";
+import { PublicAuthShell } from "../../../components/auth/auth-shell";
+import { RegisterForm } from "../../../components/auth/register-form";
 
 export default function RegisterPage() {
   return (
-    <RoutePlaceholder
-      title="Register route"
-      summary="Account creation now has a dedicated route boundary inside the App Router foundation."
-      emptyState="This route now includes an explicit empty-state slot for invite-only or verification-waiting registration variants."
-      implementedNow={[
-        "Stable /register route on the public shell",
-        "Reusable placeholder presentation contract",
-        "Responsive layout inheritance from the public group",
+    <PublicAuthShell
+      eyebrow="Create account"
+      title="Start with one calm workspace surface, not six disconnected tools."
+      description="Create a verified account, then move directly into the authenticated shell without rebuilding your navigation habits later."
+      accentLabel="Verification"
+      accentValue="Required before sign-in"
+      highlights={[
+        "Password policy is enforced before the request leaves the page.",
+        "Registration and verification flows stay truthful to the documented auth contract.",
+        "The visual system matches the landing surface while keeping forms high-contrast and fast to scan.",
       ]}
-      deferredWork={[
-        "Registration form UX and validation",
-        "Verification and invite acceptance flows",
-        "Onboarding transitions and analytics hooks",
-      ]}
-    />
+      panelLead="Account setup"
+      panelTitle="Create your CollabSphere account"
+      panelDescription="Use local auth now or switch to Google if your team prefers managed identity."
+      footerPrompt="Already have an account?"
+      footerHref="/login"
+      footerLabel="Sign in instead"
+    >
+      <RegisterForm />
+    </PublicAuthShell>
   );
 }

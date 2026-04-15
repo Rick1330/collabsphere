@@ -1,6 +1,6 @@
 :root {
-  --font-sans: "Segoe UI Variable", "Segoe UI", "Helvetica Neue", sans-serif;
-  --font-mono: "Cascadia Code", consolas, monospace;
+  --font-sans: "Manrope", "Segoe UI Variable", "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Code", consolas, monospace;
   --radius-xl: 1.75rem;
   --radius-lg: 1.25rem;
   --radius-md: 0.9rem;
@@ -31,11 +31,10 @@
   --page-orb-secondary:
     color-mix(in srgb, var(--color-success) 12%, transparent);
   --page-orb-tertiary: color-mix(in srgb, var(--color-info) 10%, transparent);
-  --tone-public: var(--color-success);
+  --tone-public: var(--color-accent);
   --tone-global: var(--color-accent);
-  --tone-workspace: var(--color-warning);
-  --tone-admin:
-    color-mix(in srgb, var(--color-error) 74%, var(--color-accent));
+  --tone-workspace: var(--color-workspace-blue);
+  --tone-admin: var(--color-error);
 }
 
 [data-theme="dark"] {
