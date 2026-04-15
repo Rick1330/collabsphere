@@ -177,6 +177,19 @@ const authErrorKindsByStatus: Record<number, AuthApiErrorKind> = {
   429: "rate-limited",
 };
 
+const authErrorKindsByCode: Partial<Record<AuthApiErrorCode, AuthApiErrorKind>> = {
+  ACCOUNT_DEACTIVATED: "auth",
+  EMAIL_ALREADY_EXISTS: "conflict",
+  EMAIL_NOT_VERIFIED: "auth",
+  INVALID_CREDENTIALS: "auth",
+  RATE_LIMITED: "rate-limited",
+  TOKEN_ALREADY_USED: "token-invalid",
+  TOKEN_EXPIRED: "token-expired",
+  TOKEN_INVALID: "token-invalid",
+  UNAUTHORIZED: "auth",
+  VALIDATION_ERROR: "validation",
+};
+
 export class AuthApiError extends Error {
   readonly kind: AuthApiErrorKind;
   readonly code: AuthApiErrorCode | null;
@@ -268,33 +281,11 @@ const getAuthErrorKind = (
   status: number,
   code: AuthApiErrorCode | null,
 ): AuthApiErrorKind => {
-  if (code === "EMAIL_ALREADY_EXISTS") {
-    return "conflict";
-  }
-
-  if (code === "RATE_LIMITED") {
-    return "rate-limited";
-  }
-
-  if (code === "TOKEN_EXPIRED") {
-    return "token-expired";
-  }
-
-  if (code === "TOKEN_INVALID" || code === "TOKEN_ALREADY_USED") {
-    return "token-invalid";
-  }
-
-  if (
-    code === "INVALID_CREDENTIALS" ||
-    code === "EMAIL_NOT_VERIFIED" ||
-    code === "ACCOUNT_DEACTIVATED" ||
-    code === "UNAUTHORIZED"
-  ) {
-    return "auth";
-  }
-
-  if (code === "VALIDATION_ERROR") {
-    return "validation";
+  if (code) {
+    const kind = authErrorKindsByCode[code];
+    if (kind) {
+      return kind;
+    }
   }
 
   const exact = authErrorKindsByStatus[status];
@@ -394,94 +385,95 @@ const readUser = (payload: unknown): AuthUser => {
 const readAccessToken = (payload: unknown) =>
   readString(readDataRecord(payload).accessToken, "access token");
 
+const runAuthOperation = async <T>(
+  path: string,
+  body: Record<string, unknown> | undefined,
+  operation: AuthOperation,
+  readResult: (payload: unknown) => T,
+  options?: AuthRequestOptions,
+) => {
+  const payload = await postAuthJson(path, body, {
+    ...options,
+    operation,
+  });
+
+  return readResult(payload);
+};
+
+const runMessageOperation = (
+  path: string,
+  input: Record<string, unknown>,
+  operation: AuthOperation,
+  options?: AuthRequestOptions,
+) =>
+  runAuthOperation(path, input, operation, (payload) => ({
+    message: readMessage(payload),
+  }), options);
+
 export const registerAccount = async (
   input: RegisterInput,
   options?: AuthRequestOptions,
-) => {
-  const payload = await postAuthJson("/api/v1/auth/register", input, {
-    ...options,
-    operation: "register",
-  });
-
-  return {
-    message: readMessage(payload),
-  };
-};
+) => runMessageOperation("/api/v1/auth/register", input, "register", options);
 
 export const loginWithPassword = async (
   input: LoginInput,
   options?: AuthRequestOptions,
-) => {
-  const payload = await postAuthJson("/api/v1/auth/login", input, {
-    ...options,
-    operation: "login",
-  });
-
-  return {
+) =>
+  runAuthOperation(
+    "/api/v1/auth/login",
+    input,
+    "login",
+    (payload) => ({
     accessToken: readAccessToken(payload),
     user: readUser(payload),
-  };
-};
+    }),
+    options,
+  );
 
 export const requestPasswordReset = async (
   input: EmailOnlyInput,
   options?: AuthRequestOptions,
-) => {
-  const payload = await postAuthJson("/api/v1/auth/forgot-password", input, {
-    ...options,
-    operation: "forgotPassword",
-  });
-
-  return {
-    message: readMessage(payload),
-  };
-};
+) =>
+  runMessageOperation(
+    "/api/v1/auth/forgot-password",
+    input,
+    "forgotPassword",
+    options,
+  );
 
 export const resendVerificationEmail = async (
   input: EmailOnlyInput,
   options?: AuthRequestOptions,
-) => {
-  const payload = await postAuthJson("/api/v1/auth/resend-verification", input, {
-    ...options,
-    operation: "resendVerification",
-  });
-
-  return {
-    message: readMessage(payload),
-  };
-};
+) =>
+  runMessageOperation(
+    "/api/v1/auth/resend-verification",
+    input,
+    "resendVerification",
+    options,
+  );
 
 export const verifyEmailToken = async (
   input: TokenInput,
   options?: AuthRequestOptions,
-) => {
-  const payload = await postAuthJson("/api/v1/auth/verify-email", input, {
-    ...options,
-    operation: "verifyEmail",
-  });
-
-  return {
-    message: readMessage(payload),
-  };
-};
+) => runMessageOperation("/api/v1/auth/verify-email", input, "verifyEmail", options);
 
 export const resetPassword = async (
   input: ResetPasswordInput,
   options?: AuthRequestOptions,
-) => {
-  const payload = await postAuthJson("/api/v1/auth/reset-password", input, {
-    ...options,
-    operation: "resetPassword",
-  });
-
-  return {
-    message: readMessage(payload),
-  };
-};
+) =>
+  runMessageOperation(
+    "/api/v1/auth/reset-password",
+    input,
+    "resetPassword",
+    options,
+  );
 
 export const logoutCurrentSession = async (options?: AuthRequestOptions) => {
-  await postAuthJson("/api/v1/auth/logout", undefined, {
-    ...options,
-    operation: "logout",
-  });
+  await runAuthOperation(
+    "/api/v1/auth/logout",
+    undefined,
+    "logout",
+    () => undefined,
+    options,
+  );
 };

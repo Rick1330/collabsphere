@@ -35,12 +35,54 @@ type ResetPasswordFormProps = {
   token: string;
 };
 
+type ResetTokenState = "idle" | "invalid" | "expired";
+
+const buildResetTokenStateCopy = (tokenState: Exclude<ResetTokenState, "idle">) => ({
+  body:
+    tokenState === "expired"
+      ? "Request a new reset email and start again with the latest link."
+      : "The token was invalid, consumed, or malformed. Request a new reset email.",
+  eyebrow: tokenState === "expired" ? "Expired reset link" : "Invalid reset link",
+  title:
+    tokenState === "expired"
+      ? "This reset link has expired"
+      : "This reset link cannot be used",
+});
+
+function ResetLinkStatusCard({
+  body,
+  eyebrow,
+  title,
+  tone,
+}: Readonly<{
+  body: string;
+  eyebrow: string;
+  title: string;
+  tone: "danger" | "success" | "warning";
+}>) {
+  return (
+    <AuthStatusCard
+      eyebrow={eyebrow}
+      title={title}
+      body={body}
+      tone={tone}
+    >
+      <Link
+        href="/forgot-password"
+        className="text-sm font-semibold text-[var(--color-accent)] hover:text-[var(--color-accent-hover)]"
+      >
+        Request another reset link
+      </Link>
+    </AuthStatusCard>
+  );
+}
+
 export function ResetPasswordForm({
   token,
 }: Readonly<ResetPasswordFormProps>) {
   const [serverError, setServerError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [tokenState, setTokenState] = useState<"idle" | "invalid" | "expired">("idle");
+  const [tokenState, setTokenState] = useState<ResetTokenState>("idle");
   const {
     formState: { errors },
     handleSubmit,
@@ -63,12 +105,13 @@ export function ResetPasswordForm({
     },
     onError: (error) => {
       if (error instanceof AuthApiError) {
-        if (error.kind === "token-expired") {
-          setTokenState("expired");
-        } else if (error.kind === "token-invalid") {
-          setTokenState("invalid");
-        }
-
+        setTokenState(
+          error.kind === "token-expired"
+            ? "expired"
+            : error.kind === "token-invalid"
+              ? "invalid"
+              : "idle",
+        );
         setServerError(error.message);
         return;
       }
@@ -79,19 +122,12 @@ export function ResetPasswordForm({
 
   if (!token) {
     return (
-      <AuthStatusCard
+      <ResetLinkStatusCard
         eyebrow="Missing token"
         title="This reset link is incomplete"
         body="Open the full reset link from your email or request a new reset message."
         tone="danger"
-      >
-        <Link
-          href="/forgot-password"
-          className="text-sm font-semibold text-[var(--color-accent)] hover:text-[var(--color-accent-hover)]"
-        >
-          Request another reset link
-        </Link>
-      </AuthStatusCard>
+      />
     );
   }
 
@@ -114,28 +150,14 @@ export function ResetPasswordForm({
   }
 
   if (tokenState === "invalid" || tokenState === "expired") {
+    const stateCopy = buildResetTokenStateCopy(tokenState);
     return (
-      <AuthStatusCard
-        eyebrow={tokenState === "expired" ? "Expired reset link" : "Invalid reset link"}
-        title={
-          tokenState === "expired"
-            ? "This reset link has expired"
-            : "This reset link cannot be used"
-        }
-        body={
-          tokenState === "expired"
-            ? "Request a new reset email and start again with the latest link."
-            : "The token was invalid, consumed, or malformed. Request a new reset email."
-        }
+      <ResetLinkStatusCard
+        eyebrow={stateCopy.eyebrow}
+        title={stateCopy.title}
+        body={stateCopy.body}
         tone="warning"
-      >
-        <Link
-          href="/forgot-password"
-          className="text-sm font-semibold text-[var(--color-accent)] hover:text-[var(--color-accent-hover)]"
-        >
-          Request another reset link
-        </Link>
-      </AuthStatusCard>
+      />
     );
   }
 
