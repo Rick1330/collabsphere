@@ -162,10 +162,16 @@ export function RegisterForm() {
           id="register-full-name"
           autoComplete="name"
           placeholder="Jane Doe"
+          aria-describedby={errors.fullName ? "register-full-name-error" : undefined}
           {...register("fullName")}
         />
         {errors.fullName ? (
-          <p className="text-sm text-[var(--color-error)]">{errors.fullName.message}</p>
+          <p
+            id="register-full-name-error"
+            className="text-sm text-[var(--color-error)]"
+          >
+            {errors.fullName.message}
+          </p>
         ) : null}
       </div>
 
@@ -176,10 +182,13 @@ export function RegisterForm() {
           type="email"
           autoComplete="email"
           placeholder="you@workspace.com"
+          aria-describedby={errors.email ? "register-email-error" : undefined}
           {...register("email")}
         />
         {errors.email ? (
-          <p className="text-sm text-[var(--color-error)]">{errors.email.message}</p>
+          <p id="register-email-error" className="text-sm text-[var(--color-error)]">
+            {errors.email.message}
+          </p>
         ) : null}
       </div>
 
@@ -190,11 +199,17 @@ export function RegisterForm() {
           type="password"
           autoComplete="new-password"
           placeholder="Create a strong password"
+          aria-describedby={errors.password ? "register-password-error" : undefined}
           {...register("password")}
         />
         <PasswordStrength password={watch("password")} />
         {errors.password ? (
-          <p className="text-sm text-[var(--color-error)]">{errors.password.message}</p>
+          <p
+            id="register-password-error"
+            className="text-sm text-[var(--color-error)]"
+          >
+            {errors.password.message}
+          </p>
         ) : null}
       </div>
 
@@ -205,10 +220,18 @@ export function RegisterForm() {
           type="password"
           autoComplete="new-password"
           placeholder="Repeat your password"
+          aria-describedby={
+            errors.confirmPassword ? "register-confirm-password-error" : undefined
+          }
           {...register("confirmPassword")}
         />
         {errors.confirmPassword ? (
-          <p className="text-sm text-[var(--color-error)]">{errors.confirmPassword.message}</p>
+          <p
+            id="register-confirm-password-error"
+            className="text-sm text-[var(--color-error)]"
+          >
+            {errors.confirmPassword.message}
+          </p>
         ) : null}
       </div>
 

@@ -349,6 +349,17 @@ const handleAuthResponse = async (
   return payload;
 };
 
+const rethrowKnownAuthError = (
+  error: unknown,
+  operation: AuthOperation,
+): never => {
+  if (error instanceof AuthApiError) {
+    throw error;
+  }
+
+  throw classifyUnexpectedAuthError(error, operation);
+};
+
 const postAuthJson = async (
   path: string,
   body: Record<string, unknown> | undefined,
@@ -358,16 +369,9 @@ const postAuthJson = async (
     signal,
   }: AuthRequestOptions & { operation: AuthOperation },
 ) => {
-  try {
-    const response = await fetchFn(path, createAuthRequestInit(body, signal));
-    return await handleAuthResponse(response, operation);
-  } catch (error) {
-    if (error instanceof AuthApiError) {
-      throw error;
-    }
-
-    throw classifyUnexpectedAuthError(error, operation);
-  }
+  return fetchFn(path, createAuthRequestInit(body, signal))
+    .then((response) => handleAuthResponse(response, operation))
+    .catch((error) => rethrowKnownAuthError(error, operation));
 };
 
 const readMessage = (payload: unknown) =>

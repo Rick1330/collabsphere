@@ -146,10 +146,13 @@ export function LoginForm({
           type="email"
           autoComplete="email"
           placeholder="you@workspace.com"
+          aria-describedby={errors.email ? "login-email-error" : undefined}
           {...register("email")}
         />
         {errors.email ? (
-          <p className="text-sm text-[var(--color-error)]">{errors.email.message}</p>
+          <p id="login-email-error" className="text-sm text-[var(--color-error)]">
+            {errors.email.message}
+          </p>
         ) : null}
       </div>
 
@@ -168,10 +171,13 @@ export function LoginForm({
           type="password"
           autoComplete="current-password"
           placeholder="Enter your password"
+          aria-describedby={errors.password ? "login-password-error" : undefined}
           {...register("password")}
         />
         {errors.password ? (
-          <p className="text-sm text-[var(--color-error)]">{errors.password.message}</p>
+          <p id="login-password-error" className="text-sm text-[var(--color-error)]">
+            {errors.password.message}
+          </p>
         ) : null}
       </div>
 

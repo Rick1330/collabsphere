@@ -81,10 +81,16 @@ export function ForgotPasswordForm() {
           type="email"
           autoComplete="email"
           placeholder="you@workspace.com"
+          aria-describedby={errors.email ? "forgot-password-email-error" : undefined}
           {...register("email")}
         />
         {errors.email ? (
-          <p className="text-sm text-[var(--color-error)]">{errors.email.message}</p>
+          <p
+            id="forgot-password-email-error"
+            className="text-sm text-[var(--color-error)]"
+          >
+            {errors.email.message}
+          </p>
         ) : null}
       </div>
       <Button

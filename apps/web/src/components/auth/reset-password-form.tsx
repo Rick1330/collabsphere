@@ -215,11 +215,14 @@ export function ResetPasswordForm({
           type="password"
           autoComplete="new-password"
           placeholder="Create a strong password"
+          aria-describedby={errors.password ? "reset-password-error" : undefined}
           {...register("password")}
         />
         <PasswordStrength password={watch("password")} />
         {errors.password ? (
-          <p className="text-sm text-[var(--color-error)]">{errors.password.message}</p>
+          <p id="reset-password-error" className="text-sm text-[var(--color-error)]">
+            {errors.password.message}
+          </p>
         ) : null}
       </div>
 
@@ -230,10 +233,18 @@ export function ResetPasswordForm({
           type="password"
           autoComplete="new-password"
           placeholder="Repeat your password"
+          aria-describedby={
+            errors.confirmPassword ? "reset-password-confirm-error" : undefined
+          }
           {...register("confirmPassword")}
         />
         {errors.confirmPassword ? (
-          <p className="text-sm text-[var(--color-error)]">{errors.confirmPassword.message}</p>
+          <p
+            id="reset-password-confirm-error"
+            className="text-sm text-[var(--color-error)]"
+          >
+            {errors.confirmPassword.message}
+          </p>
         ) : null}
       </div>
 
