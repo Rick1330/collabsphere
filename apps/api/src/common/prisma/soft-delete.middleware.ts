@@ -39,9 +39,10 @@ export const SOFT_DELETE_READ_OPERATIONS = [
   "groupBy",
 ] as const;
 
-export const SOFT_DELETE_DELEGATE_KEYS = SOFT_DELETE_MODELS.map((modelName) =>
-  modelName[0].toLowerCase() + modelName.slice(1),
-);
+export const SOFT_DELETE_DELEGATE_KEYS = SOFT_DELETE_MODELS.map((modelName) => {
+  const firstCharacter = modelName.charAt(0);
+  return firstCharacter.toLowerCase() + modelName.slice(1);
+});
 
 export type SoftDeleteProxyOptions = {
   includeDeleted?: boolean;
@@ -84,7 +85,7 @@ export const addDefaultSoftDeleteWhere = ({
     return { deletedAt: null };
   }
 
-  if ("deletedAt" in where) {
+  if (Object.hasOwn(where, "deletedAt")) {
     return where;
   }
 
