@@ -1,32 +1,26 @@
-import { Button } from "@collabsphere/ui/components/button";
+import { AlertCircle, RefreshCw } from "lucide-react";
 
-type SectionErrorProps = {
-  title: string;
-  message: string;
-  requestId?: string | null;
-  onRetry?: () => void;
-};
-
-export function SectionError({
-  message,
-  onRetry,
-  requestId,
-  title,
-}: Readonly<SectionErrorProps>) {
-  return (
-    <div
-      className="rounded-2xl border border-red-200 bg-red-50/80 p-5 text-red-900 shadow-sm"
-      role="alert"
-    >
-      <p className="font-semibold">{title}</p>
-      <p className="mt-1 text-sm text-red-800/80">{message}</p>
-      {requestId ? <p className="mt-2 font-mono text-[11px] text-red-700">Request ID: {requestId}</p> : null}
-      {onRetry ? (
-        <Button className="mt-4" size="sm" variant="secondary" onClick={onRetry}>
-          Try again
-        </Button>
-      ) : null}
-    </div>
-  );
+interface SectionErrorProps {
+  sectionName: string;
+  requestId?: string;
+  onRetry: () => void;
 }
 
+export const SectionError = ({ sectionName, requestId, onRetry }: SectionErrorProps) => (
+  <div role="alert" className="rounded-xl border border-red-200 bg-red-50/50 p-6 text-center">
+    <AlertCircle className="h-6 w-6 text-red-400 mx-auto" />
+    <p className="text-sm text-stone-700 mt-2 font-medium">Couldn't load {sectionName}</p>
+    {requestId && (
+      <p className="text-xs text-stone-500 mt-1 font-mono">Request ID: {requestId}</p>
+    )}
+    <button
+      onClick={onRetry}
+      className="mt-3 h-8 px-4 rounded-lg border border-stone-200 bg-white text-sm font-medium text-stone-700
+        hover:bg-stone-50 transition-colors flex items-center gap-2 mx-auto
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50 focus-visible:ring-offset-2"
+    >
+      <RefreshCw className="h-3.5 w-3.5" />
+      Try again
+    </button>
+  </div>
+);

@@ -1,0 +1,1123 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-sidebar: hsl(var(--sidebar-background));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-primary: hsl(var(--sidebar-primary));
+  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+  --color-sidebar-accent: hsl(var(--sidebar-accent));
+  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+  --color-sidebar-ring: hsl(var(--sidebar-ring));
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+}
+
+
+
+@layer base {
+  :root {
+    /* Light "stone" palette — used by the authenticated app and all
+       portal-rendered surfaces (Sheet, Popover, DropdownMenu, Dialog).
+       The marketing landing/auth pages use the .cs-dark class below to
+       opt back into the dark teal tokens. */
+    --background: 60 9% 98%;
+    --foreground: 24 10% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 24 10% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 24 10% 10%;
+
+    --primary: 173 80% 32%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 60 5% 96%;
+    --secondary-foreground: 24 6% 32%;
+
+    --muted: 60 5% 96%;
+    --muted-foreground: 24 6% 45%;
+
+    --accent: 60 5% 96%;
+    --accent-foreground: 24 10% 10%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 20 6% 90%;
+    --input: 20 6% 90%;
+    --ring: 173 80% 32%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* CollabSphere brand tokens — LIGHT defaults.
+       These power the auth + landing surfaces (which use inline
+       styles like `background: var(--cs-base)`). The dark variants
+       below in `.dark` flip them so the same components render in
+       a premium teal-graphite dark palette. */
+    --cs-base: #FAFAF9;
+    --cs-surface: #FFFFFF;
+    --cs-elevated: #F5F5F4;
+    --cs-teal-bright: #0D9488;
+    --cs-teal-primary: #0F766E;
+    --cs-teal-muted: #115E59;
+    --cs-teal-faint: rgba(13, 148, 136, 0.10);
+    --cs-teal-whisper: rgba(13, 148, 136, 0.04);
+    --cs-text-headline: #1C1917;
+    --cs-text-body: #44403C;
+    --cs-text-muted: #78716C;
+    --cs-text-faint: #A8A29E;
+    --cs-amber: #D97706;
+    --cs-sky: #0284C7;
+    --cs-emerald: #059669;
+    --cs-red: #DC2626;
+
+    /* Authenticated app — warm stone palette */
+    --app-bg: #FAFAF9;
+    --app-surface: #FFFFFF;
+    --app-sidebar: #FAFAF9;
+    --app-border: #E7E5E4;
+    --app-border-subtle: #F5F5F4;
+    --app-border-strong: #D6D3D1;
+    --app-text: #1C1917;
+    --app-text-secondary: #57534E;
+    --app-text-tertiary: #A8A29E;
+    --app-text-faint: #D6D3D1;
+    --app-accent: #0D9488;
+    --app-accent-hover: #0F766E;
+    --app-accent-tint: rgba(13, 148, 136, 0.06);
+    --app-success: #059669;
+    --app-warning: #D97706;
+    --app-error: #DC2626;
+    --app-info: #0284C7;
+    --app-shadow-sm: 0 1px 2px rgba(28, 25, 23, 0.04);
+    --app-shadow-md: 0 4px 12px rgba(28, 25, 23, 0.06);
+    --app-shadow-lg: 0 12px 32px rgba(28, 25, 23, 0.08);
+    --app-shadow-card: 0 1px 3px rgba(28, 25, 23, 0.04), 0 1px 2px rgba(28, 25, 23, 0.02);
+  }
+
+  /* Premium dark palette — warm teal-graphite, tuned to match the marketing
+     landing aesthetic (#050E0E / #0A1A1A family). Deep but never pure black,
+     with a refined teal accent and soft elevated surfaces. */
+  .dark {
+    --background: 180 25% 5%;
+    --foreground: 165 30% 96%;
+
+    --card: 180 22% 8%;
+    --card-foreground: 165 30% 96%;
+
+    --popover: 180 22% 9%;
+    --popover-foreground: 165 30% 96%;
+
+    --primary: 172 76% 50%;
+    --primary-foreground: 180 30% 6%;
+
+    --secondary: 180 18% 12%;
+    --secondary-foreground: 165 25% 92%;
+
+    --muted: 180 16% 13%;
+    --muted-foreground: 180 8% 65%;
+
+    --accent: 180 18% 14%;
+    --accent-foreground: 165 30% 96%;
+
+    --destructive: 0 70% 58%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 180 14% 16%;
+    --input: 180 14% 16%;
+    --ring: 172 76% 50%;
+
+    /* Warm teal-graphite surface tokens used by .app-light shells.
+       Mirrors the marketing landing palette so the authenticated app feels
+       like the same product, not a different theme. */
+    --app-bg: #050E0E;
+    --app-surface: #0A1A1A;
+    --app-sidebar: #071313;
+    --app-elevated: #0F2424;
+    --app-border: rgba(20, 184, 166, 0.14);
+    --app-border-subtle: rgba(20, 184, 166, 0.07);
+    --app-border-strong: rgba(20, 184, 166, 0.28);
+    --app-text: #F0FDFA;
+    --app-text-secondary: #94A3B8;
+    --app-text-tertiary: #64748B;
+    --app-text-faint: #475569;
+    --app-accent: #2DD4BF;
+    --app-accent-hover: #14B8A6;
+    --app-accent-tint: rgba(45, 212, 191, 0.10);
+    --app-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --app-shadow-md: 0 4px 14px rgba(0, 0, 0, 0.45);
+    --app-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.55);
+    --app-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.25);
+
+    /* CollabSphere brand tokens — DARK overrides (premium teal-graphite).
+       These apply to the marketing landing + auth surfaces when the user
+       picks dark mode (or system prefers dark). */
+    --cs-base: #050E0E;
+    --cs-surface: #0A1A1A;
+    --cs-elevated: #0F2424;
+    --cs-teal-bright: #2DD4BF;
+    --cs-teal-primary: #14B8A6;
+    --cs-teal-muted: #0D9488;
+    --cs-teal-faint: rgba(20, 184, 166, 0.12);
+    --cs-teal-whisper: rgba(20, 184, 166, 0.05);
+    --cs-text-headline: #F0FDFA;
+    --cs-text-body: #94A3B8;
+    --cs-text-muted: #64748B;
+    --cs-text-faint: #475569;
+    --cs-amber: #F59E0B;
+    --cs-sky: #0EA5E9;
+    --cs-emerald: #10B981;
+    --cs-red: #EF4444;
+  }
+}
+
+/* Light app scope — opt in via class on root element */
+.app-light {
+  background-color: var(--app-bg);
+  color: var(--app-text);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* ============================================================
+   LIGHT-LOCKED MARKETING SCOPE
+   The marketing landing page is always rendered in the warm light
+   CollabSphere palette, regardless of the user's system or app
+   theme preference. We re-pin the --cs-* tokens here so any
+   descendant using `var(--cs-*)` paints with the light values
+   even when `.dark` is set on <html>.
+   ============================================================ */
+.cs-light-locked,
+.dark .cs-light-locked {
+  --cs-base: #FAFAF9;
+  --cs-surface: #FFFFFF;
+  --cs-elevated: #F5F5F4;
+  --cs-teal-bright: #0D9488;
+  --cs-teal-primary: #0F766E;
+  --cs-teal-muted: #115E59;
+  --cs-teal-faint: rgba(13, 148, 136, 0.10);
+  --cs-teal-whisper: rgba(13, 148, 136, 0.04);
+  --cs-text-headline: #1C1917;
+  --cs-text-body: #44403C;
+  --cs-text-muted: #78716C;
+  --cs-text-faint: #A8A29E;
+  --cs-amber: #D97706;
+  --cs-sky: #0284C7;
+  --cs-emerald: #059669;
+  --cs-red: #DC2626;
+  color-scheme: light;
+}
+
+/* ============================================================
+   DARK MODE OVERRIDES for .app-light shells
+   The authenticated app uses hardcoded stone/white/teal-50 utility
+   classes for the warm light palette. In dark mode we remap every
+   variant — including opacity suffixes — so the whole app inherits
+   the premium teal-graphite look with no dead spots.
+   ============================================================ */
+
+/* --- Page background (stone-50 plain) --- */
+.dark .app-light .bg-stone-50,
+.dark .app-light .bg-\[\#FAFAF9\] {
+  background-color: var(--app-bg) !important;
+}
+
+/* --- Sidebar / panel surfaces (stone-50 with opacity often = sidebar tone) --- */
+.dark .app-light .bg-stone-50\/80,
+.dark .app-light .bg-stone-50\/70,
+.dark .app-light .bg-stone-50\/60,
+.dark .app-light .bg-stone-50\/50,
+.dark .app-light .bg-stone-50\/40,
+.dark .app-light .bg-stone-50\/30,
+.dark .app-light .bg-stone-50\/20 {
+  background-color: var(--app-sidebar) !important;
+}
+
+/* --- Surface (white cards, top nav, dropdown menus) --- */
+.dark .app-light .bg-white,
+.dark .app-light .bg-white\/95,
+.dark .app-light .bg-white\/90,
+.dark .app-light .bg-white\/80,
+.dark .app-light .bg-white\/70,
+.dark .app-light .bg-white\/60,
+.dark .app-light .bg-white\/50 {
+  background-color: var(--app-surface) !important;
+  color: var(--app-text);
+}
+
+/* --- Subtle interior surfaces (stone-100 family) --- */
+.dark .app-light .bg-stone-100,
+.dark .app-light .bg-stone-100\/80,
+.dark .app-light .bg-stone-100\/70,
+.dark .app-light .bg-stone-100\/60,
+.dark .app-light .bg-stone-100\/50,
+.dark .app-light .bg-stone-100\/40 {
+  background-color: var(--app-elevated) !important;
+}
+
+/* --- Stronger surfaces (stone-200/300) — also used as 1px dividers.
+       Keep teal tint faint so vertical dividers don't glow. --- */
+.dark .app-light .bg-stone-200,
+.dark .app-light .bg-stone-200\/80,
+.dark .app-light .bg-stone-200\/70,
+.dark .app-light .bg-stone-200\/60,
+.dark .app-light .bg-stone-300,
+.dark .app-light .bg-stone-300\/70 {
+  background-color: rgba(20, 184, 166, 0.16) !important;
+}
+
+/* --- Borders --- */
+.dark .app-light .border-stone-100,
+.dark .app-light .border-stone-200,
+.dark .app-light .border-stone-200\/70,
+.dark .app-light .border-stone-200\/60,
+.dark .app-light .border-stone-200\/50,
+.dark .app-light .border-stone-300,
+.dark .app-light .border-b-stone-300,
+.dark .app-light .divide-stone-100 > * + *,
+.dark .app-light .divide-stone-200 > * + * {
+  border-color: var(--app-border) !important;
+}
+.dark .app-light .hover\:border-stone-300:hover,
+.dark .app-light .hover\:border-stone-400:hover {
+  border-color: var(--app-border-strong) !important;
+}
+
+/* --- Text colors --- */
+.dark .app-light .text-stone-900,
+.dark .app-light .text-stone-800,
+.dark .app-light .text-stone-700 {
+  color: var(--app-text) !important;
+}
+.dark .app-light .text-stone-600,
+.dark .app-light .text-stone-500 {
+  color: var(--app-text-secondary) !important;
+}
+.dark .app-light .text-stone-400,
+.dark .app-light .text-stone-300 {
+  color: var(--app-text-tertiary) !important;
+}
+
+/* --- Hover states --- */
+.dark .app-light .hover\:bg-stone-50:hover,
+.dark .app-light .hover\:bg-stone-100:hover,
+.dark .app-light .hover\:bg-white:hover {
+  background-color: var(--app-elevated) !important;
+}
+.dark .app-light .hover\:text-stone-900:hover,
+.dark .app-light .hover\:text-stone-800:hover,
+.dark .app-light .hover\:text-stone-700:hover,
+.dark .app-light .hover\:text-stone-600:hover {
+  color: var(--app-text) !important;
+}
+
+/* --- Inverted (stone-900 used as a dark accent on light) --- */
+.dark .app-light .bg-stone-900,
+.dark .app-light .bg-stone-900\/30,
+.dark .app-light .bg-stone-800,
+.dark .app-light .hover\:bg-stone-800:hover,
+.dark .app-light .hover\:bg-stone-900:hover {
+  background-color: rgba(20, 184, 166, 0.18) !important;
+  color: var(--app-text) !important;
+}
+
+/* --- Tinted accent backgrounds (teal/amber/emerald/red/sky/blue -50) --- */
+.dark .app-light .bg-teal-50,
+.dark .app-light .bg-teal-50\/80,
+.dark .app-light .bg-teal-50\/70,
+.dark .app-light .bg-teal-50\/60,
+.dark .app-light .bg-teal-50\/40,
+.dark .app-light .bg-teal-50\/20 {
+  background-color: rgba(20, 184, 166, 0.14) !important;
+}
+.dark .app-light .text-teal-700,
+.dark .app-light .text-teal-600 {
+  color: #2DD4BF !important;
+}
+.dark .app-light .border-teal-200,
+.dark .app-light .border-teal-300 {
+  border-color: rgba(20, 184, 166, 0.35) !important;
+}
+
+.dark .app-light .bg-amber-50,
+.dark .app-light .bg-amber-50\/80,
+.dark .app-light .bg-amber-50\/70,
+.dark .app-light .bg-amber-50\/60,
+.dark .app-light .bg-amber-50\/50,
+.dark .app-light .bg-amber-50\/20 {
+  background-color: rgba(245, 158, 11, 0.14) !important;
+}
+.dark .app-light .text-amber-700,
+.dark .app-light .text-amber-600 {
+  color: #FBBF24 !important;
+}
+.dark .app-light .border-amber-200,
+.dark .app-light .border-amber-300 {
+  border-color: rgba(245, 158, 11, 0.35) !important;
+}
+
+.dark .app-light .bg-emerald-50,
+.dark .app-light .bg-emerald-50\/60,
+.dark .app-light .bg-emerald-50\/40,
+.dark .app-light .bg-emerald-50\/10 {
+  background-color: rgba(16, 185, 129, 0.14) !important;
+}
+.dark .app-light .text-emerald-700,
+.dark .app-light .text-emerald-600 {
+  color: #34D399 !important;
+}
+.dark .app-light .border-emerald-200,
+.dark .app-light .border-emerald-300 {
+  border-color: rgba(16, 185, 129, 0.35) !important;
+}
+
+.dark .app-light .bg-red-50,
+.dark .app-light .bg-red-50\/50,
+.dark .app-light .bg-red-50\/40,
+.dark .app-light .bg-red-50\/30 {
+  background-color: rgba(239, 68, 68, 0.14) !important;
+}
+.dark .app-light .text-red-700,
+.dark .app-light .text-red-600 {
+  color: #F87171 !important;
+}
+.dark .app-light .border-red-200,
+.dark .app-light .border-red-300 {
+  border-color: rgba(239, 68, 68, 0.35) !important;
+}
+
+.dark .app-light .bg-sky-50,
+.dark .app-light .bg-blue-50 {
+  background-color: rgba(14, 165, 233, 0.14) !important;
+}
+.dark .app-light .text-sky-700,
+.dark .app-light .text-sky-600,
+.dark .app-light .text-blue-700,
+.dark .app-light .text-blue-600 {
+  color: #38BDF8 !important;
+}
+.dark .app-light .border-sky-200,
+.dark .app-light .border-blue-200 {
+  border-color: rgba(14, 165, 233, 0.35) !important;
+}
+
+/* --- Inputs / kbd chips that use bg-white inline --- */
+.dark .app-light kbd,
+.dark .app-light input,
+.dark .app-light textarea,
+.dark .app-light select {
+  background-color: var(--app-elevated);
+  border-color: var(--app-border);
+  color: var(--app-text);
+}
+.dark .app-light input::placeholder,
+.dark .app-light textarea::placeholder {
+  color: var(--app-text-tertiary);
+}
+
+/* --- Ring offsets (focus rings look right on dark bg) --- */
+.dark .app-light *:focus-visible {
+  --tw-ring-offset-color: var(--app-bg);
+}
+
+/* ============================================================
+   Premium polish for portaled menus (DropdownMenuContent /
+   PopoverContent) — opaque surface, separator, hover, focus,
+   destructive item, avatar trigger ring.
+   ============================================================ */
+
+/* Menu surface — fully opaque dark surface with elevation so it
+   reads above task cards / canvas content instead of bleeding
+   through. Radix sets role="menu" on DropdownMenuContent. */
+.dark .app-light[role="menu"],
+.dark .app-light[data-radix-menu-content],
+.dark [data-radix-popper-content-wrapper] > .app-light {
+  background-color: var(--app-surface) !important;
+  border: 1px solid var(--app-border) !important;
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.6),
+    0 4px 12px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(20, 184, 166, 0.06) !important;
+  color: var(--app-text);
+}
+
+/* Item hover/focus — subtle teal wash, headline text */
+.dark .app-light [role="menuitem"]:focus,
+.dark .app-light [role="menuitem"][data-highlighted],
+.dark .app-light [role="menuitemcheckbox"]:focus,
+.dark .app-light [role="menuitemradio"]:focus {
+  background-color: rgba(45, 212, 191, 0.10) !important;
+  color: var(--app-text) !important;
+  outline: none;
+}
+
+/* Destructive item (sign out) — soft red, brighter on hover */
+.dark .app-light [role="menuitem"].text-red-600,
+.dark .app-light [role="menuitem"] .text-red-600 {
+  color: #F87171 !important;
+}
+.dark .app-light [role="menuitem"].text-red-600:focus,
+.dark .app-light [role="menuitem"].text-red-600[data-highlighted] {
+  background-color: rgba(239, 68, 68, 0.12) !important;
+  color: #FCA5A5 !important;
+}
+
+/* Separator — refined teal hairline instead of grey muted */
+.dark .app-light [role="separator"][data-orientation="horizontal"],
+.dark .app-light [role="separator"]:not([data-orientation="vertical"]) {
+  background-color: rgba(20, 184, 166, 0.16) !important;
+  height: 1px;
+}
+
+/* Inline icons inside menu items inherit the item color (handles the
+   workspace switcher chevron + leading icons cleanly). */
+.dark .app-light [role="menuitem"] svg {
+  color: inherit;
+}
+
+/* Workspace switcher trigger chevron — softer secondary tone */
+.dark .app-light button[aria-label="Switch workspace"] svg {
+  color: var(--app-text-tertiary);
+}
+.dark .app-light button[aria-label="Switch workspace"]:hover svg,
+.dark .app-light button[aria-label="Switch workspace"][data-state="open"] svg {
+  color: var(--app-accent);
+}
+
+/* Avatar trigger (top-right profile button) — teal halo that reads
+   against the dark canvas, replacing the white ring-teal-200. */
+.dark .app-light button[aria-label="Open user menu"] {
+  box-shadow: 0 0 0 2px transparent;
+  transition: box-shadow 150ms ease;
+}
+.dark .app-light button[aria-label="Open user menu"]:hover,
+.dark .app-light button[aria-label="Open user menu"][data-state="open"],
+.dark .app-light button[aria-label="Open user menu"]:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--app-bg),
+    0 0 0 4px rgba(45, 212, 191, 0.55);
+}
+
+.app-light ::selection {
+  background: rgba(45, 212, 191, 0.25);
+}
+
+/* ============================================================
+   PREMIUM POLISH PASS — targeted contrast fixes for surfaces
+   that read flat after the global stone→teal-graphite remap.
+   ============================================================ */
+
+/* --- Active tab / pill in settings rails (general / members / danger).
+   The base style is `bg-white border-stone-200 shadow-sm` which both
+   collapse to --app-surface in dark mode, leaving the active item
+   indistinguishable from the surrounding pane. Lift it with a teal
+   tinted surface, a teal border, and a subtle glow. --- */
+.dark .app-light [aria-current="page"].bg-white,
+.dark .app-light button[aria-current="page"],
+.dark .app-light a[aria-current="page"] {
+  background-color: rgba(45, 212, 191, 0.10) !important;
+  border-color: rgba(45, 212, 191, 0.35) !important;
+  color: var(--app-text) !important;
+  box-shadow:
+    0 0 0 1px rgba(45, 212, 191, 0.18),
+    0 1px 2px rgba(0, 0, 0, 0.35) !important;
+}
+.dark .app-light [aria-current="page"] .text-stone-700,
+.dark .app-light [aria-current="page"] .text-stone-600,
+.dark .app-light [aria-current="page"] .text-stone-500,
+.dark .app-light [aria-current="page"] .text-stone-400 {
+  color: var(--app-text) !important;
+}
+.dark .app-light [aria-current="page"] .text-teal-600,
+.dark .app-light [aria-current="page"] .text-teal-700 {
+  color: #5EEAD4 !important;
+}
+
+/* Danger-zone active tab keeps a red identity instead of teal. */
+.dark .app-light [aria-current="page"].border-red-200,
+.dark .app-light button[aria-current="page"].text-red-700,
+.dark .app-light a[aria-current="page"].text-red-700 {
+  background-color: rgba(239, 68, 68, 0.12) !important;
+  border-color: rgba(239, 68, 68, 0.40) !important;
+  color: #FCA5A5 !important;
+  box-shadow:
+    0 0 0 1px rgba(239, 68, 68, 0.20),
+    0 1px 2px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* --- Activity feed sticky day headers ("TODAY", "YESTERDAY", …).
+   They use `bg-stone-50/95 backdrop-blur` which becomes the sidebar
+   tone — too close to the page. Give them an opaque elevated band
+   with a teal hairline so they read as section dividers. --- */
+.dark .app-light h2.sticky.bg-stone-50\/95 {
+  background-color: rgba(7, 19, 19, 0.92) !important;
+  backdrop-filter: blur(8px);
+  border-bottom-color: rgba(20, 184, 166, 0.22) !important;
+}
+.dark .app-light h2.sticky.bg-stone-50\/95 > span:first-child {
+  color: #5EEAD4 !important;
+  letter-spacing: 0.22em;
+}
+
+/* --- Pending invitations table.
+   The amber-tinted shell + nested `bg-white` rows collapse into one
+   flat amber wash. Re-introduce row contrast and keep the amber
+   identity in the header band only. --- */
+.dark .app-light .bg-gradient-to-b.from-amber-50\/30 {
+  background: linear-gradient(
+    to bottom,
+    rgba(245, 158, 11, 0.08),
+    var(--app-surface) 40%
+  ) !important;
+  border-color: rgba(245, 158, 11, 0.28) !important;
+}
+.dark .app-light .bg-amber-50\/40 {
+  background-color: rgba(245, 158, 11, 0.12) !important;
+}
+.dark .app-light .border-amber-200\/60,
+.dark .app-light .border-amber-200\/70 {
+  border-color: rgba(245, 158, 11, 0.28) !important;
+}
+/* Row hover inside the invitations table — currently `hover:bg-white`
+   which becomes invisible on the amber-tinted surface. Use elevated. */
+.dark .app-light .bg-gradient-to-b.from-amber-50\/30 tr:hover {
+  background-color: rgba(45, 212, 191, 0.06) !important;
+}
+/* Role chip on each row uses `bg-white border-stone-200` — promote it. */
+.dark .app-light .bg-gradient-to-b.from-amber-50\/30 .bg-white {
+  background-color: var(--app-elevated) !important;
+  border-color: var(--app-border) !important;
+}
+
+/* --- Admin console — red identity polish.
+   The admin shell uses red-50/red-200/red-700 a lot; the global remap
+   keeps them readable but they end up muddy. Tighten contrast so the
+   admin panel feels operational, not washed out. --- */
+.dark .app-light .bg-red-50\/30,
+.dark .app-light .bg-red-50\/20 {
+  background-color: rgba(239, 68, 68, 0.08) !important;
+}
+.dark .app-light .hover\:bg-red-50\/30:hover,
+.dark .app-light .hover\:bg-red-50\/40:hover,
+.dark .app-light .hover\:bg-red-50\/60:hover {
+  background-color: rgba(239, 68, 68, 0.12) !important;
+}
+.dark .app-light .hover\:text-red-700:hover {
+  color: #FCA5A5 !important;
+}
+
+/* Admin sidebar active nav item — `bg-red-50 text-red-700` reads soft.
+   Lift to a clear red-tinted band with a left rail accent. */
+.dark .app-light aside[aria-label="Admin sidebar"] a.bg-red-50 {
+  background-color: rgba(239, 68, 68, 0.14) !important;
+  color: #FCA5A5 !important;
+  box-shadow: inset 2px 0 0 0 #F87171;
+}
+
+/* Admin KPI card left rail (the absolute-positioned 2px red bar). */
+.dark .app-light .bg-red-600\/80 {
+  background-color: #F87171 !important;
+}
+.dark .app-light .bg-red-600 {
+  background-color: #EF4444 !important;
+}
+
+/* Admin section headers + table heads — give a faint elevated band. */
+.dark .app-light .bg-stone-50\/60 {
+  background-color: rgba(20, 184, 166, 0.05) !important;
+}
+
+/* Sticky table head (admin tables: AdminTH uses bg-stone-50/80) — must
+   be opaque enough to occlude rows scrolling under it. */
+.dark .app-light thead .bg-stone-50\/80,
+.dark .app-light .bg-stone-50\/80 {
+  background-color: rgba(15, 36, 36, 0.96) !important;
+  color: var(--app-text-secondary) !important;
+}
+
+/* Admin row even-zebra — `even:bg-stone-50/40` collapses; restore. */
+.dark .app-light tbody tr.even\:bg-stone-50\/40:nth-child(even),
+.dark .app-light tbody tr:nth-child(even).even\:bg-stone-50\/40 {
+  background-color: rgba(20, 184, 166, 0.04) !important;
+}
+
+/* Admin row odd-stripe — `odd:bg-white` is already mapped via .bg-white,
+   but reinforce specifically for tbody so it doesn't pick up surface tone
+   from any nested .bg-white card. */
+.dark .app-light tbody tr.odd\:bg-white:nth-child(odd) {
+  background-color: var(--app-surface) !important;
+}
+
+/* Admin table shell wrapper — `bg-white shadow-[…]` reads almost identical
+   to the page bg in dark mode. Add a 1px teal hairline shadow for lift. */
+.dark .app-light .rounded-lg.border.border-stone-200.bg-white.shadow-\[0_1px_0_rgba\(0\,0\,0\,0\.02\)\] {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(20, 184, 166, 0.04) !important;
+}
+
+/* Admin form / facet active button — `bg-red-600 text-white border-red-600`
+   already lifts well; reinforce hover for non-active facet buttons. */
+.dark .app-light .hover\:bg-stone-50:hover {
+  background-color: rgba(20, 184, 166, 0.08) !important;
+}
+
+/* Admin "back to app" link + footer caption stay readable. */
+.dark .app-light aside[aria-label="Admin sidebar"] .text-stone-400 {
+  color: var(--app-text-tertiary) !important;
+}
+
+/* ============================================================
+   DANGER ZONE (workspace settings) — premium dark identity.
+   The default rows use light gradients + 100-tinted icon chips
+   that wash out. Re-skin to match teal-graphite: solid elevated
+   surface, tone-coloured left rail, tinted icon chips, bordered
+   ghost buttons. Red header keeps red identity.
+   ============================================================ */
+
+/* Header banner */
+.dark .app-light .bg-gradient-to-b.from-red-50\/60 {
+  background: var(--app-surface) !important;
+  border-color: rgba(239, 68, 68, 0.32) !important;
+  box-shadow:
+    inset 3px 0 0 0 #EF4444,
+    0 1px 2px rgba(0, 0, 0, 0.4) !important;
+}
+.dark .app-light .bg-gradient-to-b.from-red-50\/60 .bg-white {
+  background-color: rgba(239, 68, 68, 0.14) !important;
+  border-color: rgba(239, 68, 68, 0.32) !important;
+}
+
+/* Action rows — flatten gradient, add tone left rail */
+.dark .app-light .bg-gradient-to-r.from-amber-50\/40,
+.dark .app-light .bg-gradient-to-r.from-teal-50\/40,
+.dark .app-light .bg-gradient-to-r.from-red-50\/40 {
+  background: var(--app-surface) !important;
+}
+.dark .app-light .bg-gradient-to-r.from-amber-50\/40 {
+  border-color: rgba(245, 158, 11, 0.30) !important;
+  box-shadow:
+    inset 3px 0 0 0 #F59E0B,
+    0 1px 2px rgba(0, 0, 0, 0.35) !important;
+}
+.dark .app-light .bg-gradient-to-r.from-teal-50\/40 {
+  border-color: rgba(45, 212, 191, 0.30) !important;
+  box-shadow:
+    inset 3px 0 0 0 #2DD4BF,
+    0 1px 2px rgba(0, 0, 0, 0.35) !important;
+}
+.dark .app-light .bg-gradient-to-r.from-red-50\/40 {
+  border-color: rgba(239, 68, 68, 0.32) !important;
+  box-shadow:
+    inset 3px 0 0 0 #EF4444,
+    0 1px 2px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* Icon chips — promote 100-tinted bg to readable toned chips */
+.dark .app-light .bg-amber-100\/70 {
+  background-color: rgba(245, 158, 11, 0.18) !important;
+  border-color: rgba(245, 158, 11, 0.35) !important;
+}
+.dark .app-light .bg-teal-100\/70 {
+  background-color: rgba(45, 212, 191, 0.18) !important;
+  border-color: rgba(45, 212, 191, 0.35) !important;
+}
+.dark .app-light .bg-red-100\/70 {
+  background-color: rgba(239, 68, 68, 0.18) !important;
+  border-color: rgba(239, 68, 68, 0.38) !important;
+}
+
+/* Tone-coloured action buttons — bordered ghost on elevated surface */
+.dark .app-light .border-amber-300.text-amber-800 {
+  background-color: rgba(245, 158, 11, 0.10) !important;
+  border-color: rgba(245, 158, 11, 0.45) !important;
+  color: #FBBF24 !important;
+}
+.dark .app-light .border-amber-300.text-amber-800:hover {
+  background-color: rgba(245, 158, 11, 0.18) !important;
+  color: #FCD34D !important;
+}
+.dark .app-light .border-teal-300.text-teal-800 {
+  background-color: rgba(45, 212, 191, 0.10) !important;
+  border-color: rgba(45, 212, 191, 0.45) !important;
+  color: #5EEAD4 !important;
+}
+.dark .app-light .border-teal-300.text-teal-800:hover {
+  background-color: rgba(45, 212, 191, 0.18) !important;
+  color: #99F6E4 !important;
+}
+.dark .app-light .border-red-300.text-red-700 {
+  background-color: rgba(239, 68, 68, 0.10) !important;
+  border-color: rgba(239, 68, 68, 0.45) !important;
+  color: #F87171 !important;
+}
+.dark .app-light .border-red-300.text-red-700:hover {
+  background-color: rgba(239, 68, 68, 0.20) !important;
+  color: #FCA5A5 !important;
+}
+
+/* Tinted text colours readable on dark */
+.dark .app-light .text-amber-800 {
+  color: #FBBF24 !important;
+}
+.dark .app-light .text-teal-800 {
+  color: #5EEAD4 !important;
+}
+
+/* ============================================================
+   DASHBOARD ROLE PANELS — flatten light gradients in dark mode.
+   AdminPanel / SupervisorPanel / StudentPanel use
+   `bg-gradient-to-br from-{color}-50/{40|60} to-white` which
+   Tailwind compiles to a gradient that fades INTO #fff via
+   --tw-gradient-to. The bg-* override block can't reach gradient
+   stops, so these panels read as washed-out coloured fades on the
+   dark canvas. Re-skin to elevated surface + tone left rail +
+   tone hairline border, matching the Danger Zone treatment.
+   ============================================================ */
+.dark .app-light .bg-gradient-to-br.from-red-50\/60,
+.dark .app-light .bg-gradient-to-br.from-amber-50\/40,
+.dark .app-light .bg-gradient-to-br.from-teal-50\/40 {
+  background: var(--app-surface) !important;
+}
+.dark .app-light .bg-gradient-to-br.from-red-50\/60 {
+  border-color: rgba(239, 68, 68, 0.32) !important;
+  box-shadow:
+    inset 3px 0 0 0 #EF4444,
+    0 1px 3px rgba(0, 0, 0, 0.4) !important;
+}
+.dark .app-light .bg-gradient-to-br.from-amber-50\/40 {
+  border-color: rgba(245, 158, 11, 0.32) !important;
+  box-shadow:
+    inset 3px 0 0 0 #F59E0B,
+    0 1px 3px rgba(0, 0, 0, 0.4) !important;
+}
+.dark .app-light .bg-gradient-to-br.from-teal-50\/40 {
+  border-color: rgba(45, 212, 191, 0.32) !important;
+  box-shadow:
+    inset 3px 0 0 0 #2DD4BF,
+    0 1px 3px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Icon chips inside the role panels (`bg-{tone}-100 border-{tone}-200`)
+   — promote so they don't blend into the elevated card. */
+.dark .app-light .bg-red-100 {
+  background-color: rgba(239, 68, 68, 0.20) !important;
+  border-color: rgba(239, 68, 68, 0.38) !important;
+}
+.dark .app-light .bg-amber-100 {
+  background-color: rgba(245, 158, 11, 0.20) !important;
+  border-color: rgba(245, 158, 11, 0.38) !important;
+}
+.dark .app-light .bg-teal-100 {
+  background-color: rgba(45, 212, 191, 0.20) !important;
+  border-color: rgba(45, 212, 191, 0.38) !important;
+}
+
+/* Solid action buttons on role panels (Open queue / Open admin console). */
+.dark .app-light .bg-amber-600 {
+  background-color: #D97706 !important;
+}
+.dark .app-light .bg-amber-600:hover,
+.dark .app-light .hover\:bg-amber-500:hover {
+  background-color: #F59E0B !important;
+}
+
+/* Templates "v1" callout — `bg-gradient-to-r from-amber-50/40 to-transparent`
+   on a stone-200 border. Soften so it doesn't read as a danger row. */
+.dark .app-light .bg-gradient-to-r.from-amber-50\/40.to-transparent {
+  background: linear-gradient(
+    to right,
+    rgba(245, 158, 11, 0.10),
+    transparent 60%
+  ) !important;
+  border-color: rgba(245, 158, 11, 0.22) !important;
+  box-shadow: none !important;
+}
+
+/* Documents tree — depth guide + active row tint in dark mode. */
+.dark .app-light .bg-stone-200\/70 {
+  background-color: rgba(20, 184, 166, 0.18) !important;
+}
+.dark .app-light .bg-teal-50\/80 {
+  background-color: rgba(45, 212, 191, 0.14) !important;
+}
+.dark .app-light .bg-stone-100\/70:hover,
+.dark .app-light .hover\:bg-stone-100\/70:hover {
+  background-color: rgba(45, 212, 191, 0.06) !important;
+}
+
+/* ============================================================
+   DOCUMENTS / TEMPLATES HERO POLISH — dark-mode contrast for
+   decorative ambient glows, hairline gradients, and the new
+   document-template card chips/icons introduced in the redesign.
+   ============================================================ */
+
+/* Ambient glow halos — pure tint colour pills behind heroes.
+   In dark mode the bg-teal-100/bg-amber-100 chips are remapped
+   to readable tinted bands, but for the BLURRED decorative
+   halos we want them dimmer so they don't bloom. */
+.dark .app-light .blur-3xl.bg-teal-100,
+.dark .app-light .blur-3xl.bg-amber-100,
+.dark .app-light .blur-3xl.bg-amber-100\/40,
+.dark .app-light .blur-3xl.bg-teal-100\/40 {
+  background-color: rgba(20, 184, 166, 0.18) !important;
+  opacity: 0.5 !important;
+}
+.dark .app-light .blur-3xl.bg-amber-100,
+.dark .app-light .blur-3xl.bg-amber-100\/40 {
+  background-color: rgba(245, 158, 11, 0.16) !important;
+}
+
+/* Hairline accent strips at the top of premium cards — soften so they
+   don't read as bright stripes against the dark surface. */
+.dark .app-light .via-teal-200 {
+  --tw-gradient-via-color: rgba(45, 212, 191, 0.30) !important;
+  --tw-gradient-via-stops: var(--tw-gradient-position),
+    var(--tw-gradient-from) var(--tw-gradient-from-position),
+    rgba(45, 212, 191, 0.30) var(--tw-gradient-via-position),
+    var(--tw-gradient-to) var(--tw-gradient-to-position) !important;
+}
+.dark .app-light .via-amber-300 {
+  --tw-gradient-via-color: rgba(245, 158, 11, 0.32) !important;
+  --tw-gradient-via-stops: var(--tw-gradient-position),
+    var(--tw-gradient-from) var(--tw-gradient-from-position),
+    rgba(245, 158, 11, 0.32) var(--tw-gradient-via-position),
+    var(--tw-gradient-to) var(--tw-gradient-to-position) !important;
+}
+.dark .app-light .via-stone-200 {
+  --tw-gradient-via-color: rgba(20, 184, 166, 0.18) !important;
+  --tw-gradient-via-stops: var(--tw-gradient-position),
+    var(--tw-gradient-from) var(--tw-gradient-from-position),
+    rgba(20, 184, 166, 0.18) var(--tw-gradient-via-position),
+    var(--tw-gradient-to) var(--tw-gradient-to-position) !important;
+}
+
+/* Empty-state ambient wash inside templates — bg-gradient-to-b from-stone-50/50
+   to-transparent on the new EmptyState. Use a faint elevated wash. */
+.dark .app-light .bg-gradient-to-b.from-stone-50\/50 {
+  background: linear-gradient(
+    to bottom,
+    rgba(20, 184, 166, 0.04),
+    transparent
+  ) !important;
+}
+
+/* Dashed empty-state border — stone-300 reads too faint after remap. */
+.dark .app-light .border-dashed.border-stone-300 {
+  border-color: rgba(20, 184, 166, 0.30) !important;
+}
+
+@layer base {
+  @reference "tailwindcss";
+
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  body {
+    background-color: var(--cs-base);
+    color: var(--cs-text-body);
+    font-family: 'Inter', system-ui, sans-serif;
+    transition: background-color 200ms ease, color 200ms ease;
+  }
+
+  ::selection {
+    background: rgba(20, 184, 166, 0.2);
+  }
+}
+
+@layer components {
+  @reference "tailwindcss";
+
+  .font-mono-cs {
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .cs-headline {
+    color: var(--cs-text-headline);
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+    font-weight: 800;
+  }
+
+  .cs-border {
+    border-color: rgba(20, 184, 166, 0.12);
+  }
+
+  .cs-border-hover {
+    border-color: rgba(20, 184, 166, 0.25);
+  }
+
+  .cs-glow {
+    box-shadow: 0 0 80px rgba(20, 184, 166, 0.08);
+  }
+
+  .cs-focus {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgba(20,184,166,0.5)] focus-visible:ring-offset-2;
+    --tw-ring-offset-color: var(--cs-base);
+  }
+
+  .cs-btn-primary {
+    @apply relative overflow-hidden font-semibold transition-colors duration-150;
+    background-color: var(--cs-teal-bright);
+    color: white;
+    border-radius: 0.5rem;
+  }
+  .cs-btn-primary:hover {
+    background-color: var(--cs-teal-primary);
+  }
+
+  .cs-btn-secondary {
+    @apply font-semibold transition-all duration-150 backdrop-blur-sm;
+    border: 1px solid var(--cs-teal-faint);
+    color: var(--cs-text-body);
+    background: color-mix(in oklab, var(--cs-surface) 92%, transparent);
+    border-radius: 0.5rem;
+  }
+  .cs-btn-secondary:hover {
+    color: var(--cs-text-headline);
+    border-color: color-mix(in oklab, var(--cs-teal-bright) 35%, transparent);
+  }
+
+  .cs-pill {
+    @apply text-[10px] px-2.5 py-1 rounded;
+    font-family: 'JetBrains Mono', monospace;
+    border: 1px solid rgba(20, 184, 166, 0.15);
+    color: rgba(45, 212, 191, 0.6);
+    background: rgba(13, 148, 136, 0.1);
+  }
+
+  .cs-keycap {
+    @apply inline-flex items-center justify-center font-medium;
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--cs-surface);
+    border: 1px solid rgba(20, 184, 166, 0.2);
+    border-bottom-width: 3px;
+    border-radius: 0.375rem;
+    color: var(--cs-text-body);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  }
+
+  .shine-effect::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to right, transparent, rgba(255,255,255,0.1), transparent);
+    transform: translateX(-100%);
+    transition: transform 0.7s;
+  }
+  .shine-effect:hover::before {
+    transform: translateX(200%);
+  }
+}
+
+/* Tiptap editor placeholders */
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--app-text-tertiary);
+  pointer-events: none;
+  height: 0;
+  font-style: italic;
+}
+.tiptap h1.is-empty::before,
+.tiptap h2.is-empty::before,
+.tiptap h3.is-empty::before,
+.tiptap h4.is-empty::before,
+.tiptap h5.is-empty::before,
+.tiptap h6.is-empty::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--app-text-tertiary);
+  pointer-events: none;
+  height: 0;
+  font-style: normal;
+  font-weight: bold;
+}
+.tiptap:focus { outline: none; }
+.tiptap ::selection { background: rgba(13, 148, 136, 0.18); }
+
+/* Inline comment anchor highlights. Passive anchors are quiet; the active
+   thread intensifies; clicking "Jump to" flashes the range briefly. */
+.tiptap .doc-anchor {
+  background-color: rgba(245, 158, 11, 0.10);
+  border-bottom: 1.5px solid rgba(245, 158, 11, 0.35);
+  border-radius: 2px;
+  padding: 0 1px;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+.tiptap .doc-anchor:hover {
+  background-color: rgba(245, 158, 11, 0.18);
+  border-bottom-color: rgba(245, 158, 11, 0.55);
+}
+.tiptap .doc-anchor.is-active {
+  background-color: rgba(13, 148, 136, 0.14);
+  border-bottom-color: rgba(13, 148, 136, 0.6);
+}
+.tiptap .doc-anchor.is-flashing {
+  animation: doc-anchor-flash 1.4s ease-out;
+}
+@keyframes doc-anchor-flash {
+  0%   { background-color: rgba(13, 148, 136, 0.45); }
+  100% { background-color: rgba(13, 148, 136, 0.14); }
+}
+
+@layer utilities {
+  @keyframes cs-pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .animate-cs-pulse {
+    animation: cs-pulse-dot 2s ease-in-out infinite;
+  }
+
+  @keyframes cs-spin-slow {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  .animate-cs-spin-slow {
+    animation: cs-spin-slow 40s linear infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-cs-pulse,
+    .animate-cs-spin-slow {
+      animation: none;
+    }
+  }
+}
