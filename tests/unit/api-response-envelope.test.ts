@@ -82,6 +82,27 @@ test("action envelopes keep the message inside data", () => {
   );
 });
 
+test("action envelopes do not let extraData override the canonical message", () => {
+  assert.deepEqual(
+    createActionResponseEnvelope({
+      message: "OK",
+      requestId: "req_123",
+      extraData: {
+        status: "queued",
+      },
+    }),
+    {
+      data: {
+        status: "queued",
+        message: "OK",
+      },
+      meta: {
+        requestId: "req_123",
+      },
+    },
+  );
+});
+
 test("success wrapper maps single, list, and action payloads to canonical envelopes", () => {
   assert.deepEqual(
     wrapSuccessResponse({

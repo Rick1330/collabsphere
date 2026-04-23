@@ -8,6 +8,10 @@ import {
   type SingleResourceEnvelope,
 } from "../response/response-envelope.js";
 
+type ActionResponseExtraData = Record<string, unknown> & {
+  message?: never;
+};
+
 export type SingleResourcePayload<TResource> = {
   kind: "single";
   resource: TResource;
@@ -26,10 +30,14 @@ export type ActionResponsePayload<TExtra extends Record<string, unknown> = Recor
   extraData?: TExtra;
 };
 
-export type SuccessResponsePayload<TResource = unknown, TItem = unknown> =
+export type SuccessResponsePayload<
+  TResource = unknown,
+  TItem = unknown,
+  TActionExtra extends ActionResponseExtraData = Record<string, never>,
+> =
   | SingleResourcePayload<TResource>
   | ListResponsePayload<TItem>
-  | ActionResponsePayload;
+  | ActionResponsePayload<TActionExtra>;
 
 export const createSingleResourcePayload = <TResource>(
   resource: TResource,
@@ -54,7 +62,7 @@ export const createListResponsePayload = <TItem>({
 });
 
 export const createActionResponsePayload = <
-  TExtra extends Record<string, unknown> = Record<string, never>,
+  TExtra extends ActionResponseExtraData = Record<string, never>,
 >({
   message,
   extraData,
@@ -67,13 +75,17 @@ export const createActionResponsePayload = <
   extraData,
 });
 
+const assertNever = (value: never): never => {
+  throw new Error(`Unsupported success response payload kind: ${String(value)}`);
+};
+
 export const wrapSuccessResponse = ({
   payload,
   requestId,
 }: {
-  payload: SuccessResponsePayload;
+  payload: SuccessResponsePayload<unknown, unknown, ActionResponseExtraData>;
   requestId: string;
-}):
+}): 
   | SingleResourceEnvelope<unknown>
   | ListResponseEnvelope<unknown>
   | ActionResponseEnvelope<Record<string, unknown>> => {
@@ -96,5 +108,7 @@ export const wrapSuccessResponse = ({
         requestId,
         extraData: payload.extraData,
       });
+    default:
+      return assertNever(payload);
   }
 };

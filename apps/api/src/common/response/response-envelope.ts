@@ -12,6 +12,10 @@ export type ResponseMeta = {
   pagination?: ResponsePaginationMeta;
 };
 
+type ActionResponseExtraData = Record<string, unknown> & {
+  message?: never;
+};
+
 export type SingleResourceEnvelope<TResource> = {
   data: {
     resource: TResource;
@@ -27,7 +31,9 @@ export type ListResponseEnvelope<TItem> = {
   meta: ResponseMeta;
 };
 
-export type ActionResponseEnvelope<TExtra extends Record<string, unknown> = Record<string, never>> = {
+export type ActionResponseEnvelope<
+  TExtra extends ActionResponseExtraData = Record<string, never>,
+> = {
   data: {
     message: string;
   } & TExtra;
@@ -88,7 +94,7 @@ export const createListResponseEnvelope = <TItem>({
 });
 
 export const createActionResponseEnvelope = <
-  TExtra extends Record<string, unknown> = Record<string, never>,
+  TExtra extends ActionResponseExtraData = Record<string, never>,
 >({
   message,
   requestId,
@@ -99,8 +105,8 @@ export const createActionResponseEnvelope = <
   extraData?: TExtra;
 }): ActionResponseEnvelope<TExtra> => ({
   data: {
-    message,
     ...(extraData ?? ({} as TExtra)),
+    message,
   },
   meta: createResponseMeta({
     requestId,
