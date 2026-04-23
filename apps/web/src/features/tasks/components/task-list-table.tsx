@@ -51,17 +51,16 @@ const SortHeader = ({
   align?: "left" | "right";
 }) => {
   const isActive = currentSort === field;
+  const ariaSort: React.AriaAttributes["aria-sort"] = !isActive
+    ? "none"
+    : currentDir === "asc"
+      ? "ascending"
+      : "descending";
   return (
     <th
       className={cn("px-4 py-2.5", width, align === "right" ? "text-right" : "text-left")}
       scope="col"
-      aria-sort={
-        isActive
-          ? currentDir === "asc"
-            ? "ascending"
-            : "descending"
-          : "none"
-      }
+      aria-sort={ariaSort}
     >
       <button
         type="button"
@@ -99,6 +98,22 @@ export const TaskListTable = ({
   onSort,
   onTaskClick,
 }: TaskListTableProps) => {
+  const renderDueDate = (task: TaskListRow) => {
+    if (!task.dueDate) {
+      return <span className="text-stone-300">—</span>;
+    }
+
+    const due = formatDueDate(task.dueDate);
+    const dueClassName = cn(
+      "text-sm",
+      due.isOverdue && "text-red-600 font-medium",
+      due.isDueToday && "text-amber-600 font-medium",
+      !due.isOverdue && !due.isDueToday && "text-stone-500",
+    );
+
+    return <span className={dueClassName}>{due.text}</span>;
+  };
+
   return (
     <div className="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden hidden md:block">
       <div className="overflow-x-auto">
@@ -232,27 +247,7 @@ export const TaskListTable = ({
                   )}
                 </td>
                 <td className="px-4 py-2.5">
-                  {task.dueDate ? (
-                    (() => {
-                      const due = formatDueDate(task.dueDate);
-                      return (
-                        <span
-                          className={cn(
-                            "text-sm",
-                            due.isOverdue && "text-red-600 font-medium",
-                            due.isDueToday && "text-amber-600 font-medium",
-                            !due.isOverdue &&
-                              !due.isDueToday &&
-                              "text-stone-500",
-                          )}
-                        >
-                          {due.text}
-                        </span>
-                      );
-                    })()
-                  ) : (
-                    <span className="text-stone-300">—</span>
-                  )}
+                  {renderDueDate(task)}
                 </td>
                 <td className="px-4 py-2.5">
                   <time

@@ -251,9 +251,9 @@ export const MemberList = ({
           <div aria-busy="true" className="space-y-4">
             <div className="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden hidden md:block">
               <div className="border-b border-stone-200 bg-stone-50/70 h-9" />
-              {Array.from({ length: 5 }).map((_, i) => (
+              {["member-1", "member-2", "member-3", "member-4", "member-5"].map((id) => (
                 <div
-                  key={i}
+                  key={id}
                   className="border-b border-stone-100 last:border-b-0 px-4 py-3 flex items-center gap-3"
                 >
                   <Skeleton className="h-9 w-9 rounded-full" />
@@ -268,9 +268,9 @@ export const MemberList = ({
               ))}
             </div>
             <div className="space-y-3 md:hidden">
-              {Array.from({ length: 4 }).map((_, i) => (
+              {["card-1", "card-2", "card-3", "card-4"].map((id) => (
                 <div
-                  key={i}
+                  key={id}
                   className="rounded-lg border border-stone-200 bg-white p-4 space-y-3"
                 >
                   <div className="flex items-center gap-3">

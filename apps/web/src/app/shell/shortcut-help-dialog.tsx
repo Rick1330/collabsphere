@@ -21,8 +21,8 @@ export const ShortcutHelpDialog = () => {
 
   useEffect(() => {
     const onOpen = () => setOpen(true);
-    window.addEventListener(SHORTCUT_EVENTS.openHelp, onOpen);
-    return () => window.removeEventListener(SHORTCUT_EVENTS.openHelp, onOpen);
+    globalThis.addEventListener(SHORTCUT_EVENTS.openHelp, onOpen);
+    return () => globalThis.removeEventListener(SHORTCUT_EVENTS.openHelp, onOpen);
   }, []);
 
   const groups = shortcutsByGroup();

@@ -54,8 +54,8 @@ export const DocumentMentionAutocomplete = ({
         onClose();
       }
     };
-    window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
+    globalThis.addEventListener("keydown", onKey, true);
+    return () => globalThis.removeEventListener("keydown", onKey, true);
   }, [matches, activeIndex, onSelect, onClose]);
 
   if (matches.length === 0) {

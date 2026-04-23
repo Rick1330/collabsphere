@@ -34,7 +34,6 @@ import { useTaskRealtime } from "@/features/tasks/hooks/use-task-realtime";
 
 interface TaskListProps {
   workspaceId: string;
-  workspaceName: string;
   workspaceStatus: "active" | "archived";
   myRole: TaskRole;
 }
@@ -60,13 +59,13 @@ const ListSkeleton = () => (
   <>
     <div className="hidden md:block rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
       <div className="border-b border-stone-200 bg-stone-50/70 px-4 py-2.5 flex gap-6">
-        {Array.from({ length: 7 }).map((_, i) => (
-          <Skeleton key={i} className="h-3 w-14 rounded" />
+        {["th-1", "th-2", "th-3", "th-4", "th-5", "th-6", "th-7"].map((id) => (
+          <Skeleton key={id} className="h-3 w-14 rounded" />
         ))}
       </div>
-      {Array.from({ length: 6 }).map((_, i) => (
+      {["row-1", "row-2", "row-3", "row-4", "row-5", "row-6"].map((id) => (
         <div
-          key={i}
+          key={id}
           className="border-b border-stone-100 last:border-b-0 px-4 py-2.5 flex items-center gap-4"
         >
           <div className="flex items-center gap-2.5 flex-1">
@@ -85,9 +84,9 @@ const ListSkeleton = () => (
       ))}
     </div>
     <div className="block md:hidden space-y-2">
-      {Array.from({ length: 4 }).map((_, i) => (
+      {["card-1", "card-2", "card-3", "card-4"].map((id) => (
         <div
-          key={i}
+          key={id}
           className="rounded-lg border border-stone-200 bg-white p-3 space-y-2"
         >
           <Skeleton className="h-4 w-3/4 rounded" />

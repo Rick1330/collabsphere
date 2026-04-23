@@ -113,12 +113,12 @@ export function useHotkey(
     const isSequence = tokens.length > 1;
 
     let bufferIndex = 0;
-    let timer: number | undefined;
+    let timer: ReturnType<typeof globalThis.setTimeout> | undefined;
 
     const reset = () => {
       bufferIndex = 0;
       if (timer !== undefined) {
-        window.clearTimeout(timer);
+        globalThis.clearTimeout(timer);
         timer = undefined;
       }
     };
@@ -153,16 +153,16 @@ export function useHotkey(
           reset();
           return;
         }
-        if (timer !== undefined) window.clearTimeout(timer);
-        timer = window.setTimeout(reset, SEQUENCE_TIMEOUT_MS);
+        if (timer !== undefined) globalThis.clearTimeout(timer);
+        timer = globalThis.setTimeout(reset, SEQUENCE_TIMEOUT_MS);
       } else {
         reset();
       }
     };
 
-    window.addEventListener("keydown", onKey);
+    globalThis.addEventListener("keydown", onKey);
     return () => {
-      window.removeEventListener("keydown", onKey);
+      globalThis.removeEventListener("keydown", onKey);
       reset();
     };
   }, [spec]);

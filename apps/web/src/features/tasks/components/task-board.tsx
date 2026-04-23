@@ -360,8 +360,7 @@ export const TaskBoard = ({
   return (
     <div className="flex flex-col h-full min-h-0" aria-busy={isLoading}>
       {isArchived && (
-        <div
-          role="status"
+        <output
           className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 flex items-start sm:items-center justify-between gap-4 mx-4 mt-4 mb-2"
         >
           <div className="flex items-start gap-3">
@@ -377,12 +376,11 @@ export const TaskBoard = ({
               </p>
             </div>
           </div>
-        </div>
+        </output>
       )}
 
       {realtime === "unavailable" && (
-        <div
-          role="status"
+        <output
           className="rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 mx-4 mt-3 text-[12px] text-stone-600 flex items-center justify-between gap-3"
         >
           <span>
@@ -395,7 +393,7 @@ export const TaskBoard = ({
           >
             Refresh
           </button>
-        </div>
+        </output>
       )}
 
       <div className="px-4 sm:px-6 pt-4">

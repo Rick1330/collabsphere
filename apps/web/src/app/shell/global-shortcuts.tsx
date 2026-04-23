@@ -33,7 +33,7 @@ import { emitOpenHelp, emitOpenPalette } from "@/lib/shortcut-events";
  * etc. — those routes don't have a workspace context.
  */
 function getWorkspaceIdFromPath(pathname: string): string | null {
-  const m = pathname.match(/^\/w\/([^/]+)/);
+  const m = /^\/w\/([^/]+)/.exec(pathname);
   return m ? m[1] : null;
 }
 

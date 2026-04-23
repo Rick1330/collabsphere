@@ -18,7 +18,6 @@ import {
   Image as ImageIcon,
   Layers,
   List as ListIcon,
-  MoreHorizontal,
   Plug,
   Search,
   Trash2,

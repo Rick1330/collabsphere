@@ -163,7 +163,7 @@ const ReviewQueueBody = () => {
     if (pending.length === 0) return;
     const item = pending[focusedIdx];
     if (!item) return;
-    window.dispatchEvent(
+    globalThis.dispatchEvent(
       new CustomEvent("cs:review:start-decision", {
         detail: { documentId: item.documentId, decision },
       }),
@@ -418,8 +418,8 @@ const PendingRow = ({
       if (open) return; // already deciding — leave as-is
       startDecision(detail.decision);
     };
-    window.addEventListener("cs:review:start-decision", onDecision);
-    return () => window.removeEventListener("cs:review:start-decision", onDecision);
+    globalThis.addEventListener("cs:review:start-decision", onDecision);
+    return () => globalThis.removeEventListener("cs:review:start-decision", onDecision);
   }, [item.documentId, open]);
 
   const validateAndSubmit = () => {
@@ -676,6 +676,12 @@ const DecisionHistory = ({ documentId }: { documentId: string }) => {
 const HistoryItem = ({ record }: { record: SubmissionRecord }) => {
   const decided = !!record.decision;
   const ok = record.decision === "approved";
+  const decisionTone = !decided
+    ? "bg-amber-50 text-amber-700 border-amber-200"
+    : ok
+      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+      : "bg-red-50 text-red-700 border-red-200";
+  const decisionLabel = !decided ? "PENDING" : ok ? "APPROVED" : "CHANGES";
   return (
     <li className="relative">
       <span
@@ -699,14 +705,10 @@ const HistoryItem = ({ record }: { record: SubmissionRecord }) => {
           <span
             className={cn(
               "font-mono text-[10px] tracking-wider uppercase px-1.5 py-0.5 rounded border",
-              !decided
-                ? "bg-amber-50 text-amber-700 border-amber-200"
-                : ok
-                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                  : "bg-red-50 text-red-700 border-red-200",
+              decisionTone,
             )}
           >
-            {!decided ? "PENDING" : ok ? "APPROVED" : "CHANGES"}
+            {decisionLabel}
           </span>
           <span className="text-[11.5px] text-stone-500">
             Submitted by{" "}

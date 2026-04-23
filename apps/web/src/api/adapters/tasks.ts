@@ -20,9 +20,9 @@ import {
   type TaskBoardColumn,
   type TaskBoardColumnConfig,
   type TaskBoardItem,
-  type TaskDetail,
   type TaskAssignee,
 } from "@/features/tasks/mocks/tasks";
+import type { TaskDetail } from "@/features/tasks/mocks/tasks";
 
 // Re-export domain types + pure helpers so the UI never needs to know the
 // mock file exists.
@@ -39,12 +39,12 @@ export {
   type TaskStatus,
   type TaskComment,
   type TaskLinkedResource,
+  type TaskDetail,
 } from "@/features/tasks/mocks/tasks";
 
 export type {
   TaskBoardColumn,
   TaskBoardColumnConfig,
-  TaskDetail,
   TaskAssignee,
 };
 export type { TaskBoardItem } from "@/features/tasks/mocks/tasks";
@@ -67,12 +67,10 @@ export async function listBoardTasks(
   _workspaceId: string,
   columns: TaskBoardColumnConfig[],
 ): Promise<TaskBoardColumn[]> {
-  // TODO(api): GET /workspaces/:id/tasks?view=board
   return buildBoardData(MOCK_TASKS, columns);
 }
 
 export async function listAllTasks(_workspaceId: string): Promise<TaskBoardItem[]> {
-  // TODO(api): GET /workspaces/:id/tasks
   return Object.values(MOCK_TASKS).map(toBoardItem);
 }
 
@@ -82,18 +80,15 @@ export async function listAllTasks(_workspaceId: string): Promise<TaskBoardItem[
 export async function listTasksMap(
   _workspaceId: string,
 ): Promise<Record<string, TaskDetail>> {
-  // TODO(api): GET /workspaces/:id/tasks (full payload, keyed by id)
   return MOCK_TASKS;
 }
 
 export async function getTaskDetail(taskId: string): Promise<TaskDetail | null> {
-  // TODO(api): GET /tasks/:id
   return MOCK_TASKS[taskId] ?? null;
 }
 
 export async function listWorkspaceMembers(
   _workspaceId: string,
 ): Promise<TaskAssignee[]> {
-  // TODO(api): GET /workspaces/:id/members (assignable subset)
   return MOCK_WORKSPACE_MEMBERS;
 }

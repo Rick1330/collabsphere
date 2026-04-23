@@ -368,8 +368,9 @@ const TreeFolderRow = ({
   const isExpanded = expanded.has(folder.id);
 
   return (
-    <div role="treeitem" aria-expanded={isExpanded} aria-level={depth + 1}>
-      <div
+    <div role="treeitem" aria-expanded={isExpanded} aria-level={depth + 1} aria-selected="false">
+      <button
+        type="button"
         className="group flex items-center h-8 cursor-pointer select-none hover:bg-stone-50 transition-colors duration-100 pr-2 focus-visible:outline-none focus-visible:bg-stone-50"
         style={{ paddingLeft: `${depth * 20 + 8}px` }}
         onClick={() => onToggle(folder.id)}
@@ -387,8 +388,6 @@ const TreeFolderRow = ({
             onToggle(folder.id);
           }
         }}
-        tabIndex={0}
-        role="button"
         aria-label={`${isExpanded ? "Collapse" : "Expand"} ${folder.name}`}
       >
         <ChevronRight
@@ -421,10 +420,10 @@ const TreeFolderRow = ({
             />
           </div>
         )}
-      </div>
+      </button>
 
       {isExpanded && (
-        <div role="group" className="relative">
+        <div className="relative">
           <div
             className="absolute top-0 bottom-0 w-px bg-stone-200"
             style={{ left: `${depth * 20 + 16}px` }}
@@ -488,7 +487,7 @@ const TreeDocumentRow = ({
   onDelete,
 }: DocumentRowProps) => {
   return (
-    <div role="treeitem" aria-level={depth + 1}>
+    <div role="treeitem" aria-level={depth + 1} aria-selected="false">
       <Link
         to={`/w/${workspaceId}/documents/${doc.id}`}
         className="group flex items-center h-8 hover:bg-stone-50 transition-colors duration-100 pr-2 focus-visible:outline-none focus-visible:bg-stone-50"

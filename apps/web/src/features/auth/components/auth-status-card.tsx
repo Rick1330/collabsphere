@@ -46,12 +46,20 @@ export const AuthStatusCard = ({ variant, heading, description, action, secondar
   }, [variant]);
 
   const role = variant === "loading" || variant === "success" ? "status" : "alert";
-
-  const iconAnimation = variant === "success" && !reduced
-    ? { initial: { scale: 0, rotate: -90 }, animate: { scale: 1, rotate: 0 }, transition: { type: "spring" as const, stiffness: 400, damping: 15, delay: 0.15 } }
-    : variant !== "loading" && !reduced
-      ? { initial: { scale: 0.8, opacity: 0 }, animate: { scale: 1, opacity: 1 }, transition: { type: "spring" as const, stiffness: 300, damping: 20 } }
-      : {};
+  const iconMotion =
+    variant === "success" && !reduced
+      ? {
+          initial: { scale: 0, rotate: -90 },
+          animate: { scale: 1, rotate: 0 },
+          transition: { type: "spring" as const, stiffness: 400, damping: 15, delay: 0.15 },
+        }
+      : variant !== "loading" && !reduced
+        ? {
+            initial: { scale: 0.8, opacity: 0 },
+            animate: { scale: 1, opacity: 1 },
+            transition: { type: "spring" as const, stiffness: 300, damping: 20 },
+          }
+        : {};
 
   const containerAnimation = !reduced
     ? { initial: { scale: 0.8, opacity: 0 }, animate: { scale: 1, opacity: 1 }, transition: { type: "spring" as const, stiffness: 300, damping: 20 } }
@@ -67,7 +75,7 @@ export const AuthStatusCard = ({ variant, heading, description, action, secondar
         {variant === "loading" ? (
           <CustomSpinner />
         ) : (
-          <motion.div {...iconAnimation}>
+          <motion.div {...iconMotion}>
             <cfg.Icon className="h-7 w-7" style={{ color: cfg.color }} />
           </motion.div>
         )}

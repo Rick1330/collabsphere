@@ -110,6 +110,15 @@ const AcceptInvite = () => {
   };
 
   const inviteState = loading ? "loading" : getInviteState(invite);
+  const inviteContent = renderInviteState({
+    inviteState,
+    invite,
+    user,
+    expiresIn,
+    accepting,
+    acceptError,
+    onAccept: handleAccept,
+  });
 
   return (
     <div
@@ -165,28 +174,7 @@ const AcceptInvite = () => {
             Workspace Invitation
           </span>
 
-          <div className="px-7 pb-7 pt-3">
-            {inviteState === "loading" ? (
-              <LoadingState />
-            ) : inviteState === "invalid" ? (
-              <InvalidState />
-            ) : inviteState === "expired" ? (
-              <ExpiredState invite={invite} />
-            ) : inviteState === "used" ? (
-              <UsedState invite={invite} />
-            ) : inviteState === "email_mismatch" ? (
-              <EmailMismatchState invite={invite} viewerEmail={user?.email ?? null} />
-            ) : (
-              <PendingState
-                invite={invite}
-                user={user}
-                expiresIn={expiresIn}
-                accepting={accepting}
-                acceptError={acceptError}
-                onAccept={handleAccept}
-              />
-            )}
-          </div>
+          <div className="px-7 pb-7 pt-3">{inviteContent}</div>
         </div>
 
         {/* Demo state switcher — small, faint */}
@@ -202,18 +190,7 @@ const AcceptInvite = () => {
               ["demo-mismatch", "email mismatch"],
               ["invalid", "invalid"],
             ].map(([t, label]) => (
-              <Link
-                key={t}
-                to={`/invite/${t}`}
-                className={cn(
-                  "px-2 py-1 rounded-md border font-mono-cs transition-colors",
-                  token === t
-                    ? "border-[rgba(20,184,166,0.4)] text-cs-teal-bright bg-[rgba(20,184,166,0.08)]"
-                    : "border-[rgba(20,184,166,0.12)] text-[var(--cs-text-muted)] hover:text-[var(--cs-text-body)] hover:border-[rgba(20,184,166,0.25)]",
-                )}
-              >
-                {label}
-              </Link>
+              <DemoStateLink key={t} token={t} label={label} isActive={token === t} />
             ))}
           </div>
         </div>
@@ -223,6 +200,72 @@ const AcceptInvite = () => {
 };
 
 export default AcceptInvite;
+
+function renderInviteState({
+  inviteState,
+  invite,
+  user,
+  expiresIn,
+  accepting,
+  acceptError,
+  onAccept,
+}: {
+  inviteState: ReturnType<typeof getInviteState> | "loading";
+  invite: Invitation | null;
+  user: { fullName: string; email: string } | null;
+  expiresIn: string | null;
+  accepting: boolean;
+  acceptError: string | null;
+  onAccept: () => void;
+}) {
+  switch (inviteState) {
+    case "loading":
+      return <LoadingState />;
+    case "invalid":
+      return <InvalidState />;
+    case "expired":
+      return invite ? <ExpiredState invite={invite} /> : null;
+    case "used":
+      return invite ? <UsedState invite={invite} /> : null;
+    case "email_mismatch":
+      return invite ? <EmailMismatchState invite={invite} viewerEmail={user?.email ?? null} /> : null;
+    case "pending":
+      return invite ? (
+        <PendingState
+          invite={invite}
+          user={user}
+          expiresIn={expiresIn}
+          accepting={accepting}
+          acceptError={acceptError}
+          onAccept={onAccept}
+        />
+      ) : null;
+    default:
+      return null;
+  }
+}
+
+const DemoStateLink = ({
+  token,
+  label,
+  isActive,
+}: {
+  token: string;
+  label: string;
+  isActive: boolean;
+}) => (
+  <Link
+    to={`/invite/${token}`}
+    className={cn(
+      "px-2 py-1 rounded-md border font-mono-cs transition-colors",
+      isActive
+        ? "border-[rgba(20,184,166,0.4)] text-cs-teal-bright bg-[rgba(20,184,166,0.08)]"
+        : "border-[rgba(20,184,166,0.12)] text-[var(--cs-text-muted)] hover:text-[var(--cs-text-body)] hover:border-[rgba(20,184,166,0.25)]",
+    )}
+  >
+    {label}
+  </Link>
+);
 
 /* ─────────── States ─────────── */
 

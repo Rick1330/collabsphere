@@ -42,7 +42,7 @@ export type DashboardActivityEvent = {
 
 const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString();
 const min = (offset: number) => new Date(Date.now() - offset * 60_000).toISOString();
-const hr = (offset: number) => new Date(Date.now() - offset * 3600_000).toISOString();
+const hr = (offset: number) => new Date(Date.now() - offset * 3_600_000).toISOString();
 
 const MOCK_WORKSPACES: DashboardWorkspaceSummary[] = [
   {
@@ -125,16 +125,13 @@ const MOCK_EVENTS: DashboardActivityEvent[] = [
 ];
 
 export async function getDashboardWorkspaces(): Promise<DashboardWorkspaceSummary[]> {
-  // TODO(api): GET /me/dashboard/workspaces
   return MOCK_WORKSPACES;
 }
 
 export async function getDashboardTasks(): Promise<DashboardTask[]> {
-  // TODO(api): GET /me/dashboard/tasks
   return MOCK_TASKS;
 }
 
 export async function getDashboardActivity(): Promise<DashboardActivityEvent[]> {
-  // TODO(api): GET /me/dashboard/activity
   return MOCK_EVENTS;
 }

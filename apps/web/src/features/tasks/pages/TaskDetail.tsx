@@ -237,7 +237,7 @@ const TaskDetailPage = () => {
 
   const handleDelete = () => {
     if (!task) return;
-    if (!window.confirm(`Delete "${task.title}"? This cannot be undone.`)) return;
+    if (!globalThis.confirm(`Delete "${task.title}"? This cannot be undone.`)) return;
     toast.success("Task deleted");
     navigate(`/w/${workspaceId}/tasks`);
   };

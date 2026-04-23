@@ -157,7 +157,6 @@ export const NotificationCenter = () => {
   const headerActions = (
     <>
       <div
-        role="group"
         aria-label="Read filter"
         className="flex items-center rounded-lg border border-stone-200 bg-white shadow-sm overflow-hidden"
       >
@@ -287,13 +286,7 @@ export const NotificationCenter = () => {
         {/* Stream */}
         <div>
           <div aria-live="polite" aria-atomic="true" className="sr-only">
-            {isLoading
-              ? "Loading notifications..."
-              : notifications.length === 0
-                ? filter === "unread"
-                  ? "No unread notifications"
-                  : "No notifications"
-                : `${notifications.length} notifications shown`}
+            {getNotificationStatusMessage(isLoading, notifications.length, filter)}
           </div>
 
           {/* Loading */}
@@ -453,3 +446,15 @@ export const NotificationCenter = () => {
     </div>
   );
 };
+
+function getNotificationStatusMessage(
+  isLoading: boolean,
+  notificationCount: number,
+  filter: Filter,
+) {
+  if (isLoading) return "Loading notifications...";
+  if (notificationCount === 0) {
+    return filter === "unread" ? "No unread notifications" : "No notifications";
+  }
+  return `${notificationCount} notifications shown`;
+}

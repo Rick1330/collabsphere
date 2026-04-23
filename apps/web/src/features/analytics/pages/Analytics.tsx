@@ -7,7 +7,6 @@ import {
   BarChart3,
   CheckSquare,
   ChevronRight,
-  Clock,
   FileText,
   GraduationCap,
   Lock,
@@ -488,8 +487,8 @@ const Stat = ({
 const Skeleton = () => (
   <>
     <div className="mt-7 grid grid-cols-2 lg:grid-cols-4 gap-3">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="rounded-xl border border-stone-200 bg-white p-4">
+      {["kpi-1", "kpi-2", "kpi-3", "kpi-4"].map((id) => (
+        <div key={id} className="rounded-xl border border-stone-200 bg-white p-4">
           <div className="h-2.5 w-1/2 rounded bg-stone-100 animate-pulse" />
           <div className="h-8 w-2/3 rounded bg-stone-100 animate-pulse mt-3" />
           <div className="h-2.5 w-1/3 rounded bg-stone-100 animate-pulse mt-3" />
@@ -497,8 +496,8 @@ const Skeleton = () => (
       ))}
     </div>
     <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {Array.from({ length: 2 }).map((_, i) => (
-        <div key={i} className="rounded-xl border border-stone-200 bg-white p-5">
+      {["chart-1", "chart-2"].map((id) => (
+        <div key={id} className="rounded-xl border border-stone-200 bg-white p-5">
           <div className="h-3 w-1/3 rounded bg-stone-100 animate-pulse" />
           <div className="h-44 w-full rounded bg-stone-50 animate-pulse mt-4" />
         </div>

@@ -25,8 +25,8 @@ export const EditorStatusBar = ({
   // tick the relative time every 30s so "2m ago" updates while user is in the editor
   useEffect(() => {
     if (!lastSavedAt) return;
-    const t = window.setInterval(() => force((n) => n + 1), 30_000);
-    return () => window.clearInterval(t);
+    const t = globalThis.setInterval(() => force((n) => n + 1), 30_000);
+    return () => globalThis.clearInterval(t);
   }, [lastSavedAt]);
 
   const text = editor?.getText() ?? "";

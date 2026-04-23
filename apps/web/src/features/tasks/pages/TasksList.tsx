@@ -109,7 +109,6 @@ const TasksList = () => {
         <main className="flex-1 min-h-0 flex flex-col overflow-hidden">
           <TaskList
             workspaceId={workspace.id}
-            workspaceName={workspace.name}
             workspaceStatus={workspace.status}
             myRole={workspace.myRole}
           />

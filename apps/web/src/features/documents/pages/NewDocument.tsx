@@ -33,8 +33,7 @@ function flattenFolders(nodes: TreeNode[], depth = 0, parentPath = ""): FolderOp
   for (const n of nodes) {
     if (n.type === "folder") {
       const label = parentPath ? `${parentPath} / ${n.name}` : n.name;
-      out.push({ id: n.id, label, depth });
-      out.push(...flattenFolders(n.children, depth + 1, label));
+      out.push({ id: n.id, label, depth }, ...flattenFolders(n.children, depth + 1, label));
     }
   }
   return out;
@@ -189,9 +188,9 @@ const NewDocument = () => {
               {/* Template */}
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <label className="font-mono text-[10px] text-stone-400 tracking-[0.18em] uppercase block">
+                  <span className="font-mono text-[10px] text-stone-400 tracking-[0.18em] uppercase block">
                     Template
-                  </label>
+                  </span>
                   <Link
                     to={`/w/${workspaceId}/templates`}
                     className="text-[11.5px] text-teal-700 hover:text-teal-800 font-medium"

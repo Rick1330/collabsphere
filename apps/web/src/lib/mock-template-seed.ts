@@ -57,12 +57,12 @@ export function buildDocumentSeed(
   };
 }
 
-const isBrowser = typeof window !== "undefined";
+const isBrowser = typeof globalThis.window !== "undefined";
 
 export function stashPendingDoc(docId: string, seed: PendingDocSeed): void {
   if (!isBrowser) return;
   try {
-    window.sessionStorage.setItem(
+    globalThis.window.sessionStorage.setItem(
       STORAGE_PREFIX + docId,
       JSON.stringify(seed),
     );
@@ -74,7 +74,7 @@ export function stashPendingDoc(docId: string, seed: PendingDocSeed): void {
 export function readPendingDoc(docId: string): PendingDocSeed | null {
   if (!isBrowser) return null;
   try {
-    const raw = window.sessionStorage.getItem(STORAGE_PREFIX + docId);
+    const raw = globalThis.window.sessionStorage.getItem(STORAGE_PREFIX + docId);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as PendingDocSeed;
     return parsed && typeof parsed.contentHTML === "string" ? parsed : null;
@@ -86,7 +86,7 @@ export function readPendingDoc(docId: string): PendingDocSeed | null {
 export function clearPendingDoc(docId: string): void {
   if (!isBrowser) return;
   try {
-    window.sessionStorage.removeItem(STORAGE_PREFIX + docId);
+    globalThis.window.sessionStorage.removeItem(STORAGE_PREFIX + docId);
   } catch {
     /* ignore */
   }

@@ -28,7 +28,7 @@ const DEFAULT: NotificationPreferences = {
 };
 
 function read(): NotificationPreferences {
-  if (typeof window === "undefined") return DEFAULT;
+  if (typeof globalThis.window === "undefined") return DEFAULT;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT;
@@ -45,7 +45,7 @@ function read(): NotificationPreferences {
 }
 
 function write(prefs: NotificationPreferences) {
-  if (typeof window !== "undefined") {
+  if (typeof globalThis.window !== "undefined") {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
   }
 }

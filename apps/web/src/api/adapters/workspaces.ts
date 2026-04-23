@@ -16,7 +16,6 @@ import {
 } from "@/features/workspace/store/workspace-store";
 
 export async function listMyWorkspaces(): Promise<WorkspaceSummaryContract[]> {
-  // TODO(api): GET /me/workspaces
   return workspaceStore.getAll().map((w) => ({
     id: w.id,
     slug: w.id,
@@ -29,6 +28,5 @@ export async function listMyWorkspaces(): Promise<WorkspaceSummaryContract[]> {
 export async function getStoredWorkspace(
   id: string,
 ): Promise<StoredWorkspace | null> {
-  // TODO(api): GET /workspaces/:id
   return workspaceStore.getById(id) ?? null;
 }

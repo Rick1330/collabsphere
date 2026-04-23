@@ -6,12 +6,12 @@ export type ResolvedTheme = "light" | "dark";
 const STORAGE_KEY = "cs-theme-preference";
 
 function getSystemTheme(): ResolvedTheme {
-  if (typeof window === "undefined") return "light";
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  if (typeof globalThis.window === "undefined") return "light";
+  return globalThis.window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
 function readPreference(): ThemePreference {
-  if (typeof window === "undefined") return "system";
+  if (typeof globalThis.window === "undefined") return "system";
   const v = localStorage.getItem(STORAGE_KEY);
   if (v === "light" || v === "dark" || v === "system") return v;
   return "system";
@@ -30,8 +30,8 @@ export function useThemePreference() {
 
   // Track system theme changes
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const mql = window.matchMedia("(prefers-color-scheme: dark)");
+    if (typeof globalThis.window === "undefined") return;
+    const mql = globalThis.window.matchMedia("(prefers-color-scheme: dark)");
     const handler = (e: MediaQueryListEvent) => setSystemTheme(e.matches ? "dark" : "light");
     mql.addEventListener("change", handler);
     return () => mql.removeEventListener("change", handler);
@@ -46,7 +46,7 @@ export function useThemePreference() {
 
   const setPreference = useCallback((next: ThemePreference) => {
     setPreferenceState(next);
-    if (typeof window !== "undefined") {
+    if (typeof globalThis.window !== "undefined") {
       localStorage.setItem(STORAGE_KEY, next);
     }
   }, []);
