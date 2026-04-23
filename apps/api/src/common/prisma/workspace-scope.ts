@@ -140,7 +140,9 @@ const normalizeWorkspaceWriteData = ({
   const normalizedWorkspaceId = requireWorkspaceId(workspaceId);
   const nextData = cloneData(data);
 
-  const providedWorkspaceId = "workspaceId" in nextData ? nextData.workspaceId : undefined;
+  const providedWorkspaceId = Object.hasOwn(nextData, "workspaceId")
+    ? nextData.workspaceId
+    : undefined;
 
   if (
     hasConflictingWorkspaceId({
@@ -274,7 +276,7 @@ const resolveWriteOperationHandler = ({
     deleteMany: "deleteMany",
   } as const;
 
-  if (property in bulkMutationOperations) {
+  if (Object.hasOwn(bulkMutationOperations, property)) {
     const operation = bulkMutationOperations[property as keyof typeof bulkMutationOperations];
 
     return createMutationOperationHandler({
