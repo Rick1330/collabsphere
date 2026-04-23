@@ -7,14 +7,132 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum GlobalRole {
+  USER
+  ADMIN
+
+  @@map("global_role")
+}
+
+enum AuthProvider {
+  local
+  google
+
+  @@map("auth_provider")
+}
+
+enum WorkspaceType {
+  professional
+  academic
+  general
+
+  @@map("workspace_type")
+}
+
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  MANAGER
+  MEMBER
+  VIEWER
+
+  @@map("workspace_role")
+}
+
+enum WorkspaceStatus {
+  active
+  archived
+
+  @@map("workspace_status")
+}
+
+enum DocumentStatus {
+  draft
+  submitted
+  changes_requested
+  approved
+  archived
+
+  @@map("document_status")
+}
+
+enum TaskStatus {
+  backlog
+  todo
+  in_progress
+  in_review
+  done
+
+  @@map("task_status")
+}
+
+enum TaskPriority {
+  low
+  medium
+  high
+  urgent
+
+  @@map("task_priority")
+}
+
+enum InvitationStatus {
+  pending
+  accepted
+  expired
+  revoked
+
+  @@map("invitation_status")
+}
+
+enum FileStatus {
+  pending
+  uploaded
+  ready
+  failed
+  deleted
+
+  @@map("file_status")
+}
+
+enum StorageProvider {
+  s3
+
+  @@map("storage_provider")
+}
+
+enum CommentTargetType {
+  document
+  task
+
+  @@map("comment_target_type")
+}
+
+enum CommentThreadStatus {
+  open
+  resolved
+
+  @@map("comment_thread_status")
+}
+
+enum ResourceType {
+  workspace
+  document
+  task
+  comment_thread
+  file
+  export
+
+  @@map("resource_type")
+}
+
 model User {
   id                String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email             String                @db.Citext
   fullName          String                @map("full_name") @db.VarChar(200)
   avatarUrl         String?               @map("avatar_url") @db.VarChar(500)
   bio               String?               @db.VarChar(500)
-  globalRole        String                @default("USER") @map("global_role") @db.VarChar(20)
-  authProvider      String                @default("local") @map("auth_provider") @db.VarChar(20)
+  globalRole        GlobalRole            @default(USER) @map("global_role")
+  authProvider      AuthProvider          @default(local) @map("auth_provider")
   authProviderId    String?               @map("auth_provider_id") @db.VarChar(255)
   passwordHash      String?               @map("password_hash") @db.VarChar(255)
   themePreference   String                @default("system") @map("theme_preference") @db.VarChar(20)
@@ -114,8 +232,8 @@ model Workspace {
   name        String    @db.VarChar(60)
   description String?   @db.VarChar(280)
   icon        String?   @db.VarChar(16)
-  type        String    @db.VarChar(20)
-  status      String    @default("active") @db.VarChar(20)
+  type        WorkspaceType
+  status      WorkspaceStatus @default(active)
   ownerId     String    @map("owner_id") @db.Uuid
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -150,7 +268,7 @@ model WorkspaceMember {
   id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   workspaceId    String    @map("workspace_id") @db.Uuid
   userId         String    @map("user_id") @db.Uuid
-  role           String    @db.VarChar(20)
+  role           WorkspaceRole
   joinedAt       DateTime  @default(now()) @map("joined_at") @db.Timestamptz(6)
   leftAt         DateTime? @map("left_at") @db.Timestamptz(6)
   isActive       Boolean   @default(true) @map("is_active")
@@ -180,9 +298,9 @@ model Invitation {
   id               String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   workspaceId      String                @map("workspace_id") @db.Uuid
   invitedEmail     String                @map("invited_email") @db.Citext
-  role             String                @db.VarChar(20)
+  role             WorkspaceRole
   tokenHash        String                @unique(map: "uq_invitations_token_hash") @map("token_hash") @db.Char(64)
-  status           String                @default("pending") @db.VarChar(20)
+  status           InvitationStatus      @default(pending)
   invitedByUserId  String                @map("invited_by_user_id") @db.Uuid
   acceptedByUserId String?               @map("accepted_by_user_id") @db.Uuid
   expiresAt        DateTime              @map("expires_at") @db.Timestamptz(6)
@@ -224,7 +342,7 @@ model Document {
   folderId         String?                  @map("folder_id") @db.Uuid
   title            String                   @db.VarChar(200)
   position         Decimal                  @db.Decimal(20, 10)
-  status           String                   @default("draft") @db.VarChar(30)
+  status           DocumentStatus           @default(draft)
   isLocked         Boolean                  @default(false) @map("is_locked")
   lockedByUserId   String?                  @map("locked_by_user_id") @db.Uuid
   lockedAt         DateTime?                @map("locked_at") @db.Timestamptz(6)
@@ -299,7 +417,7 @@ model TaskColumn {
   id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   workspaceId String    @map("workspace_id") @db.Uuid
   name        String    @db.VarChar(50)
-  status      String    @db.VarChar(30)
+  status      TaskStatus
   position    Decimal   @db.Decimal(20, 10)
   isHidden    Boolean   @default(false) @map("is_hidden")
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -316,8 +434,8 @@ model Task {
   workspaceId  String                   @map("workspace_id") @db.Uuid
   title        String                   @db.VarChar(200)
   description  String?                  @db.Text
-  status       String                   @default("todo") @db.VarChar(30)
-  priority     String                   @default("medium") @db.VarChar(20)
+  status       TaskStatus               @default(todo)
+  priority     TaskPriority             @default(medium)
   assigneeId   String?                  @map("assignee_id") @db.Uuid
   reporterId   String                   @map("reporter_id") @db.Uuid
   dueDate      DateTime?                @map("due_date") @db.Date
@@ -357,10 +475,10 @@ model TaskDocumentLink {
 model CommentThread {
   id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   workspaceId  String    @map("workspace_id") @db.Uuid
-  targetType   String    @map("target_type") @db.VarChar(20)
+  targetType   CommentTargetType @map("target_type")
   targetId     String    @map("target_id") @db.Uuid
   anchor       Json?     @db.JsonB
-  status       String    @default("open") @db.VarChar(20)
+  status       CommentThreadStatus @default(open)
   resolvedById String?   @map("resolved_by") @db.Uuid
   resolvedAt   DateTime? @map("resolved_at") @db.Timestamptz(6)
   createdById  String    @map("created_by") @db.Uuid
@@ -424,7 +542,7 @@ model Notification {
   type         String    @db.VarChar(80)
   title        String    @db.VarChar(200)
   body         String?   @db.Text
-  resourceType String?   @map("resource_type") @db.VarChar(40)
+  resourceType ResourceType? @map("resource_type")
   resourceId   String?   @map("resource_id") @db.Uuid
   url          String?   @db.VarChar(500)
   metadata     Json      @default(dbgenerated("'{}'::jsonb")) @db.JsonB
@@ -462,7 +580,7 @@ model ActivityEvent {
   actorAvatarSnapshot   String?  @map("actor_avatar_snapshot") @db.VarChar(500)
   eventKey              String   @map("event_key") @db.VarChar(80)
   summary               String   @db.VarChar(255)
-  resourceType          String?  @map("resource_type") @db.VarChar(40)
+  resourceType          ResourceType? @map("resource_type")
   resourceId            String?  @map("resource_id") @db.Uuid
   resourceTitleSnapshot String?  @map("resource_title_snapshot") @db.VarChar(255)
   metadata              Json     @default(dbgenerated("'{}'::jsonb")) @db.JsonB
@@ -531,11 +649,11 @@ model File {
   id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   workspaceId      String    @map("workspace_id") @db.Uuid
   uploadedByUserId String    @map("uploaded_by_user_id") @db.Uuid
-  status           String    @default("pending") @db.VarChar(20)
+  status           FileStatus @default(pending)
   originalFilename String    @map("original_filename") @db.VarChar(255)
   contentType      String    @map("content_type") @db.VarChar(120)
   sizeBytes        BigInt    @map("size_bytes")
-  storageProvider  String    @map("storage_provider") @db.VarChar(50)
+  storageProvider  StorageProvider @map("storage_provider")
   storageBucket    String    @map("storage_bucket") @db.VarChar(120)
   storageKey       String    @map("storage_key") @db.VarChar(500)
   checksumSha256   String?   @map("checksum_sha256") @db.Char(64)
@@ -556,7 +674,7 @@ model ExportJob {
   id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   workspaceId      String    @map("workspace_id") @db.Uuid
   requestedById    String    @map("requested_by") @db.Uuid
-  resourceType     String    @map("resource_type") @db.VarChar(40)
+  resourceType     ResourceType @map("resource_type")
   resourceId       String    @map("resource_id") @db.Uuid
   format           String    @db.VarChar(20)
   status           String    @default("queued") @db.VarChar(20)

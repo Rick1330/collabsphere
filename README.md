@@ -1,6 +1,6 @@
 # CollabSphere
 
-CollabSphere is a realtime collaboration workspace platform. `apps/web` now runs as a real Next.js App Router application foundation on Vercel, while PRJ-02 feature stories continue to layer in navigation behavior, account flows, and product-complete UI on top of that platform. The backend stack remains NestJS, Hocuspocus, BullMQ, PostgreSQL, Redis, and local Docker-backed developer services.
+CollabSphere is a realtime collaboration workspace platform. `apps/web` now runs as the real Vite + React SPA on Vercel, while downstream stories continue to layer in backend integration, auth/session truth, and product-complete behavior on top of that platform. The backend stack remains NestJS, Hocuspocus, BullMQ, PostgreSQL, Redis, and local Docker-backed developer services.
 
 ## Local Development
 
@@ -13,7 +13,7 @@ CollabSphere is a realtime collaboration workspace platform. `apps/web` now runs
 
 ### Current setup flow
 
-The current repo state uses Docker Compose for local infrastructure and `pnpm dev` for app processes. That now starts the Next.js App Router web runtime in `apps/web` alongside the backend services.
+The current repo state uses Docker Compose for local infrastructure and `pnpm dev` for app processes. That now starts the Vite web runtime in `apps/web` alongside the backend services.
 
 1. Install dependencies:
 
