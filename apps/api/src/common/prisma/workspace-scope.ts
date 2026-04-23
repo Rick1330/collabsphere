@@ -1,0 +1,617 @@
+const WORKSPACE_SCOPED_MODELS = [
+  "workspaceMember",
+  "workspaceSettings",
+  "invitation",
+  "folder",
+  "document",
+  "documentVersion",
+  "documentSubmission",
+  "taskColumn",
+  "task",
+  "taskDocumentLink",
+  "commentThread",
+  "comment",
+  "commentMention",
+  "notification",
+  "activityEvent",
+  "exportJob",
+  "file",
+  "attachment",
+] as const;
+
+const WORKSPACE_SCOPED_READ_OPERATIONS = [
+  "findUnique",
+  "findUniqueOrThrow",
+  "findFirst",
+  "findFirstOrThrow",
+  "findMany",
+  "count",
+  "aggregate",
+  "groupBy",
+] as const;
+
+const WORKSPACE_SCOPED_CLIENT_CONTROLS = ["$withDeleted", "$withHardDeletes"] as const;
+
+type RecordLike = Record<string | symbol, unknown>;
+type UnknownFn = (...args: unknown[]) => unknown;
+
+const WORKSPACE_SCOPED_MODEL_SET = new Set<string>(WORKSPACE_SCOPED_MODELS);
+const WORKSPACE_SCOPED_READ_OPERATION_SET = new Set<string>(WORKSPACE_SCOPED_READ_OPERATIONS);
+const WORKSPACE_SCOPED_CLIENT_CONTROL_SET = new Set<string>(WORKSPACE_SCOPED_CLIENT_CONTROLS);
+const UNIQUE_READ_OPERATION_MAP = {
+  findUnique: "findFirst",
+  findUniqueOrThrow: "findFirstOrThrow",
+} as const;
+
+export const MISSING_WORKSPACE_SCOPE_ERROR =
+  "workspaceId is required for workspace-scoped Prisma access.";
+export const CROSS_WORKSPACE_WRITE_ERROR = "Cross-workspace writes are not allowed.";
+export const UNSUPPORTED_WORKSPACE_UPSERT_ERROR =
+  "Workspace-scoped upsert is not supported; split it into explicit read/create or read/update flows.";
+
+const isRecordLike = (value: unknown): value is RecordLike =>
+  typeof value === "object" && value !== null;
+
+const isCallable = (value: unknown): value is UnknownFn =>
+  typeof value === "function";
+
+const cloneArgs = (args: unknown): Record<string, unknown> => {
+  if (!isRecordLike(args)) {
+    return {};
+  }
+
+  return { ...(args as Record<string, unknown>) };
+};
+
+const cloneData = (value: unknown) => {
+  if (!isRecordLike(value)) {
+    throw new Error("Workspace-scoped Prisma writes require an object payload.");
+  }
+
+  return { ...(value as Record<string, unknown>) };
+};
+
+export const requireWorkspaceId = (workspaceId: string) => {
+  const normalizedWorkspaceId = workspaceId.trim();
+  if (normalizedWorkspaceId.length === 0) {
+    throw new Error(MISSING_WORKSPACE_SCOPE_ERROR);
+  }
+
+  return normalizedWorkspaceId;
+};
+
+export const assertMatchingWorkspaceId = ({
+  expectedWorkspaceId,
+  actualWorkspaceId,
+}: {
+  expectedWorkspaceId: string;
+  actualWorkspaceId: string;
+}) => {
+  if (expectedWorkspaceId !== actualWorkspaceId) {
+    throw new Error(CROSS_WORKSPACE_WRITE_ERROR);
+  }
+};
+
+export const addWorkspaceScopeWhere = ({
+  workspaceId,
+  where,
+}: {
+  workspaceId: string;
+  where: unknown;
+}) => {
+  const normalizedWorkspaceId = requireWorkspaceId(workspaceId);
+
+  if (!isRecordLike(where) || Object.keys(where).length === 0) {
+    return { workspaceId: normalizedWorkspaceId };
+  }
+
+  return {
+    AND: [where, { workspaceId: normalizedWorkspaceId }],
+  };
+};
+
+const normalizeWorkspaceCreateData = ({
+  workspaceId,
+  data,
+}: {
+  workspaceId: string;
+  data: unknown;
+}) => {
+  const normalizedWorkspaceId = requireWorkspaceId(workspaceId);
+  const nextData = cloneData(data);
+
+  if ("workspaceId" in nextData && nextData.workspaceId !== normalizedWorkspaceId) {
+    throw new Error(CROSS_WORKSPACE_WRITE_ERROR);
+  }
+
+  return {
+    ...nextData,
+    workspaceId: normalizedWorkspaceId,
+  };
+};
+
+const normalizeWorkspaceCreateManyData = ({
+  workspaceId,
+  data,
+}: {
+  workspaceId: string;
+  data: unknown;
+}) => {
+  if (Array.isArray(data)) {
+    return data.map((entry) =>
+      normalizeWorkspaceCreateData({
+        workspaceId,
+        data: entry,
+      }),
+    );
+  }
+
+  return normalizeWorkspaceCreateData({
+    workspaceId,
+    data,
+  });
+};
+
+const normalizeWorkspaceUpdateData = ({
+  workspaceId,
+  data,
+}: {
+  workspaceId: string;
+  data: unknown;
+}) => {
+  const normalizedWorkspaceId = requireWorkspaceId(workspaceId);
+  const nextData = cloneData(data);
+
+  if ("workspaceId" in nextData && nextData.workspaceId !== normalizedWorkspaceId) {
+    throw new Error(CROSS_WORKSPACE_WRITE_ERROR);
+  }
+
+  return nextData;
+};
+
+export const normalizeWorkspaceScopedReadArgs = ({
+  workspaceId,
+  args,
+}: {
+  workspaceId: string;
+  args: unknown;
+}) => {
+  const nextArgs = cloneArgs(args);
+
+  nextArgs.where = addWorkspaceScopeWhere({
+    workspaceId,
+    where: nextArgs.where,
+  });
+
+  return nextArgs;
+};
+
+export const normalizeWorkspaceScopedCreateArgs = ({
+  workspaceId,
+  args,
+}: {
+  workspaceId: string;
+  args: unknown;
+}) => {
+  const nextArgs = cloneArgs(args);
+
+  nextArgs.data = normalizeWorkspaceCreateData({
+    workspaceId,
+    data: nextArgs.data,
+  });
+
+  return nextArgs;
+};
+
+export const normalizeWorkspaceScopedCreateManyArgs = ({
+  workspaceId,
+  args,
+}: {
+  workspaceId: string;
+  args: unknown;
+}) => {
+  const nextArgs = cloneArgs(args);
+
+  nextArgs.data = normalizeWorkspaceCreateManyData({
+    workspaceId,
+    data: nextArgs.data,
+  });
+
+  return nextArgs;
+};
+
+export const normalizeWorkspaceScopedUpdateManyArgs = ({
+  workspaceId,
+  args,
+}: {
+  workspaceId: string;
+  args: unknown;
+}) => {
+  const nextArgs = cloneArgs(args);
+
+  nextArgs.where = addWorkspaceScopeWhere({
+    workspaceId,
+    where: nextArgs.where,
+  });
+  if ("data" in nextArgs) {
+    nextArgs.data = normalizeWorkspaceUpdateData({
+      workspaceId,
+      data: nextArgs.data,
+    });
+  }
+
+  return nextArgs;
+};
+
+const normalizeWorkspaceScopedUpdateArgs = ({
+  workspaceId,
+  args,
+}: {
+  workspaceId: string;
+  args: unknown;
+}) => {
+  const nextArgs = cloneArgs(args);
+
+  if ("data" in nextArgs) {
+    nextArgs.data = normalizeWorkspaceUpdateData({
+      workspaceId,
+      data: nextArgs.data,
+    });
+  }
+
+  return nextArgs;
+};
+
+const resolveRequiredDelegateMethod = ({
+  target,
+  receiver,
+  methodName,
+  errorMessage,
+}: {
+  target: object;
+  receiver: object;
+  methodName: string;
+  errorMessage: string;
+}) => {
+  const delegateMethod = Reflect.get(target, methodName, receiver);
+  if (!isCallable(delegateMethod)) {
+    throw new Error(errorMessage);
+  }
+
+  return delegateMethod;
+};
+
+const createPassthroughHandler = ({
+  method,
+  target,
+}: {
+  method: (...args: unknown[]) => unknown;
+  target: object;
+}) =>
+  (...args: unknown[]) =>
+    Reflect.apply(method, target, args);
+
+const createReadOperationHandler = ({
+  method,
+  target,
+  workspaceId,
+}: {
+  method: (...args: unknown[]) => unknown;
+  target: object;
+  workspaceId: string;
+}) =>
+  (args?: unknown) =>
+    Reflect.apply(method, target, [
+      normalizeWorkspaceScopedReadArgs({
+        workspaceId,
+        args,
+      }),
+    ]);
+
+const createUniqueReadOperationHandler = ({
+  target,
+  receiver,
+  methodName,
+  workspaceId,
+}: {
+  target: object;
+  receiver: object;
+  methodName: "findFirst" | "findFirstOrThrow";
+  workspaceId: string;
+}) =>
+  (args?: unknown) =>
+    Reflect.apply(
+      resolveRequiredDelegateMethod({
+        target,
+        receiver,
+        methodName,
+        errorMessage: `Workspace scope proxy requires a ${methodName}() delegate method.`,
+      }),
+      target,
+      [
+        normalizeWorkspaceScopedReadArgs({
+          workspaceId,
+          args,
+        }),
+      ],
+    );
+
+const createMutationOperationHandler = ({
+  target,
+  receiver,
+  methodName,
+  errorMessage,
+  normalizeArgs,
+}: {
+  target: object;
+  receiver: object;
+  methodName: string;
+  errorMessage: string;
+  normalizeArgs: (args: unknown) => Record<string, unknown>;
+}) =>
+  (args?: unknown) =>
+    Reflect.apply(
+      resolveRequiredDelegateMethod({
+        target,
+        receiver,
+        methodName,
+        errorMessage,
+      }),
+      target,
+      [normalizeArgs(args)],
+    );
+
+const createGuardedUniqueMutationHandler = ({
+  property,
+  target,
+  receiver,
+  workspaceId,
+  normalizeArgs,
+}: {
+  property: "update" | "delete";
+  target: object;
+  receiver: object;
+  workspaceId: string;
+  normalizeArgs: (args: unknown) => Record<string, unknown>;
+}) =>
+  async (args?: unknown) => {
+    const nextArgs = cloneArgs(args);
+    const findFirst = resolveRequiredDelegateMethod({
+      target,
+      receiver,
+      methodName: "findFirst",
+      errorMessage: "Workspace scope proxy requires a findFirst() delegate method for unique mutations.",
+    });
+
+    const record = await Reflect.apply(findFirst, target, [
+      {
+        where: addWorkspaceScopeWhere({
+          workspaceId,
+          where: nextArgs.where,
+        }),
+        select: { id: true },
+      },
+    ]);
+
+    if (!record) {
+      throw new Error(
+        `Workspace-scoped ${property}() did not match an active record in workspace ${requireWorkspaceId(workspaceId)}.`,
+      );
+    }
+
+    return Reflect.apply(
+      resolveRequiredDelegateMethod({
+        target,
+        receiver,
+        methodName: property,
+        errorMessage: `Workspace scope proxy requires a ${property}() delegate method.`,
+      }),
+      target,
+      [normalizeArgs(nextArgs)],
+    );
+  };
+
+const resolveReadOperationHandler = ({
+  property,
+  target,
+  receiver,
+  value,
+  workspaceId,
+}: {
+  property: string;
+  target: object;
+  receiver: object;
+  value: UnknownFn;
+  workspaceId: string;
+}) => {
+  if (property === "findUnique" || property === "findUniqueOrThrow") {
+    return createUniqueReadOperationHandler({
+      target,
+      receiver,
+      methodName: UNIQUE_READ_OPERATION_MAP[property],
+      workspaceId,
+    });
+  }
+
+  if (WORKSPACE_SCOPED_READ_OPERATION_SET.has(property)) {
+    return createReadOperationHandler({
+      method: value,
+      target,
+      workspaceId,
+    });
+  }
+
+  return null;
+};
+
+const resolveWriteOperationHandler = ({
+  property,
+  target,
+  receiver,
+  workspaceId,
+}: {
+  property: string;
+  target: object;
+  receiver: object;
+  workspaceId: string;
+}) => {
+  if (property === "create") {
+    return createMutationOperationHandler({
+      target,
+      receiver,
+      methodName: "create",
+      errorMessage: "Workspace scope proxy requires a create() delegate method.",
+      normalizeArgs: (args) =>
+        normalizeWorkspaceScopedCreateArgs({
+          workspaceId,
+          args,
+        }),
+    });
+  }
+
+  if (property === "createMany") {
+    return createMutationOperationHandler({
+      target,
+      receiver,
+      methodName: "createMany",
+      errorMessage: "Workspace scope proxy requires a createMany() delegate method.",
+      normalizeArgs: (args) =>
+        normalizeWorkspaceScopedCreateManyArgs({
+          workspaceId,
+          args,
+        }),
+    });
+  }
+
+  if (property === "updateMany" || property === "deleteMany") {
+    return createMutationOperationHandler({
+      target,
+      receiver,
+      methodName: property,
+      errorMessage: `Workspace scope proxy requires a ${property}() delegate method.`,
+      normalizeArgs: (args) =>
+        normalizeWorkspaceScopedUpdateManyArgs({
+          workspaceId,
+          args,
+        }),
+    });
+  }
+
+  if (property === "update" || property === "delete") {
+    return createGuardedUniqueMutationHandler({
+      property,
+      target,
+      receiver,
+      workspaceId,
+      normalizeArgs: (args) =>
+        normalizeWorkspaceScopedUpdateArgs({
+          workspaceId,
+          args,
+        }),
+    });
+  }
+
+  if (property === "upsert") {
+    return () => {
+      throw new Error(UNSUPPORTED_WORKSPACE_UPSERT_ERROR);
+    };
+  }
+
+  return null;
+};
+
+const resolveDelegateProperty = ({
+  property,
+  value,
+  target,
+  receiver,
+  workspaceId,
+}: {
+  property: string;
+  value: unknown;
+  target: object;
+  receiver: object;
+  workspaceId: string;
+}) => {
+  if (!isCallable(value)) {
+    return value;
+  }
+
+  const readOperationHandler = resolveReadOperationHandler({
+    property,
+    target,
+    receiver,
+    value,
+    workspaceId,
+  });
+  if (readOperationHandler) {
+    return readOperationHandler;
+  }
+
+  const writeOperationHandler = resolveWriteOperationHandler({
+    property,
+    target,
+    receiver,
+    workspaceId,
+  });
+  if (writeOperationHandler) {
+    return writeOperationHandler;
+  }
+
+  return createPassthroughHandler({
+    method: value,
+    target,
+  });
+};
+
+const shouldWrapWorkspaceScopedDelegate = (property: string | symbol, value: unknown) =>
+  typeof property === "string" && WORKSPACE_SCOPED_MODEL_SET.has(property) && isRecordLike(value);
+
+export const createWorkspaceScopedDelegateProxy = <TDelegate extends object>(
+  delegate: TDelegate,
+  workspaceId: string,
+) =>
+  new Proxy(delegate, {
+    get(target, property, receiver) {
+      if (typeof property !== "string") {
+        return Reflect.get(target, property, receiver);
+      }
+
+      return resolveDelegateProperty({
+        property,
+        value: Reflect.get(target, property, receiver),
+        target,
+        receiver,
+        workspaceId,
+      });
+    },
+  });
+
+export const createWorkspaceScopedPrismaClient = <TClient extends object>(
+  client: TClient,
+  workspaceId: string,
+) => {
+  const normalizedWorkspaceId = requireWorkspaceId(workspaceId);
+
+  return new Proxy(client, {
+    get(target, property, receiver) {
+      if (typeof property === "string" && WORKSPACE_SCOPED_CLIENT_CONTROL_SET.has(property)) {
+        const control = Reflect.get(target, property, receiver);
+        if (isCallable(control)) {
+          return () =>
+            createWorkspaceScopedPrismaClient(
+              Reflect.apply(control, target, []) as TClient,
+              normalizedWorkspaceId,
+            );
+        }
+      }
+
+      const value = Reflect.get(target, property, receiver);
+      if (shouldWrapWorkspaceScopedDelegate(property, value)) {
+        return createWorkspaceScopedDelegateProxy(value as object, normalizedWorkspaceId);
+      }
+
+      return value;
+    },
+  });
+};
