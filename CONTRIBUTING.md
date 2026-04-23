@@ -299,6 +299,17 @@ Follow these rules for schema work:
 - Preserve spec-required partial indexes, GIN indexes, and unique constraints even when they must be expressed in migration SQL instead of Prisma schema syntax
 - Prefer additive migrations; do not use destructive shortcut changes without a backfill and review plan
 
+### Soft Delete Conventions
+
+For user-facing persistence surfaces, treat soft delete as the default lifecycle rule:
+
+- Covered entities are `users`, `workspaces`, `workspace_members`, `invitations`, `folders`, `documents`, `task_columns`, `tasks`, `task_document_links`, `comment_threads`, `comments`, `notifications`, `export_jobs`, `files`, and `attachments`.
+- Standard application reads must exclude deleted rows by default. In the API layer, use the Prisma wrapper in `apps/api/src/common/prisma/soft-delete.middleware.ts` and `apps/api/src/common/prisma/prisma.service.ts` instead of repeating `deletedAt: null` in each query.
+- Recovery or admin flows that need deleted rows must opt in explicitly through `prisma.$withDeleted()`.
+- Hard deletes are reserved for purge workflows. Use `prisma.$withHardDeletes()` only in those workflows; ordinary application code must not call hard delete directly.
+- When a uniqueness rule only applies to active rows, preserve the matching partial unique index with `WHERE deleted_at IS NULL` in migration SQL.
+- If a recovery flow is not implemented yet, record the gap in the issue or PR rather than bypassing soft delete behavior ad hoc.
+
 Recommended schema workflow:
 
 ```bash
