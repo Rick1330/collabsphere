@@ -240,6 +240,35 @@ test("workspace-scoped updateMany strips workspaceId from payloads and scopes th
   );
 });
 
+test("workspace-scoped deleteMany only scopes the where clause", async () => {
+  let updateManyArgs: unknown;
+  const prisma = createPrismaService({
+    task: {
+      deleteMany: async () => ({ count: 2 }),
+      updateMany: async (args?: unknown) => {
+        updateManyArgs = args;
+        return { count: 2 };
+      },
+    },
+  });
+
+  await withWorkspaceScope(prisma, "ws_123").task.deleteMany({
+    where: { status: "done" },
+  });
+
+  assert.deepEqual((updateManyArgs as { where: unknown }).where, {
+    AND: [
+      {
+        AND: [{ status: "done" }, { workspaceId: "ws_123" }],
+      },
+      { deletedAt: null },
+    ],
+  });
+  assert.ok(
+    (updateManyArgs as { data: { deletedAt: unknown } }).data.deletedAt instanceof Date,
+  );
+});
+
 test("workspace-scoped unique mutations are rejected because Prisma cannot scope them atomically", () => {
   const scopedClient = createWorkspaceScopedPrismaClient(
     {
@@ -285,10 +314,10 @@ test("workspace-scoped upsert is rejected until the call sites are split into ex
   assert.throws(
     () =>
       scopedClient.task.upsert({
-      where: { id: "task_123" },
-      create: { title: "Scoped task" },
-      update: { title: "Updated task" },
-    }),
+        where: { id: "task_123" },
+        create: { title: "Scoped task" },
+        update: { title: "Updated task" },
+      }),
     {
       message: UNSUPPORTED_WORKSPACE_UPSERT_ERROR,
     },

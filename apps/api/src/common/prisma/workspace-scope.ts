@@ -68,6 +68,17 @@ const cloneData = (value: unknown) => {
   return { ...(value as Record<string, unknown>) };
 };
 
+const hasConflictingWorkspaceId = ({
+  expectedWorkspaceId,
+  actualWorkspaceId,
+}: {
+  expectedWorkspaceId: string;
+  actualWorkspaceId: unknown;
+}) =>
+  actualWorkspaceId !== undefined &&
+  actualWorkspaceId !== null &&
+  actualWorkspaceId !== expectedWorkspaceId;
+
 export const requireWorkspaceId = (workspaceId: string) => {
   const normalizedWorkspaceId = workspaceId.trim();
   if (normalizedWorkspaceId.length === 0) {
@@ -132,9 +143,10 @@ const normalizeWorkspaceWriteData = ({
   const providedWorkspaceId = "workspaceId" in nextData ? nextData.workspaceId : undefined;
 
   if (
-    providedWorkspaceId !== undefined &&
-    providedWorkspaceId !== null &&
-    providedWorkspaceId !== normalizedWorkspaceId
+    hasConflictingWorkspaceId({
+      expectedWorkspaceId: normalizedWorkspaceId,
+      actualWorkspaceId: providedWorkspaceId,
+    })
   ) {
     throw new Error(CROSS_WORKSPACE_WRITE_ERROR);
   }
@@ -159,31 +171,41 @@ export const normalizeWorkspaceScopedArgs = ({
   args: unknown;
   operation: "read" | "create" | "createMany" | "updateMany" | "deleteMany";
 }) => {
-  const operationConfig = {
-    read: { scopeWhere: true },
-    create: { normalizeMode: "create" as const },
-    createMany: { normalizeMode: "create" as const },
-    updateMany: { scopeWhere: true, normalizeMode: "update" as const },
-    deleteMany: { scopeWhere: true, normalizeMode: "update" as const },
-  }[operation];
   const nextArgs = cloneArgs(args);
 
-  if (operationConfig.scopeWhere) {
-    nextArgs.where = addWorkspaceScopeWhere({
-      workspaceId,
-      where: nextArgs.where,
-    });
+  switch (operation) {
+    case "read":
+    case "deleteMany":
+      nextArgs.where = addWorkspaceScopeWhere({
+        workspaceId,
+        where: nextArgs.where,
+      });
+      return nextArgs;
+
+    case "updateMany":
+      nextArgs.where = addWorkspaceScopeWhere({
+        workspaceId,
+        where: nextArgs.where,
+      });
+      nextArgs.data = normalizeWorkspaceWriteData({
+        workspaceId,
+        data: nextArgs.data,
+        mode: "update",
+      });
+      return nextArgs;
+
+    case "create":
+    case "createMany":
+      nextArgs.data = normalizeWorkspaceWriteData({
+        workspaceId,
+        data: nextArgs.data,
+        mode: "create",
+      });
+      return nextArgs;
   }
 
-  if (operationConfig.normalizeMode) {
-    nextArgs.data = normalizeWorkspaceWriteData({
-      workspaceId,
-      data: nextArgs.data,
-      mode: operationConfig.normalizeMode,
-    });
-  }
-
-  return nextArgs;
+  const unsupportedOperation: never = operation;
+  return unsupportedOperation;
 };
 
 const createUnsupportedWorkspaceMutationHandler = (message: string) => () => {
