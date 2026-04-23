@@ -13,9 +13,9 @@ export default defineConfig({
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
     poolOptions: useSingleWorker
       ? {
-          threads: {
-            maxThreads: 1,
-            minThreads: 1,
+          forks: {
+            maxForks: 1,
+            minForks: 1,
           },
         }
       : undefined,
