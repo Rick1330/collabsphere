@@ -10,7 +10,7 @@
 import type { SessionContract, UserContract } from "@/api/contracts";
 import { authSession } from "@/lib/auth-session";
 import { fetchCurrentUser, type UserProfile } from "@/lib/mock-user";
-import { findAccountByEmail, type MockAccount } from "@/lib/mock-accounts";
+import { findAccountByEmail, MOCK_ACCOUNTS, type MockAccount } from "@/lib/mock-accounts";
 
 export class AuthError extends Error {
   constructor(
@@ -35,7 +35,7 @@ function toUserContract(profile: UserProfile): UserContract {
     email: profile.email,
     fullName: profile.fullName,
     avatarUrl: profile.avatarUrl,
-    role: profile.globalRole === "ADMIN" ? "admin" : "owner",
+    role: profile.globalRole === "ADMIN" ? "admin" : "member",
   };
 }
 
@@ -46,7 +46,7 @@ function toSession(account: MockAccount): SessionContract {
       email: account.email,
       fullName: account.fullName,
       avatarUrl: account.avatarUrl,
-      role: account.globalRole === "ADMIN" ? "admin" : "owner",
+      role: account.globalRole === "ADMIN" ? "admin" : "member",
     },
     accessToken: `mock-token-${account.id}-${Date.now()}`,
     refreshToken: FAKE_REFRESH,
@@ -55,14 +55,10 @@ function toSession(account: MockAccount): SessionContract {
 }
 
 const delay = (ms = 350) => new Promise((r) => setTimeout(r, ms));
+const MOCK_ACCOUNTS_FALLBACK: MockAccount = MOCK_ACCOUNTS[0];
 
-export async function login(input: {
-  email: string;
-  password: string;
-}): Promise<SessionContract> {
-  await delay(450);
-  const account = findAccountByEmail(input.email);
-  if (!account) {
+function validateLocalAccount(account: MockAccount | null, password: string): MockAccount {
+  if (!account || account.password !== password) {
     throw new AuthError("INVALID_CREDENTIALS", "Email or password is incorrect.");
   }
   if (account.authProvider !== "local") {
@@ -71,15 +67,21 @@ export async function login(input: {
       `This account uses ${account.authProvider} sign-in. Use that provider to continue.`,
     );
   }
-  if (account.password !== input.password) {
-    throw new AuthError("INVALID_CREDENTIALS", "Email or password is incorrect.");
-  }
   if (account.status === "disabled") {
     throw new AuthError("ACCOUNT_DISABLED", "This account has been disabled. Contact your administrator.");
   }
   if (account.status === "unverified") {
     throw new AuthError("EMAIL_NOT_VERIFIED", "Verify your email address to sign in.");
   }
+  return account;
+}
+
+export async function login(input: {
+  email: string;
+  password: string;
+}): Promise<SessionContract> {
+  await delay(450);
+  const account = validateLocalAccount(findAccountByEmail(input.email), input.password);
   authSession.signIn(account.id);
   return toSession(account);
 }
@@ -125,6 +127,3 @@ export async function logout(): Promise<void> {
   await delay(150);
   authSession.signOut();
 }
-
-import { MOCK_ACCOUNTS } from "@/lib/mock-accounts";
-const MOCK_ACCOUNTS_FALLBACK: MockAccount = MOCK_ACCOUNTS[0];
