@@ -114,7 +114,8 @@ test("soft delete normalizes delete operations into update payloads", () => {
     }),
     {
       where: {
-        AND: [{ id: "user_123" }, { deletedAt: null }],
+        id: "user_123",
+        deletedAt: null,
       },
       data: {
         deletedAt: fixedDeletedAt,
@@ -179,7 +180,8 @@ test("default client turns delete and deleteMany into soft-delete updates", asyn
       method: "update",
       args: {
         where: {
-          AND: [{ id: "user_123" }, { deletedAt: null }],
+          id: "user_123",
+          deletedAt: null,
         },
         data: {
           deletedAt: fixedDeletedAt,
@@ -261,7 +263,8 @@ test("withDeleted delete still only targets active rows", async () => {
 
   assert.deepEqual(updateArgs, {
     where: {
-      AND: [{ id: "user_123" }, { deletedAt: null }],
+      id: "user_123",
+      deletedAt: null,
     },
     data: {
       deletedAt: fixedDeletedAt,

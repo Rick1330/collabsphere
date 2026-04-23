@@ -33,6 +33,58 @@ Provide a compact, execution-focused index of CollabSphere API references for ag
 - Idempotency via `X-Idempotency-Key` for POST creates.
 - Rate limiting must return `429 RATE_LIMITED` with `Retry-After`.
 
+## Success Envelope Examples
+Single resource:
+```json
+{
+  "data": {
+    "resource": {
+      "id": "workspace_123"
+    }
+  },
+  "meta": {
+    "requestId": "req_abc123"
+  }
+}
+```
+
+List resource:
+```json
+{
+  "data": {
+    "items": [
+      {
+        "id": "task_123"
+      }
+    ],
+    "total": 1
+  },
+  "meta": {
+    "requestId": "req_abc123",
+    "pagination": {
+      "page": 1,
+      "pageSize": 25,
+      "totalItems": 1,
+      "totalPages": 1,
+      "hasNextPage": false,
+      "hasPreviousPage": false
+    }
+  }
+}
+```
+
+Action response:
+```json
+{
+  "data": {
+    "message": "OK"
+  },
+  "meta": {
+    "requestId": "req_abc123"
+  }
+}
+```
+
 ## Edge Cases / Failure Modes
 - Authenticated non-member workspace access returns `403 NOT_WORKSPACE_MEMBER` consistently.
 - Admin endpoints require global role `ADMIN`.
