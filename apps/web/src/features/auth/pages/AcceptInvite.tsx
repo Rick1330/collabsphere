@@ -12,7 +12,6 @@ import {
   Loader2,
   ShieldOff,
   UserPlus,
-  XCircle,
 } from "lucide-react";
 import { lookupInvitation, type Invitation } from "@/lib/mock-invitations";
 import { relativeTime } from "@/lib/format";
@@ -49,6 +48,13 @@ const TYPE_TONE: Record<Invitation["workspace"]["type"], string> = {
   academic: "text-amber-300 border-amber-400/30 bg-amber-500/10",
   general: "text-slate-300 border-slate-500/30 bg-slate-500/10",
 };
+
+function getInviteState(
+  invite: Invitation | null,
+): "invalid" | "expired" | "used" | "email_mismatch" | "pending" {
+  if (!invite) return "invalid";
+  return invite.status;
+}
 
 const AcceptInvite = () => {
   const { token = "" } = useParams<{ token: string }>();
@@ -102,6 +108,8 @@ const AcceptInvite = () => {
     toast.success(`Welcome to ${invite.workspace.name}`);
     navigate(`/w/${invite.workspace.id}`);
   };
+
+  const inviteState = loading ? "loading" : getInviteState(invite);
 
   return (
     <div
@@ -158,15 +166,15 @@ const AcceptInvite = () => {
           </span>
 
           <div className="px-7 pb-7 pt-3">
-            {loading ? (
+            {inviteState === "loading" ? (
               <LoadingState />
-            ) : !invite ? (
+            ) : inviteState === "invalid" ? (
               <InvalidState />
-            ) : invite.status === "expired" ? (
+            ) : inviteState === "expired" ? (
               <ExpiredState invite={invite} />
-            ) : invite.status === "used" ? (
+            ) : inviteState === "used" ? (
               <UsedState invite={invite} />
-            ) : invite.status === "email_mismatch" ? (
+            ) : inviteState === "email_mismatch" ? (
               <EmailMismatchState invite={invite} viewerEmail={user?.email ?? null} />
             ) : (
               <PendingState

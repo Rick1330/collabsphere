@@ -37,7 +37,7 @@ interface OverlayPatch {
 type Overlay = Record<string, OverlayPatch>;
 
 function readOverlay(): Overlay {
-  if (typeof window === "undefined") return {};
+  if (typeof globalThis.window === "undefined") return {};
   try {
     const raw = localStorage.getItem(OVERLAY_KEY);
     return raw ? (JSON.parse(raw) as Overlay) : {};
@@ -47,7 +47,7 @@ function readOverlay(): Overlay {
 }
 
 function writeOverlay(o: Overlay) {
-  if (typeof window === "undefined") return;
+  if (typeof globalThis.window === "undefined") return;
   localStorage.setItem(OVERLAY_KEY, JSON.stringify(o));
 }
 

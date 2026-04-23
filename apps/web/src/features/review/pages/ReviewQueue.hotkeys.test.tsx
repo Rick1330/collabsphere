@@ -91,34 +91,54 @@ const fireKey = (key: string) => {
   fireEvent.keyDown(globalThis as unknown as Window, { key, bubbles: true, cancelable: true });
 };
 
+async function expectDecisionHotkey(params: {
+  key: string;
+  initialFocus: number;
+  expectedId: string;
+  expectedDecision: Decision;
+  closedId: string;
+}) {
+  const onOpen = vi.fn();
+  render(
+    <Harness
+      documentIds={["doc-1", "doc-2"]}
+      initialFocus={params.initialFocus}
+      onOpenDialog={onOpen}
+    />,
+  );
+
+  await act(async () => {
+    fireKey(params.key);
+  });
+
+  expect(onOpen).toHaveBeenCalledWith(params.expectedId, params.expectedDecision);
+  expect(screen.getByTestId(`row-${params.expectedId}`)).toHaveAttribute("data-state", "open");
+  expect(screen.getByTestId(`row-${params.closedId}`)).toHaveAttribute("data-state", "closed");
+}
+
 describe("ReviewQueue — a / r hotkeys", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
   });
 
   it("`a` opens approve flow on the focused row", async () => {
-    const onOpen = vi.fn();
-    render(<Harness documentIds={["doc-1", "doc-2"]} initialFocus={0} onOpenDialog={onOpen} />);
-
-    await act(async () => {
-      fireKey("a");
+    await expectDecisionHotkey({
+      key: "a",
+      initialFocus: 0,
+      expectedId: "doc-1",
+      expectedDecision: "approved",
+      closedId: "doc-2",
     });
-
-    expect(onOpen).toHaveBeenCalledWith("doc-1", "approved");
-    expect(screen.getByTestId("row-doc-1")).toHaveAttribute("data-state", "open");
-    expect(screen.getByTestId("row-doc-2")).toHaveAttribute("data-state", "closed");
   });
 
   it("`r` opens request-changes flow on the focused row only", async () => {
-    const onOpen = vi.fn();
-    render(<Harness documentIds={["doc-1", "doc-2"]} initialFocus={1} onOpenDialog={onOpen} />);
-
-    await act(async () => {
-      fireKey("r");
+    await expectDecisionHotkey({
+      key: "r",
+      initialFocus: 1,
+      expectedId: "doc-2",
+      expectedDecision: "changes_requested",
+      closedId: "doc-1",
     });
-
-    expect(onOpen).toHaveBeenCalledWith("doc-2", "changes_requested");
-    expect(screen.getByTestId("row-doc-1")).toHaveAttribute("data-state", "closed");
   });
 
   it("does not re-trigger when the focused row is already in note-entry mode", async () => {

@@ -65,16 +65,16 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
     signal: opts.signal,
   });
 
-  if (!res.ok) {
-    let body: unknown;
-    try {
-      body = await res.json();
-    } catch {
-      body = await res.text().catch(() => undefined);
-    }
-    throw new ApiError(res.status, `${opts.method ?? "GET"} ${path} → ${res.status}`, body);
+  if (res.ok) {
+    if (res.status === 204) return undefined as T;
+    return (await res.json()) as T;
   }
 
-  if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
+  let body: unknown;
+  try {
+    body = await res.json();
+  } catch {
+    body = await res.text().catch(() => undefined);
+  }
+  throw new ApiError(res.status, `${opts.method ?? "GET"} ${path} → ${res.status}`, body);
 }

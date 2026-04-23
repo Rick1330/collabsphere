@@ -32,6 +32,7 @@ export const DocumentThreadFilters = ({
       )}
     >
       Open
+      {" "}
       <span
         className={cn(
           "text-[10px] font-mono tracking-wider px-1 rounded",
@@ -54,6 +55,7 @@ export const DocumentThreadFilters = ({
       )}
     >
       Resolved
+      {" "}
       <span
         className={cn(
           "text-[10px] font-mono tracking-wider px-1 rounded",

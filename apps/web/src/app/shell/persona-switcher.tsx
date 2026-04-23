@@ -31,6 +31,86 @@ const TONE_BG: Record<string, string> = {
   red: "bg-red-100 text-red-800 ring-red-200",
 };
 
+function RoleButtons({ activeRole }: { activeRole: WorkspaceRoleKey }) {
+  return (
+    <div className="grid grid-cols-2 gap-1.5">
+      {(Object.keys(WORKSPACE_ROLE_META) as WorkspaceRoleKey[]).map((role) => {
+        const active = role === activeRole;
+        return (
+          <button
+            key={role}
+            type="button"
+            onClick={() => personaStore.set({ workspaceRole: role })}
+            className={cn(
+              "text-left px-2.5 py-2 rounded-lg border text-xs transition-colors",
+              active
+                ? "border-teal-400 bg-teal-50/60 text-teal-900"
+                : "border-stone-200 hover:border-stone-300 hover:bg-stone-50 text-stone-700",
+            )}
+          >
+            <div className="font-semibold">{WORKSPACE_ROLE_META[role].label}</div>
+            <div className="text-[10px] text-stone-500 leading-tight mt-0.5">
+              {WORKSPACE_ROLE_META[role].description}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function TypeButtons({ activeType }: { activeType: WorkspaceType }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {(Object.keys(WORKSPACE_TYPE_META) as WorkspaceType[]).map((type) => {
+        const active = type === activeType;
+        const meta = WORKSPACE_TYPE_META[type];
+        return (
+          <button
+            key={type}
+            type="button"
+            onClick={() => personaStore.set({ workspaceType: type })}
+            className={cn(
+              "px-3 py-1.5 rounded-full text-xs font-medium ring-1 transition-colors",
+              active
+                ? TONE_BG[meta.tone]
+                : "bg-white text-stone-600 ring-stone-200 hover:bg-stone-50",
+            )}
+          >
+            {meta.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ScenarioButtons({ activeScenario }: { activeScenario: ScenarioState }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {(Object.keys(SCENARIO_META) as ScenarioState[]).map((scenario) => {
+        const active = scenario === activeScenario;
+        const meta = SCENARIO_META[scenario];
+        return (
+          <button
+            key={scenario}
+            type="button"
+            onClick={() => personaStore.set({ scenario })}
+            className={cn(
+              "px-2.5 py-1 rounded-md text-[11px] font-medium ring-1 transition-colors",
+              active
+                ? TONE_BG[meta.tone]
+                : "bg-white text-stone-600 ring-stone-200 hover:bg-stone-50",
+            )}
+          >
+            {meta.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export const PersonaSwitcher = () => {
   const state = usePersonaState();
 
@@ -64,81 +144,16 @@ export const PersonaSwitcher = () => {
         </SheetHeader>
 
         <div className="mt-6 space-y-7">
-          {/* Workspace role */}
           <Section title="Workspace role">
-            <div className="grid grid-cols-2 gap-1.5">
-              {(Object.keys(WORKSPACE_ROLE_META) as WorkspaceRoleKey[]).map((r) => {
-                const active = r === state.workspaceRole;
-                return (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => personaStore.set({ workspaceRole: r })}
-                    className={cn(
-                      "text-left px-2.5 py-2 rounded-lg border text-xs transition-colors",
-                      active
-                        ? "border-teal-400 bg-teal-50/60 text-teal-900"
-                        : "border-stone-200 hover:border-stone-300 hover:bg-stone-50 text-stone-700",
-                    )}
-                  >
-                    <div className="font-semibold">{WORKSPACE_ROLE_META[r].label}</div>
-                    <div className="text-[10px] text-stone-500 leading-tight mt-0.5">
-                      {WORKSPACE_ROLE_META[r].description}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+            <RoleButtons activeRole={state.workspaceRole} />
           </Section>
 
-          {/* Workspace type */}
           <Section title="Workspace type">
-            <div className="flex flex-wrap gap-1.5">
-              {(Object.keys(WORKSPACE_TYPE_META) as WorkspaceType[]).map((t) => {
-                const active = t === state.workspaceType;
-                const meta = WORKSPACE_TYPE_META[t];
-                return (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => personaStore.set({ workspaceType: t })}
-                    className={cn(
-                      "px-3 py-1.5 rounded-full text-xs font-medium ring-1 transition-colors",
-                      active
-                        ? TONE_BG[meta.tone]
-                        : "bg-white text-stone-600 ring-stone-200 hover:bg-stone-50",
-                    )}
-                  >
-                    {meta.label}
-                  </button>
-                );
-              })}
-            </div>
+            <TypeButtons activeType={state.workspaceType} />
           </Section>
 
-          {/* Scenario */}
           <Section title="Scenario state">
-            <div className="flex flex-wrap gap-1.5">
-              {(Object.keys(SCENARIO_META) as ScenarioState[]).map((s) => {
-                const active = s === state.scenario;
-                const meta = SCENARIO_META[s];
-                return (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => personaStore.set({ scenario: s })}
-                    className={cn(
-                      "px-2.5 py-1 rounded-md text-[11px] font-medium ring-1 transition-colors",
-                      active
-                        ? TONE_BG[meta.tone]
-                        : "bg-white text-stone-600 ring-stone-200 hover:bg-stone-50",
-                    )}
-                  >
-                    {meta.label}
-                  </button>
-                );
-              })}
-            </div>
+            <ScenarioButtons activeScenario={state.scenario} />
             <p className="mt-2 text-[10px] text-stone-400 leading-relaxed">
               Scenario is a hint for surfaces that consume it (lists, feeds, editor).
               Not every page reacts to every state yet.

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CheckCircle2, MessageSquareWarning, Send, Clock, User } from "lucide-react";
+import { CheckCircle2, MessageSquareWarning, Send, Clock } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { relativeTime, fullDateTime, getInitials, getAvatarColor } from "@/lib/format";

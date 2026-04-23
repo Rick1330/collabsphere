@@ -74,6 +74,27 @@ interface PageState {
   task: TaskDetail | null;
 }
 
+function getTaskPermissions(params: {
+  isArchived: boolean;
+  workspaceRole: Role;
+  task: TaskDetail | null;
+  currentUserId: string;
+}) {
+  const { isArchived, workspaceRole, task, currentUserId } = params;
+  const canManage = !isArchived && ["OWNER", "ADMIN", "MANAGER"].includes(workspaceRole);
+  const isReporter = task?.reporterId === currentUserId;
+  const isAssignee = task?.assignee?.id === currentUserId;
+  const canEdit = !isArchived && (canManage || isReporter || isAssignee);
+
+  return {
+    canManage,
+    canEdit,
+    canChangeStatus: canEdit,
+    canDelete: !isArchived && (canManage || (isReporter && workspaceRole !== "VIEWER")),
+    canComment: !isArchived && workspaceRole !== "VIEWER",
+  };
+}
+
 const TaskDetailPage = () => {
   const params = useParams();
   const workspaceId = resolveWorkspaceParam(params.workspaceId);
@@ -122,22 +143,18 @@ const TaskDetailPage = () => {
   }, [taskId, retry]);
 
   const task = state.task;
+  const taskTitle = task?.title;
 
   useEffect(() => {
-    document.title = task
-      ? `${task.title} — Task — CollabSphere`
-      : "Task — CollabSphere";
-  }, [task?.title]);
+    document.title = taskTitle ? `${taskTitle} — Task — CollabSphere` : "Task — CollabSphere";
+  }, [taskTitle]);
 
-  const canManage =
-    !isArchived && ["OWNER", "ADMIN", "MANAGER"].includes(workspace.myRole);
-  const isReporter = task?.reporterId === CURRENT_USER_ID;
-  const isAssignee = task?.assignee?.id === CURRENT_USER_ID;
-  const canEdit = !isArchived && (canManage || isReporter || isAssignee);
-  const canChangeStatus = canEdit;
-  const canDelete =
-    !isArchived && (canManage || (isReporter && workspace.myRole !== "VIEWER"));
-  const canComment = !isArchived && workspace.myRole !== "VIEWER";
+  const { canManage, canEdit, canChangeStatus, canDelete, canComment } = getTaskPermissions({
+    isArchived,
+    workspaceRole: workspace.myRole,
+    task,
+    currentUserId: CURRENT_USER_ID,
+  });
 
   const update = (patch: Partial<TaskDetail>) => {
     setState((prev) => {

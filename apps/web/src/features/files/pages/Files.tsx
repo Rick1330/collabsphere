@@ -18,7 +18,6 @@ import {
   Image as ImageIcon,
   Layers,
   List as ListIcon,
-  Loader2,
   MoreHorizontal,
   Plug,
   Search,
@@ -130,6 +129,8 @@ const Files = () => {
       return true;
     });
   }, [query, kindFilter, uploaderFilter]);
+  const hasSeedFiles = MOCK_FILES.length > 0;
+  const isEmptyResult = filtered.length === 0;
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -280,8 +281,8 @@ const Files = () => {
           <section className="mt-5">
             {loading ? (
               <FilesSkeleton view={view} />
-            ) : filtered.length === 0 ? (
-              MOCK_FILES.length === 0 ? (
+            ) : isEmptyResult ? (
+              !hasSeedFiles ? (
                 <EmptyState canUpload={canUpload} onUpload={handleUpload} />
               ) : (
                 <NoMatch onClear={() => { setQuery(""); setKindFilter("all"); setUploaderFilter("all"); }} />

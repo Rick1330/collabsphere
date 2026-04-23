@@ -16,9 +16,9 @@ export const SHORTCUT_EVENTS = {
 } as const;
 
 export function emitOpenPalette() {
-  window.dispatchEvent(new CustomEvent(SHORTCUT_EVENTS.openPalette));
+  globalThis.dispatchEvent(new CustomEvent(SHORTCUT_EVENTS.openPalette));
 }
 
 export function emitOpenHelp() {
-  window.dispatchEvent(new CustomEvent(SHORTCUT_EVENTS.openHelp));
+  globalThis.dispatchEvent(new CustomEvent(SHORTCUT_EVENTS.openHelp));
 }

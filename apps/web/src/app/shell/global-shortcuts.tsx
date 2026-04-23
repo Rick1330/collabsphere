@@ -37,46 +37,66 @@ function getWorkspaceIdFromPath(pathname: string): string | null {
   return m ? m[1] : null;
 }
 
+function openReadOnlyCreateWarning() {
+  toast.info("Read-only access", {
+    description: "Your role can browse but not create documents.",
+  });
+}
+
+function openPickWorkspaceWarning() {
+  toast.info("Pick a workspace first", {
+    description: "Open a workspace, then press G C to create a document.",
+  });
+}
+
 export const GlobalShortcuts = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const account = useCurrentAccount();
   const sessionRole = getSessionRole(account);
   const isAuthed = !!account;
+  const workspaceId = getWorkspaceIdFromPath(location.pathname);
+
+  const navigateIfAuthed = (path: string) => {
+    if (isAuthed) {
+      navigate(path);
+    }
+  };
+
+  const openReviewQueue = () => {
+    if (isAuthed && sessionRole.canReview) {
+      navigate("/review");
+    }
+  };
+
+  const openNewDocument = () => {
+    if (!isAuthed) return;
+    if (sessionRole.isReadOnly) {
+      openReadOnlyCreateWarning();
+      return;
+    }
+    if (workspaceId) {
+      navigate(`/w/${workspaceId}/documents/new`);
+      return;
+    }
+    openPickWorkspaceWarning();
+    navigate("/workspaces");
+  };
 
   // Global commands — must work even when a dialog/palette is foregrounded.
   useHotkey("mod+k", () => emitOpenPalette(), { allowWhenModalOpen: true });
   useHotkey("shift+?", () => emitOpenHelp(), { allowWhenModalOpen: true });
 
   // Navigation — only when signed in.
-  useHotkey("g d", () => isAuthed && navigate("/dashboard"));
-  useHotkey("g w", () => isAuthed && navigate("/workspaces"));
-  useHotkey("g n", () => isAuthed && navigate("/notifications"));
-  useHotkey("g s", () => isAuthed && navigate("/settings"));
-  useHotkey("g r", () => {
-    if (isAuthed && sessionRole.canReview) navigate("/review");
-  });
+  useHotkey("g d", () => navigateIfAuthed("/dashboard"));
+  useHotkey("g w", () => navigateIfAuthed("/workspaces"));
+  useHotkey("g n", () => navigateIfAuthed("/notifications"));
+  useHotkey("g s", () => navigateIfAuthed("/settings"));
+  useHotkey("g r", openReviewQueue);
 
   // Create new document in the current workspace.
   // Permission check: viewers cannot author content.
-  useHotkey("g c", () => {
-    if (!isAuthed) return;
-    if (sessionRole.isReadOnly) {
-      toast.info("Read-only access", {
-        description: "Your role can browse but not create documents.",
-      });
-      return;
-    }
-    const wsId = getWorkspaceIdFromPath(location.pathname);
-    if (wsId) {
-      navigate(`/w/${wsId}/documents/new`);
-    } else {
-      toast.info("Pick a workspace first", {
-        description: "Open a workspace, then press G C to create a document.",
-      });
-      navigate("/workspaces");
-    }
-  });
+  useHotkey("g c", openNewDocument);
 
   return null;
 };

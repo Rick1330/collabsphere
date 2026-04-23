@@ -101,15 +101,16 @@ export const DocumentCommentComposer = ({
 
       const chip = document.createElement("span");
       chip.contentEditable = "false";
-      chip.setAttribute("data-mention-id", member.id);
-      chip.setAttribute("data-mention-name", member.fullName);
+      chip.dataset.mentionId = member.id;
+      chip.dataset.mentionName = member.fullName;
       chip.className =
         "inline-flex items-center px-1.5 py-px rounded bg-teal-50 text-teal-700 font-medium text-[13px] mx-px select-none";
       chip.textContent = `@${member.fullName.split(" ")[0]}`;
 
       const space = document.createTextNode(after.length === 0 || !after.startsWith(" ") ? " " + after : after);
 
-      const parent = textNode.parentNode!;
+      const parent = textNode.parentNode;
+      if (!parent) return;
       const nextSibling = textNode.nextSibling;
       parent.insertBefore(chip, nextSibling);
       parent.insertBefore(space, chip.nextSibling);
@@ -143,12 +144,12 @@ export const DocumentCommentComposer = ({
       }
       if (n.nodeType === Node.ELEMENT_NODE) {
         const elNode = n as HTMLElement;
-        const id = elNode.getAttribute("data-mention-id");
+        const id = elNode.dataset.mentionId;
         if (id) {
           out.push({
             type: "mention",
             userId: id,
-            display: elNode.getAttribute("data-mention-name") ?? elNode.textContent ?? "",
+            display: elNode.dataset.mentionName ?? elNode.textContent ?? "",
           });
           return;
         }

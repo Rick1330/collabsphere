@@ -79,10 +79,10 @@ export const NotificationPrefs = () => {
                 </tr>
               </thead>
               <tbody>
-                {NOTIFICATION_TYPES.map((type, idx) => (
+                {NOTIFICATION_TYPES.map((type) => (
                   <tr
                     key={type.key}
-                    className={idx === NOTIFICATION_TYPES.length - 1 ? "" : "border-b border-stone-100"}
+                    className={type === NOTIFICATION_TYPES[NOTIFICATION_TYPES.length - 1] ? "" : "border-b border-stone-100"}
                   >
                     <td className="py-3 pr-4 text-sm text-stone-700">{type.label}</td>
                     <td className="py-3 px-2 text-center">

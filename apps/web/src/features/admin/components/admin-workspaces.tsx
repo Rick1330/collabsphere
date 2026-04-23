@@ -412,7 +412,8 @@ const FacetGroup = ({
   value: string;
   onChange: (v: string) => void;
 }) => (
-  <div className="flex items-center gap-1.5" role="group" aria-label={label}>
+  <fieldset className="flex items-center gap-1.5 min-w-0">
+    <legend className="sr-only">{label}</legend>
     <span className="font-mono text-[9px] text-stone-400 tracking-[0.14em] uppercase">
       {label}
     </span>
@@ -437,7 +438,7 @@ const FacetGroup = ({
         </button>
       ))}
     </div>
-  </div>
+  </fieldset>
 );
 
 const PageButton = ({

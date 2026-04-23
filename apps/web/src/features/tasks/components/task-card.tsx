@@ -22,6 +22,17 @@ interface TaskCardProps {
 
 export const TaskCard = ({ task, onClick }: TaskCardProps) => {
   const due = task.dueDate ? formatDueDate(task.dueDate) : null;
+  const dueLabel =
+    !due
+      ? null
+      : due.isOverdue
+        ? "OVERDUE"
+        : due.isDueToday
+          ? "TODAY"
+          : new Date(task.dueDate!).toLocaleDateString(undefined, {
+              month: "short",
+              day: "numeric",
+            }).toUpperCase();
 
   return (
     <button
@@ -80,18 +91,9 @@ export const TaskCard = ({ task, onClick }: TaskCardProps) => {
                 !due.isDueToday &&
                 "text-stone-500 border-stone-200 bg-stone-50",
             )}
-          >
-            <Calendar className="h-3 w-3" />
-            {due.isOverdue
-              ? "OVERDUE"
-              : due.isDueToday
-                ? "TODAY"
-                : new Date(task.dueDate!)
-                    .toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                    })
-                    .toUpperCase()}
+            >
+              <Calendar className="h-3 w-3" />
+            {dueLabel}
           </span>
         )}
       </div>
