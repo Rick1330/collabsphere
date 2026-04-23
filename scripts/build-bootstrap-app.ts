@@ -63,6 +63,31 @@ const compileOutputDirs = [path.join(distDir, "apps"), path.join(distDir, "packa
 
 const sleep = (delayMs: number) => new Promise<void>((resolve) => setTimeout(resolve, delayMs));
 
+const readFileWithRetries = async ({
+  filePath,
+  maxAttempts = 5,
+}: {
+  filePath: string;
+  maxAttempts?: number;
+}) => {
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    try {
+      return await readFile(filePath, "utf8");
+    } catch (error) {
+      const code = (error as { code?: string } | null)?.code;
+      if (code !== "ENOENT" || attempt === maxAttempts - 1) {
+        throw error;
+      }
+
+      // Windows can briefly report freshly emitted TypeScript outputs as missing
+      // while the filesystem catches up. Back off and retry before failing tests.
+      await sleep(50 * (attempt + 1));
+    }
+  }
+
+  throw new Error(`Timed out reading ${filePath}.`);
+};
+
 const removeDirectoryWithRetries = async ({
   directory,
   maxAttempts = 8,
@@ -187,8 +212,8 @@ const loadBuildContext = async (): Promise<BuildContext> => {
   const compiledAppSourceDir = path.dirname(compiledTsEntryPath);
   const detectionPath = hasTsSource ? sourceTsPath : sourceJsPath;
   const compiledPath = hasTsSource ? compiledTsEntryPath : sourceJsPath;
-  const sourceCode = await readFile(detectionPath, "utf8");
-  const compiledSourceCode = await readFile(compiledPath, "utf8");
+  const sourceCode = await readFileWithRetries({ filePath: detectionPath });
+  const compiledSourceCode = await readFileWithRetries({ filePath: compiledPath });
 
   return {
     packageJson,

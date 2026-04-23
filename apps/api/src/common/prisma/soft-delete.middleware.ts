@@ -32,6 +32,7 @@ export const SOFT_DELETE_DELEGATE_KEYS = SOFT_DELETE_MODELS.map((modelName) =>
 );
 
 type RecordLike = Record<string | symbol, unknown>;
+type UnknownFn = (...args: unknown[]) => unknown;
 
 export type SoftDeleteProxyOptions = {
   includeDeleted?: boolean;
@@ -49,6 +50,9 @@ const SOFT_DELETE_READ_OPERATION_SET = new Set<string>(SOFT_DELETE_READ_OPERATIO
 
 const isRecordLike = (value: unknown): value is RecordLike =>
   typeof value === "object" && value !== null;
+
+const isCallable = (value: unknown): value is UnknownFn =>
+  typeof value === "function";
 
 const cloneArgs = (args: unknown): Record<string, unknown> => {
   if (!isRecordLike(args)) {
@@ -146,6 +150,187 @@ export const normalizeSoftDeleteDeleteManyArgs = ({
   return nextArgs;
 };
 
+const createReadOperationHandler = ({
+  method,
+  target,
+  includeDeleted,
+}: {
+  method: (...args: unknown[]) => unknown;
+  target: object;
+  includeDeleted?: boolean;
+}) =>
+  (args?: unknown) =>
+    Reflect.apply(method, target, [
+      normalizeSoftDeleteReadArgs({
+        args,
+        includeDeleted,
+      }),
+    ]);
+
+const resolveRequiredDelegateMethod = ({
+  target,
+  receiver,
+  methodName,
+  errorMessage,
+}: {
+  target: object;
+  receiver: object;
+  methodName: "update" | "updateMany";
+  errorMessage: string;
+}) => {
+  const delegateMethod = Reflect.get(target, methodName, receiver);
+  if (typeof delegateMethod !== "function") {
+    throw new Error(errorMessage);
+  }
+
+  return delegateMethod as (...args: unknown[]) => unknown;
+};
+
+const createDeleteOperationHandler = ({
+  target,
+  receiver,
+  now,
+}: {
+  target: object;
+  receiver: object;
+  now?: () => Date;
+}) =>
+  (args?: unknown) =>
+    Reflect.apply(
+      resolveRequiredDelegateMethod({
+        target,
+        receiver,
+        methodName: "update",
+        errorMessage: "Soft delete proxy requires an update() delegate method.",
+      }),
+      target,
+      [
+        normalizeSoftDeleteDeleteArgs({
+          args,
+          now,
+        }),
+      ],
+    );
+
+const createDeleteManyOperationHandler = ({
+  target,
+  receiver,
+  includeDeleted,
+  now,
+}: {
+  target: object;
+  receiver: object;
+  includeDeleted?: boolean;
+  now?: () => Date;
+}) =>
+  (args?: unknown) =>
+    Reflect.apply(
+      resolveRequiredDelegateMethod({
+        target,
+        receiver,
+        methodName: "updateMany",
+        errorMessage: "Soft delete proxy requires an updateMany() delegate method.",
+      }),
+      target,
+      [
+        normalizeSoftDeleteDeleteManyArgs({
+          args,
+          includeDeleted,
+          now,
+        }),
+      ],
+    );
+
+const createPassthroughHandler = ({
+  method,
+  target,
+}: {
+  method: (...args: unknown[]) => unknown;
+  target: object;
+}) =>
+  (...args: unknown[]) =>
+    Reflect.apply(method, target, args);
+
+const resolveDelegateProperty = ({
+  property,
+  value,
+  target,
+  receiver,
+  options,
+}: {
+  property: string;
+  value: unknown;
+  target: object;
+  receiver: object;
+  options: SoftDeleteProxyOptions;
+}) => {
+  if (!isCallable(value)) {
+    return value;
+  }
+
+  if (SOFT_DELETE_READ_OPERATION_SET.has(property)) {
+    return createReadOperationHandler({
+      method: value,
+      target,
+      includeDeleted: options.includeDeleted,
+    });
+  }
+
+  if (property === "delete" && !options.allowHardDelete) {
+    return createDeleteOperationHandler({
+      target,
+      receiver,
+      now: options.now,
+    });
+  }
+
+  if (property === "deleteMany" && !options.allowHardDelete) {
+    return createDeleteManyOperationHandler({
+      target,
+      receiver,
+      includeDeleted: options.includeDeleted,
+      now: options.now,
+    });
+  }
+
+  return createPassthroughHandler({
+    method: value,
+    target,
+  });
+};
+
+const resolveClientControl = ({
+  target,
+  property,
+  options,
+}: {
+  target: object;
+  property: string | symbol;
+  options: SoftDeleteProxyOptions;
+}) => {
+  if (property === "$withDeleted") {
+    return () =>
+      createSoftDeletePrismaClient(target, {
+        ...options,
+        includeDeleted: true,
+      });
+  }
+
+  if (property === "$withHardDeletes") {
+    return () =>
+      createSoftDeletePrismaClient(target, {
+        ...options,
+        allowHardDelete: true,
+        includeDeleted: true,
+      });
+  }
+
+  return null;
+};
+
+const shouldWrapSoftDeleteDelegate = (property: string | symbol, value: unknown) =>
+  typeof property === "string" && SOFT_DELETE_MODEL_SET.has(property) && isRecordLike(value);
+
 export const createSoftDeleteDelegateProxy = <TDelegate extends object>(
   delegate: TDelegate,
   options: SoftDeleteProxyOptions = {},
@@ -156,55 +341,13 @@ export const createSoftDeleteDelegateProxy = <TDelegate extends object>(
         return Reflect.get(target, property, receiver);
       }
 
-      const value = Reflect.get(target, property, receiver);
-      if (typeof value !== "function") {
-        return value;
-      }
-
-      if (SOFT_DELETE_READ_OPERATION_SET.has(property)) {
-        return (args?: unknown) =>
-          Reflect.apply(value, target, [
-            normalizeSoftDeleteReadArgs({
-              args,
-              includeDeleted: options.includeDeleted,
-            }),
-          ]);
-      }
-
-      if (property === "delete" && !options.allowHardDelete) {
-        return (args?: unknown) => {
-          const update = Reflect.get(target, "update", receiver);
-          if (typeof update !== "function") {
-            throw new Error("Soft delete proxy requires an update() delegate method.");
-          }
-
-          return Reflect.apply(update, target, [
-            normalizeSoftDeleteDeleteArgs({
-              args,
-              now: options.now,
-            }),
-          ]);
-        };
-      }
-
-      if (property === "deleteMany" && !options.allowHardDelete) {
-        return (args?: unknown) => {
-          const updateMany = Reflect.get(target, "updateMany", receiver);
-          if (typeof updateMany !== "function") {
-            throw new Error("Soft delete proxy requires an updateMany() delegate method.");
-          }
-
-          return Reflect.apply(updateMany, target, [
-            normalizeSoftDeleteDeleteManyArgs({
-              args,
-              includeDeleted: options.includeDeleted,
-              now: options.now,
-            }),
-          ]);
-        };
-      }
-
-      return (...args: unknown[]) => Reflect.apply(value, target, args);
+      return resolveDelegateProperty({
+        property,
+        value: Reflect.get(target, property, receiver),
+        target,
+        receiver,
+        options,
+      });
     },
   });
 
@@ -214,26 +357,18 @@ export const createSoftDeletePrismaClient = <TClient extends object>(
 ) =>
   new Proxy(client, {
     get(target, property, receiver) {
-      if (property === "$withDeleted") {
-        return () =>
-          createSoftDeletePrismaClient(target, {
-            ...options,
-            includeDeleted: true,
-          });
-      }
-
-      if (property === "$withHardDeletes") {
-        return () =>
-          createSoftDeletePrismaClient(target, {
-            ...options,
-            allowHardDelete: true,
-            includeDeleted: true,
-          });
+      const clientControl = resolveClientControl({
+        target,
+        property,
+        options,
+      });
+      if (clientControl) {
+        return clientControl;
       }
 
       const value = Reflect.get(target, property, receiver);
-      if (typeof property === "string" && SOFT_DELETE_MODEL_SET.has(property) && isRecordLike(value)) {
-        return createSoftDeleteDelegateProxy(value, options);
+      if (shouldWrapSoftDeleteDelegate(property, value)) {
+        return createSoftDeleteDelegateProxy(value as object, options);
       }
 
       return value;
