@@ -71,6 +71,39 @@ test("withDeleted override leaves read filters untouched for recovery flows", as
   });
 });
 
+test("findUnique delegates to findFirst so soft-delete filters stay valid", async () => {
+  const calls: Array<{ method: string; args: unknown }> = [];
+  const baseClient = {
+    user: {
+      findUnique: async (args?: unknown) => {
+        calls.push({ method: "findUnique", args });
+        return { id: "user_123" };
+      },
+      findFirst: async (args?: unknown) => {
+        calls.push({ method: "findFirst", args });
+        return { id: "user_123" };
+      },
+    },
+  };
+
+  const prisma = createPrismaService(baseClient);
+
+  await prisma.user.findUnique({
+    where: { id: "user_123" },
+  });
+
+  assert.deepEqual(calls, [
+    {
+      method: "findFirst",
+      args: {
+        where: {
+          AND: [{ id: "user_123" }, { deletedAt: null }],
+        },
+      },
+    },
+  ]);
+});
+
 test("soft delete normalizes delete operations into update payloads", () => {
   assert.deepEqual(
     normalizeSoftDeleteDeleteArgs({
@@ -198,5 +231,35 @@ test("purge client keeps hard deletes available while default client still filte
   });
   assert.deepEqual(purgeDeleteArgs, {
     where: { id: "user_123" },
+  });
+});
+
+test("withDeleted deleteMany still only targets active rows", async () => {
+  let updateManyArgs: unknown;
+  const baseClient = {
+    user: {
+      updateMany: async (args?: unknown) => {
+        updateManyArgs = args;
+        return { count: 1 };
+      },
+      deleteMany: async () => ({ count: 1 }),
+    },
+  };
+
+  const prisma = createSoftDeletePrismaClient(baseClient, {
+    now: fixedNow,
+  });
+
+  await prisma.$withDeleted().user.deleteMany({
+    where: { workspaceId: "ws_123" },
+  });
+
+  assert.deepEqual(updateManyArgs, {
+    where: {
+      AND: [{ workspaceId: "ws_123" }, { deletedAt: null }],
+    },
+    data: {
+      deletedAt: fixedDeletedAt,
+    },
   });
 });

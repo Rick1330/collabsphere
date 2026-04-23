@@ -47,6 +47,10 @@ export type SoftDeleteClientControls<TClient extends object = object> = {
 
 const SOFT_DELETE_MODEL_SET = new Set<string>(SOFT_DELETE_DELEGATE_KEYS);
 const SOFT_DELETE_READ_OPERATION_SET = new Set<string>(SOFT_DELETE_READ_OPERATIONS);
+const UNIQUE_READ_OPERATION_MAP = {
+  findUnique: "findFirst",
+  findUniqueOrThrow: "findFirstOrThrow",
+} as const;
 
 const isRecordLike = (value: unknown): value is RecordLike =>
   typeof value === "object" && value !== null;
@@ -130,18 +134,15 @@ export const normalizeSoftDeleteDeleteArgs = ({
 
 export const normalizeSoftDeleteDeleteManyArgs = ({
   args,
-  includeDeleted = false,
   now = () => new Date(),
 }: {
   args: unknown;
-  includeDeleted?: boolean;
   now?: () => Date;
 }) => {
   const nextArgs = cloneArgs(args);
 
   nextArgs.where = addDefaultSoftDeleteWhere({
     where: nextArgs.where,
-    includeDeleted,
   });
   nextArgs.data = {
     deletedAt: now(),
@@ -175,70 +176,68 @@ const resolveRequiredDelegateMethod = ({
 }: {
   target: object;
   receiver: object;
-  methodName: "update" | "updateMany";
+  methodName: string;
   errorMessage: string;
 }) => {
   const delegateMethod = Reflect.get(target, methodName, receiver);
-  if (typeof delegateMethod !== "function") {
+  if (!isCallable(delegateMethod)) {
     throw new Error(errorMessage);
   }
 
-  return delegateMethod as (...args: unknown[]) => unknown;
+  return delegateMethod;
 };
 
-const createDeleteOperationHandler = ({
+const createUniqueReadOperationHandler = ({
   target,
   receiver,
-  now,
+  methodName,
+  includeDeleted,
 }: {
   target: object;
   receiver: object;
-  now?: () => Date;
+  methodName: "findFirst" | "findFirstOrThrow";
+  includeDeleted?: boolean;
 }) =>
   (args?: unknown) =>
     Reflect.apply(
       resolveRequiredDelegateMethod({
         target,
         receiver,
-        methodName: "update",
-        errorMessage: "Soft delete proxy requires an update() delegate method.",
+        methodName,
+        errorMessage: `Soft delete proxy requires a ${methodName}() delegate method.`,
       }),
       target,
       [
-        normalizeSoftDeleteDeleteArgs({
+        normalizeSoftDeleteReadArgs({
           args,
-          now,
+          includeDeleted,
         }),
       ],
     );
 
-const createDeleteManyOperationHandler = ({
+const createMutationOperationHandler = ({
   target,
   receiver,
-  includeDeleted,
-  now,
+  methodName,
+  errorMessage,
+  normalizeArgs,
 }: {
   target: object;
   receiver: object;
-  includeDeleted?: boolean;
-  now?: () => Date;
+  methodName: "update" | "updateMany";
+  errorMessage: string;
+  normalizeArgs: (args: unknown) => Record<string, unknown>;
 }) =>
   (args?: unknown) =>
     Reflect.apply(
       resolveRequiredDelegateMethod({
         target,
         receiver,
-        methodName: "updateMany",
-        errorMessage: "Soft delete proxy requires an updateMany() delegate method.",
+        methodName,
+        errorMessage,
       }),
       target,
-      [
-        normalizeSoftDeleteDeleteManyArgs({
-          args,
-          includeDeleted,
-          now,
-        }),
-      ],
+      [normalizeArgs(args)],
     );
 
 const createPassthroughHandler = ({
@@ -268,6 +267,15 @@ const resolveDelegateProperty = ({
     return value;
   }
 
+  if (property === "findUnique" || property === "findUniqueOrThrow") {
+    return createUniqueReadOperationHandler({
+      target,
+      receiver,
+      methodName: UNIQUE_READ_OPERATION_MAP[property],
+      includeDeleted: options.includeDeleted,
+    });
+  }
+
   if (SOFT_DELETE_READ_OPERATION_SET.has(property)) {
     return createReadOperationHandler({
       method: value,
@@ -277,19 +285,30 @@ const resolveDelegateProperty = ({
   }
 
   if (property === "delete" && !options.allowHardDelete) {
-    return createDeleteOperationHandler({
+    return createMutationOperationHandler({
       target,
       receiver,
-      now: options.now,
+      methodName: "update",
+      errorMessage: "Soft delete proxy requires an update() delegate method.",
+      normalizeArgs: (args) =>
+        normalizeSoftDeleteDeleteArgs({
+          args,
+          now: options.now,
+        }),
     });
   }
 
   if (property === "deleteMany" && !options.allowHardDelete) {
-    return createDeleteManyOperationHandler({
+    return createMutationOperationHandler({
       target,
       receiver,
-      includeDeleted: options.includeDeleted,
-      now: options.now,
+      methodName: "updateMany",
+      errorMessage: "Soft delete proxy requires an updateMany() delegate method.",
+      normalizeArgs: (args) =>
+        normalizeSoftDeleteDeleteManyArgs({
+          args,
+          now: options.now,
+        }),
     });
   }
 
