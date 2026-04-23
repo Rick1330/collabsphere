@@ -12,6 +12,7 @@ import {
   normalizeWorkspaceScopedReadArgs,
   normalizeWorkspaceScopedUpdateManyArgs,
   requireWorkspaceId,
+  UNSUPPORTED_WORKSPACE_UNIQUE_MUTATION_ERROR,
   UNSUPPORTED_WORKSPACE_UPSERT_ERROR,
 } from "../../apps/api/src/common/prisma/workspace-scope.js";
 import {
@@ -66,7 +67,7 @@ test("workspace scope normalizes where and create payloads", () => {
     normalizeWorkspaceScopedCreateArgs({
       workspaceId: "ws_123",
       args: {
-        data: { title: "Scoped task" },
+        data: { title: "Scoped task", workspaceId: undefined },
       },
     }),
     {
@@ -217,30 +218,56 @@ test("workspace-scoped create injects workspaceId and withDeleted preserves the 
   });
 });
 
-test("workspace-scoped unique mutations reject records outside the requested workspace", async () => {
-  let updateCalled = false;
-  const baseClient = {
-    task: {
-      findFirst: async () => null,
-      update: async () => {
-        updateCalled = true;
-        return { id: "task_123" };
+test("workspace-scoped updateMany strips workspaceId from payloads and scopes the where clause", () => {
+  assert.deepEqual(
+    normalizeWorkspaceScopedUpdateManyArgs({
+      workspaceId: "ws_123",
+      args: {
+        where: { status: "todo" },
+        data: { title: "Updated task", workspaceId: undefined },
       },
-    },
-  };
-
-  const prisma = createPrismaService(baseClient);
-
-  await assert.rejects(
-    withWorkspaceScope(prisma, "ws_123").task.update({
-      where: { id: "task_123" },
-      data: { title: "Updated task" },
     }),
     {
-      message: "Workspace-scoped update() did not match an active record in workspace ws_123.",
+      where: {
+        AND: [{ status: "todo" }, { workspaceId: "ws_123" }],
+      },
+      data: {
+        title: "Updated task",
+      },
     },
   );
-  assert.equal(updateCalled, false);
+});
+
+test("workspace-scoped unique mutations are rejected because Prisma cannot scope them atomically", () => {
+  const scopedClient = createWorkspaceScopedPrismaClient(
+    {
+      task: {
+        update: async () => ({ id: "task_123" }),
+        delete: async () => ({ id: "task_123" }),
+      },
+    },
+    "ws_123",
+  );
+
+  assert.throws(
+    () =>
+      scopedClient.task.update({
+        where: { id: "task_123" },
+        data: { title: "Updated task" },
+      }),
+    {
+      message: UNSUPPORTED_WORKSPACE_UNIQUE_MUTATION_ERROR,
+    },
+  );
+  assert.throws(
+    () =>
+      scopedClient.task.delete({
+        where: { id: "task_123" },
+      }),
+    {
+      message: UNSUPPORTED_WORKSPACE_UNIQUE_MUTATION_ERROR,
+    },
+  );
 });
 
 test("workspace-scoped upsert is rejected until the call sites are split into explicit flows", () => {

@@ -6,7 +6,6 @@ import {
   createUniqueReadOperationHandler,
   isCallable,
   isRecordLike,
-  resolveRequiredDelegateMethod,
   type RecordLike,
   type UnknownFn,
 } from "./prisma-proxy.shared.js";
@@ -56,6 +55,8 @@ const UNIQUE_READ_OPERATION_MAP = {
 export const MISSING_WORKSPACE_SCOPE_ERROR =
   "workspaceId is required for workspace-scoped Prisma access.";
 export const CROSS_WORKSPACE_WRITE_ERROR = "Cross-workspace writes are not allowed.";
+export const UNSUPPORTED_WORKSPACE_UNIQUE_MUTATION_ERROR =
+  "Workspace-scoped update() and delete() are not supported; use workspace-scoped updateMany()/deleteMany() or an explicit read + conditional write flow.";
 export const UNSUPPORTED_WORKSPACE_UPSERT_ERROR =
   "Workspace-scoped upsert is not supported; split it into explicit read/create or read/update flows.";
 
@@ -106,18 +107,31 @@ export const addWorkspaceScopeWhere = ({
   };
 };
 
-const normalizeWorkspaceCreateData = ({
+const normalizeWorkspaceWriteData = ({
   workspaceId,
   data,
+  stripWorkspaceId = false,
 }: {
   workspaceId: string;
   data: unknown;
+  stripWorkspaceId?: boolean;
 }) => {
   const normalizedWorkspaceId = requireWorkspaceId(workspaceId);
   const nextData = cloneData(data);
 
-  if ("workspaceId" in nextData && nextData.workspaceId !== normalizedWorkspaceId) {
+  const providedWorkspaceId = "workspaceId" in nextData ? nextData.workspaceId : undefined;
+
+  if (
+    providedWorkspaceId !== undefined &&
+    providedWorkspaceId !== null &&
+    providedWorkspaceId !== normalizedWorkspaceId
+  ) {
     throw new Error(CROSS_WORKSPACE_WRITE_ERROR);
+  }
+
+  if (stripWorkspaceId) {
+    delete nextData.workspaceId;
+    return nextData;
   }
 
   return {
@@ -135,14 +149,14 @@ const normalizeWorkspaceCreateManyData = ({
 }) => {
   if (Array.isArray(data)) {
     return data.map((entry) =>
-      normalizeWorkspaceCreateData({
+      normalizeWorkspaceWriteData({
         workspaceId,
         data: entry,
       }),
     );
   }
 
-  return normalizeWorkspaceCreateData({
+  return normalizeWorkspaceWriteData({
     workspaceId,
     data,
   });
@@ -155,14 +169,41 @@ const normalizeWorkspaceUpdateData = ({
   workspaceId: string;
   data: unknown;
 }) => {
-  const normalizedWorkspaceId = requireWorkspaceId(workspaceId);
-  const nextData = cloneData(data);
+  return normalizeWorkspaceWriteData({
+    workspaceId,
+    data,
+    stripWorkspaceId: true,
+  });
+};
 
-  if ("workspaceId" in nextData && nextData.workspaceId !== normalizedWorkspaceId) {
-    throw new Error(CROSS_WORKSPACE_WRITE_ERROR);
+const normalizeWorkspaceScopedArgs = ({
+  workspaceId,
+  args,
+  scopeWhere = false,
+  normalizeData,
+}: {
+  workspaceId: string;
+  args: unknown;
+  scopeWhere?: boolean;
+  normalizeData?: (payload: { workspaceId: string; data: unknown }) => unknown;
+}) => {
+  const nextArgs = cloneArgs(args);
+
+  if (scopeWhere) {
+    nextArgs.where = addWorkspaceScopeWhere({
+      workspaceId,
+      where: nextArgs.where,
+    });
   }
 
-  return nextData;
+  if (normalizeData) {
+    nextArgs.data = normalizeData({
+      workspaceId,
+      data: nextArgs.data,
+    });
+  }
+
+  return nextArgs;
 };
 
 export const normalizeWorkspaceScopedReadArgs = ({
@@ -171,16 +212,12 @@ export const normalizeWorkspaceScopedReadArgs = ({
 }: {
   workspaceId: string;
   args: unknown;
-}) => {
-  const nextArgs = cloneArgs(args);
-
-  nextArgs.where = addWorkspaceScopeWhere({
+}) =>
+  normalizeWorkspaceScopedArgs({
     workspaceId,
-    where: nextArgs.where,
+    args,
+    scopeWhere: true,
   });
-
-  return nextArgs;
-};
 
 export const normalizeWorkspaceScopedCreateArgs = ({
   workspaceId,
@@ -188,16 +225,12 @@ export const normalizeWorkspaceScopedCreateArgs = ({
 }: {
   workspaceId: string;
   args: unknown;
-}) => {
-  const nextArgs = cloneArgs(args);
-
-  nextArgs.data = normalizeWorkspaceCreateData({
+}) =>
+  normalizeWorkspaceScopedArgs({
     workspaceId,
-    data: nextArgs.data,
+    args,
+    normalizeData: normalizeWorkspaceWriteData,
   });
-
-  return nextArgs;
-};
 
 export const normalizeWorkspaceScopedCreateManyArgs = ({
   workspaceId,
@@ -205,16 +238,16 @@ export const normalizeWorkspaceScopedCreateManyArgs = ({
 }: {
   workspaceId: string;
   args: unknown;
-}) => {
-  const nextArgs = cloneArgs(args);
-
-  nextArgs.data = normalizeWorkspaceCreateManyData({
+}) =>
+  normalizeWorkspaceScopedArgs({
     workspaceId,
-    data: nextArgs.data,
+    args,
+    normalizeData: ({ workspaceId: nextWorkspaceId, data }) =>
+      normalizeWorkspaceCreateManyData({
+        workspaceId: nextWorkspaceId,
+        data,
+      }),
   });
-
-  return nextArgs;
-};
 
 export const normalizeWorkspaceScopedUpdateManyArgs = ({
   workspaceId,
@@ -222,91 +255,17 @@ export const normalizeWorkspaceScopedUpdateManyArgs = ({
 }: {
   workspaceId: string;
   args: unknown;
-}) => {
-  const nextArgs = cloneArgs(args);
-
-  nextArgs.where = addWorkspaceScopeWhere({
-    workspaceId,
-    where: nextArgs.where,
-  });
-  if ("data" in nextArgs) {
-    nextArgs.data = normalizeWorkspaceUpdateData({
-      workspaceId,
-      data: nextArgs.data,
-    });
-  }
-
-  return nextArgs;
-};
-
-const normalizeWorkspaceScopedUpdateArgs = ({
-  workspaceId,
-  args,
-}: {
-  workspaceId: string;
-  args: unknown;
-}) => {
-  const nextArgs = cloneArgs(args);
-
-  if ("data" in nextArgs) {
-    nextArgs.data = normalizeWorkspaceUpdateData({
-      workspaceId,
-      data: nextArgs.data,
-    });
-  }
-
-  return nextArgs;
-};
-
-const createGuardedUniqueMutationHandler = ({
-  property,
-  target,
-  receiver,
-  workspaceId,
-  normalizeArgs,
-}: {
-  property: "update" | "delete";
-  target: object;
-  receiver: object;
-  workspaceId: string;
-  normalizeArgs: (args: unknown) => Record<string, unknown>;
 }) =>
-  async (args?: unknown) => {
-    const nextArgs = cloneArgs(args);
-    const findFirst = resolveRequiredDelegateMethod({
-      target,
-      receiver,
-      methodName: "findFirst",
-      errorMessage: "Workspace scope proxy requires a findFirst() delegate method for unique mutations.",
-    });
+  normalizeWorkspaceScopedArgs({
+    workspaceId,
+    args,
+    scopeWhere: true,
+    normalizeData: normalizeWorkspaceUpdateData,
+  });
 
-    const record = await Reflect.apply(findFirst, target, [
-      {
-        where: addWorkspaceScopeWhere({
-          workspaceId,
-          where: nextArgs.where,
-        }),
-        select: { id: true },
-      },
-    ]);
-
-    if (!record) {
-      throw new Error(
-        `Workspace-scoped ${property}() did not match an active record in workspace ${requireWorkspaceId(workspaceId)}.`,
-      );
-    }
-
-    return Reflect.apply(
-      resolveRequiredDelegateMethod({
-        target,
-        receiver,
-        methodName: property,
-        errorMessage: `Workspace scope proxy requires a ${property}() delegate method.`,
-      }),
-      target,
-      [normalizeArgs(nextArgs)],
-    );
-  };
+const createUnsupportedWorkspaceMutationHandler = (message: string) => () => {
+  throw new Error(message);
+};
 
 const resolveReadOperationHandler = ({
   property,
@@ -385,23 +344,15 @@ const resolveWriteOperationHandler = ({
   }
 
   if (property === "update" || property === "delete") {
-    return createGuardedUniqueMutationHandler({
-      property,
-      target,
-      receiver,
-      workspaceId,
-      normalizeArgs: (args) =>
-        normalizeWorkspaceScopedUpdateArgs({
-          workspaceId,
-          args,
-        }),
-    });
+    return createUnsupportedWorkspaceMutationHandler(
+      UNSUPPORTED_WORKSPACE_UNIQUE_MUTATION_ERROR,
+    );
   }
 
   if (property === "upsert") {
-    return () => {
-      throw new Error(UNSUPPORTED_WORKSPACE_UPSERT_ERROR);
-    };
+    return createUnsupportedWorkspaceMutationHandler(
+      UNSUPPORTED_WORKSPACE_UPSERT_ERROR,
+    );
   }
 
   return null;
