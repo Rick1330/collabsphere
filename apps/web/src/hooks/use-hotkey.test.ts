@@ -147,7 +147,7 @@ describe("useHotkey — modal / palette guards", () => {
     const handler = vi.fn();
     const dialog = document.createElement("div");
     dialog.setAttribute("role", "dialog");
-    dialog.setAttribute("data-state", "open");
+    dialog.dataset.state = "open";
     document.body.appendChild(dialog);
 
     renderHook(() => useHotkey("mod+k", handler, { allowWhenModalOpen: true }));

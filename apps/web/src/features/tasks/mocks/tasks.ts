@@ -459,7 +459,7 @@ export const MOCK_TASKS: Record<string, TaskDetail> = {
 export function getAllLabels(tasks: Record<string, TaskDetail>): string[] {
   const set = new Set<string>();
   for (const t of Object.values(tasks)) for (const l of t.labels) set.add(l);
-  return Array.from(set).sort();
+  return Array.from(set).sort((left, right) => left.localeCompare(right));
 }
 
 export function buildBoardData(

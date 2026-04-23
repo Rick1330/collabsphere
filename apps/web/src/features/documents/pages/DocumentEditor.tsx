@@ -192,6 +192,60 @@ const FALLBACK_DOC: MockDocument = {
   createdBy: { id: CURRENT_USER_ID, fullName: "Elshaday Tesfaye" },
 };
 
+function formatAnchorSnippet(snippet: string): string {
+  return `"${snippet.slice(0, 60)}${snippet.length > 60 ? "…" : ""}"`;
+}
+
+function findDecoratedAnchorTarget(scroller: HTMLDivElement, snippet: string): HTMLElement | null {
+  const fallback = scroller.querySelector("[data-thread-id]") as HTMLElement | null;
+  const matching = Array.from(scroller.querySelectorAll<HTMLElement>("[data-thread-id]")).find(
+    (node) => node.textContent?.includes(snippet),
+  );
+  return matching ?? fallback;
+}
+
+function flashAnchorTarget(target: HTMLElement): void {
+  target.scrollIntoView({ behavior: "smooth", block: "center" });
+  target.classList.add("is-flashing");
+  window.setTimeout(() => target.classList.remove("is-flashing"), 1800);
+}
+
+function jumpToRawSnippet(scroller: HTMLDivElement, snippet: string): boolean {
+  const walker = document.createTreeWalker(scroller, NodeFilter.SHOW_TEXT);
+  let node: Node | null = walker.nextNode();
+  while (node) {
+    if (node.textContent && node.textContent.includes(snippet)) {
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      const rect = range.getBoundingClientRect();
+      scroller.scrollTo({
+        top: scroller.scrollTop + rect.top - scroller.clientHeight / 2,
+        behavior: "smooth",
+      });
+      toast.success("Jumped to linked passage", {
+        description: formatAnchorSnippet(snippet),
+        duration: 2000,
+      });
+      return true;
+    }
+    node = walker.nextNode();
+  }
+  return false;
+}
+
+function jumpToAnchorSnippet(scroller: HTMLDivElement, snippet: string): void {
+  const target = findDecoratedAnchorTarget(scroller, snippet);
+  if (target) {
+    flashAnchorTarget(target);
+    return;
+  }
+  if (!jumpToRawSnippet(scroller, snippet)) {
+    toast.info("Linked passage not found", {
+      description: "The text may have been edited.",
+    });
+  }
+}
+
 function getReadOnlyReason(
   doc: MockDocument,
   ws: MockWorkspace,
@@ -552,50 +606,11 @@ const DocumentEditorPage = () => {
       const scroller = editorScrollRef.current;
       if (!scroller) return;
       // Small delay so anchor decorations have a chance to mount.
-      window.setTimeout(() => {
-        const el = scroller.querySelector(
-          `[data-thread-id]`,
-        ) as HTMLElement | null;
-        // Prefer matching by text content; fall back to any decorated anchor.
-        const matching = Array.from(
-          scroller.querySelectorAll<HTMLElement>("[data-thread-id]"),
-        ).find((node) => node.textContent?.includes(snippet));
-        const target = matching ?? el;
-        if (target) {
-          target.scrollIntoView({ behavior: "smooth", block: "center" });
-          target.classList.add("is-flashing");
-          window.setTimeout(() => target.classList.remove("is-flashing"), 1800);
-          return;
-        }
-        // No anchor decoration: walk the DOM for the raw text.
-        const walker = document.createTreeWalker(scroller, NodeFilter.SHOW_TEXT);
-        let node: Node | null = walker.nextNode();
-        while (node) {
-          if (node.textContent && node.textContent.includes(snippet)) {
-            const range = document.createRange();
-            range.selectNodeContents(node);
-            const rect = range.getBoundingClientRect();
-            scroller.scrollTo({
-              top: scroller.scrollTop + rect.top - scroller.clientHeight / 2,
-              behavior: "smooth",
-            });
-            toast.success("Jumped to linked passage", {
-              description: `"${snippet.slice(0, 60)}${snippet.length > 60 ? "…" : ""}"`,
-              duration: 2000,
-            });
-            return;
-          }
-          node = walker.nextNode();
-        }
-        toast.info("Linked passage not found", {
-          description: "The text may have been edited.",
-        });
-      }, 250);
+      window.setTimeout(() => jumpToAnchorSnippet(scroller, snippet), 250);
     };
     tryJump();
     window.addEventListener("hashchange", tryJump);
     return () => window.removeEventListener("hashchange", tryJump);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor, mergedDoc?.id]);
 
   // Close mobile tree drawer when navigating
@@ -610,7 +625,7 @@ const DocumentEditorPage = () => {
     } else {
       window.document.title = "Document — CollabSphere";
     }
-  }, [mergedDoc?.title]);
+  }, [mergedDoc]);
 
   // Tree panel quick-create dialogs
   const [createDocOpen, setCreateDocOpen] = useState(false);
