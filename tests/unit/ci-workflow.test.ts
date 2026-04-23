@@ -7,6 +7,7 @@ import { parse } from "yaml";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const workflowPath = path.join(repoRoot, ".github", "workflows", "ci.yml");
+const webVercelConfigPath = path.join(repoRoot, "apps", "web", "vercel.json");
 const requiredJobNames = [
   "lint",
   "typecheck",
@@ -88,4 +89,23 @@ test("ci workflow defines the required pull request jobs and services", async ()
   for (const jobName of requiredJobNames) {
     assertJobCachesPnpmStore(jobName, jobs[jobName]);
   }
+});
+
+test("web vercel contract matches the Vite SPA deployment surface", async () => {
+  const config = JSON.parse(await readFile(webVercelConfigPath, "utf8")) as {
+    framework?: string;
+    buildCommand?: string;
+    outputDirectory?: string;
+    rewrites?: Array<{ source?: string; destination?: string }>;
+  };
+
+  assert.equal(config.framework, "vite");
+  assert.equal(config.buildCommand, "pnpm build");
+  assert.equal(config.outputDirectory, "dist");
+  assert.deepEqual(config.rewrites, [
+    {
+      source: "/((?!.*\\.).*)",
+      destination: "/index.html",
+    },
+  ]);
 });

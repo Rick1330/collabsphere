@@ -43,7 +43,7 @@ The staging backend is bootstrapped and healthy in Azure, and the recovered GitH
 ### Web
 
 - Hosted on Vercel
-- `apps/web` is now a Next.js App Router application foundation
+- `apps/web` is the current Vite + React SPA frontend
 - The deploy workflow builds and deploys the web app from the repo root using Vercel CLI against the project `rootDirectory` `apps/web` and the app-local [apps/web/vercel.json](./apps/web/vercel.json) contract
 - Upload/download build artifacts remain backend-only (`api`, `collab`, `worker`); the web deploy no longer depends on a staged `apps/web/dist` artifact
 - Staging deploys from `main` use Vercel preview mode
