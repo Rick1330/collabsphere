@@ -170,6 +170,14 @@ Examples:
 - `docs(ops): add PR workflow guide`
 - `test(web): add task board interaction coverage`
 
+## Database Enum Usage
+
+- Canonical persistence enums must match `docs/spec/08-data-model/08.2-enums.md` exactly.
+- Prisma enum definitions in `packages/database/prisma/schema.prisma` are the source of truth for persistence-level enum values.
+- Shared app-facing enum types and runtime lists live in `packages/shared/src/enums/prisma.ts`.
+- `notification_type` remains a string key and must not be converted into a Prisma enum.
+- Do not introduce non-canonical enums without first updating the spec and agent-ref data contracts.
+
 ## Issue Workflow
 
 ### Delivery lane
