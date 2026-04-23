@@ -154,6 +154,9 @@ export const normalizeSoftDeleteDeleteArgs = ({
   normalizeSoftDeleteWriteArgs({
     args,
     now,
+    where: addDefaultSoftDeleteWhere({
+      where: cloneArgs(args).where,
+    }),
   });
 
 export const normalizeSoftDeleteDeleteManyArgs = ({

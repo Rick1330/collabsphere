@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
@@ -9,6 +10,7 @@ import {
   MISSING_WORKSPACE_SCOPE_ERROR,
   normalizeWorkspaceScopedArgs,
   requireWorkspaceId,
+  WORKSPACE_SCOPED_TABLES,
   UNSUPPORTED_WORKSPACE_UNIQUE_MUTATION_ERROR,
   UNSUPPORTED_WORKSPACE_UPSERT_ERROR,
 } from "../../apps/api/src/common/prisma/workspace-scope.js";
@@ -114,6 +116,15 @@ test("workspace scope rejects createMany payloads that try to cross workspace bo
       message: CROSS_WORKSPACE_WRITE_ERROR,
     },
   );
+});
+
+test("workspace scope docs stay aligned with the scoped table catalog", () => {
+  const contributing = readFileSync(new URL("../../CONTRIBUTING.md", import.meta.url), "utf8");
+  for (const tableName of WORKSPACE_SCOPED_TABLES) {
+    assert.match(contributing, new RegExp(`\\\`${tableName}\\\``));
+  }
+
+  assert.match(contributing, /notifications` is a mixed-scope table/);
 });
 
 test("workspace-scoped reads compose with the default soft-delete filter", async () => {

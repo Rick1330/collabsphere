@@ -10,7 +10,7 @@ import {
   type UnknownFn,
 } from "./prisma-proxy.shared.js";
 
-const WORKSPACE_SCOPED_MODELS = [
+export const WORKSPACE_SCOPED_MODELS = [
   "workspaceMember",
   "workspaceSettings",
   "invitation",
@@ -29,6 +29,26 @@ const WORKSPACE_SCOPED_MODELS = [
   "exportJob",
   "file",
   "attachment",
+] as const;
+
+export const WORKSPACE_SCOPED_TABLES = [
+  "workspace_members",
+  "workspace_settings",
+  "invitations",
+  "folders",
+  "documents",
+  "document_versions",
+  "document_submissions",
+  "task_columns",
+  "tasks",
+  "task_document_links",
+  "comment_threads",
+  "comments",
+  "comment_mentions",
+  "activity_events",
+  "export_jobs",
+  "files",
+  "attachments",
 ] as const;
 
 const WORKSPACE_SCOPED_READ_OPERATIONS = [

@@ -113,7 +113,9 @@ test("soft delete normalizes delete operations into update payloads", () => {
       now: fixedNow,
     }),
     {
-      where: { id: "user_123" },
+      where: {
+        AND: [{ id: "user_123" }, { deletedAt: null }],
+      },
       data: {
         deletedAt: fixedDeletedAt,
       },
@@ -176,7 +178,9 @@ test("default client turns delete and deleteMany into soft-delete updates", asyn
     {
       method: "update",
       args: {
-        where: { id: "user_123" },
+        where: {
+          AND: [{ id: "user_123" }, { deletedAt: null }],
+        },
         data: {
           deletedAt: fixedDeletedAt,
         },
@@ -231,6 +235,37 @@ test("purge client keeps hard deletes available while default client still filte
   });
   assert.deepEqual(purgeDeleteArgs, {
     where: { id: "user_123" },
+  });
+});
+
+test("withDeleted delete still only targets active rows", async () => {
+  let updateArgs: unknown;
+  const prisma = createSoftDeletePrismaClient(
+    {
+      user: {
+        delete: async () => ({ id: "user_123" }),
+        update: async (args?: unknown) => {
+          updateArgs = args;
+          return { id: "user_123" };
+        },
+      },
+    },
+    {
+      now: fixedNow,
+    },
+  );
+
+  await prisma.$withDeleted().user.delete({
+    where: { id: "user_123" },
+  });
+
+  assert.deepEqual(updateArgs, {
+    where: {
+      AND: [{ id: "user_123" }, { deletedAt: null }],
+    },
+    data: {
+      deletedAt: fixedDeletedAt,
+    },
   });
 });
 
