@@ -7,10 +7,7 @@ import {
   createWorkspaceScopedPrismaClient,
   CROSS_WORKSPACE_WRITE_ERROR,
   MISSING_WORKSPACE_SCOPE_ERROR,
-  normalizeWorkspaceScopedCreateArgs,
-  normalizeWorkspaceScopedCreateManyArgs,
-  normalizeWorkspaceScopedReadArgs,
-  normalizeWorkspaceScopedUpdateManyArgs,
+  normalizeWorkspaceScopedArgs,
   requireWorkspaceId,
   UNSUPPORTED_WORKSPACE_UNIQUE_MUTATION_ERROR,
   UNSUPPORTED_WORKSPACE_UPSERT_ERROR,
@@ -50,11 +47,12 @@ test("workspace scope normalizes where and create payloads", () => {
   );
 
   assert.deepEqual(
-    normalizeWorkspaceScopedReadArgs({
+    normalizeWorkspaceScopedArgs({
       workspaceId: "ws_123",
       args: {
         where: { status: "todo" },
       },
+      operation: "read",
     }),
     {
       where: {
@@ -64,11 +62,12 @@ test("workspace scope normalizes where and create payloads", () => {
   );
 
   assert.deepEqual(
-    normalizeWorkspaceScopedCreateArgs({
+    normalizeWorkspaceScopedArgs({
       workspaceId: "ws_123",
       args: {
         data: { title: "Scoped task", workspaceId: undefined },
       },
+      operation: "create",
     }),
     {
       data: {
@@ -79,12 +78,13 @@ test("workspace scope normalizes where and create payloads", () => {
   );
 
   assert.deepEqual(
-    normalizeWorkspaceScopedUpdateManyArgs({
+    normalizeWorkspaceScopedArgs({
       workspaceId: "ws_123",
       args: {
         where: { status: "todo" },
         data: { isRead: true },
       },
+      operation: "updateMany",
     }),
     {
       where: {
@@ -100,7 +100,7 @@ test("workspace scope normalizes where and create payloads", () => {
 test("workspace scope rejects createMany payloads that try to cross workspace boundaries", () => {
   assert.throws(
     () =>
-      normalizeWorkspaceScopedCreateManyArgs({
+      normalizeWorkspaceScopedArgs({
         workspaceId: "ws_123",
         args: {
           data: [
@@ -108,6 +108,7 @@ test("workspace scope rejects createMany payloads that try to cross workspace bo
             { title: "invalid row", workspaceId: "ws_other" },
           ],
         },
+        operation: "createMany",
       }),
     {
       message: CROSS_WORKSPACE_WRITE_ERROR,
@@ -220,12 +221,13 @@ test("workspace-scoped create injects workspaceId and withDeleted preserves the 
 
 test("workspace-scoped updateMany strips workspaceId from payloads and scopes the where clause", () => {
   assert.deepEqual(
-    normalizeWorkspaceScopedUpdateManyArgs({
+    normalizeWorkspaceScopedArgs({
       workspaceId: "ws_123",
       args: {
         where: { status: "todo" },
         data: { title: "Updated task", workspaceId: undefined },
       },
+      operation: "updateMany",
     }),
     {
       where: {

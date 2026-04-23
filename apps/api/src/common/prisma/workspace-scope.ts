@@ -110,12 +110,22 @@ export const addWorkspaceScopeWhere = ({
 const normalizeWorkspaceWriteData = ({
   workspaceId,
   data,
-  stripWorkspaceId = false,
+  mode,
 }: {
   workspaceId: string;
   data: unknown;
-  stripWorkspaceId?: boolean;
-}) => {
+  mode: "create" | "update";
+}): unknown => {
+  if (Array.isArray(data)) {
+    return data.map((entry) =>
+      normalizeWorkspaceWriteData({
+        workspaceId,
+        data: entry,
+        mode,
+      }),
+    );
+  }
+
   const normalizedWorkspaceId = requireWorkspaceId(workspaceId);
   const nextData = cloneData(data);
 
@@ -129,7 +139,7 @@ const normalizeWorkspaceWriteData = ({
     throw new Error(CROSS_WORKSPACE_WRITE_ERROR);
   }
 
-  if (stripWorkspaceId) {
+  if (mode === "update") {
     delete nextData.workspaceId;
     return nextData;
   }
@@ -140,128 +150,41 @@ const normalizeWorkspaceWriteData = ({
   };
 };
 
-const normalizeWorkspaceCreateManyData = ({
-  workspaceId,
-  data,
-}: {
-  workspaceId: string;
-  data: unknown;
-}) => {
-  if (Array.isArray(data)) {
-    return data.map((entry) =>
-      normalizeWorkspaceWriteData({
-        workspaceId,
-        data: entry,
-      }),
-    );
-  }
-
-  return normalizeWorkspaceWriteData({
-    workspaceId,
-    data,
-  });
-};
-
-const normalizeWorkspaceUpdateData = ({
-  workspaceId,
-  data,
-}: {
-  workspaceId: string;
-  data: unknown;
-}) => {
-  return normalizeWorkspaceWriteData({
-    workspaceId,
-    data,
-    stripWorkspaceId: true,
-  });
-};
-
-const normalizeWorkspaceScopedArgs = ({
+export const normalizeWorkspaceScopedArgs = ({
   workspaceId,
   args,
-  scopeWhere = false,
-  normalizeData,
+  operation,
 }: {
   workspaceId: string;
   args: unknown;
-  scopeWhere?: boolean;
-  normalizeData?: (payload: { workspaceId: string; data: unknown }) => unknown;
+  operation: "read" | "create" | "createMany" | "updateMany" | "deleteMany";
 }) => {
+  const operationConfig = {
+    read: { scopeWhere: true },
+    create: { normalizeMode: "create" as const },
+    createMany: { normalizeMode: "create" as const },
+    updateMany: { scopeWhere: true, normalizeMode: "update" as const },
+    deleteMany: { scopeWhere: true, normalizeMode: "update" as const },
+  }[operation];
   const nextArgs = cloneArgs(args);
 
-  if (scopeWhere) {
+  if (operationConfig.scopeWhere) {
     nextArgs.where = addWorkspaceScopeWhere({
       workspaceId,
       where: nextArgs.where,
     });
   }
 
-  if (normalizeData) {
-    nextArgs.data = normalizeData({
+  if (operationConfig.normalizeMode) {
+    nextArgs.data = normalizeWorkspaceWriteData({
       workspaceId,
       data: nextArgs.data,
+      mode: operationConfig.normalizeMode,
     });
   }
 
   return nextArgs;
 };
-
-export const normalizeWorkspaceScopedReadArgs = ({
-  workspaceId,
-  args,
-}: {
-  workspaceId: string;
-  args: unknown;
-}) =>
-  normalizeWorkspaceScopedArgs({
-    workspaceId,
-    args,
-    scopeWhere: true,
-  });
-
-export const normalizeWorkspaceScopedCreateArgs = ({
-  workspaceId,
-  args,
-}: {
-  workspaceId: string;
-  args: unknown;
-}) =>
-  normalizeWorkspaceScopedArgs({
-    workspaceId,
-    args,
-    normalizeData: normalizeWorkspaceWriteData,
-  });
-
-export const normalizeWorkspaceScopedCreateManyArgs = ({
-  workspaceId,
-  args,
-}: {
-  workspaceId: string;
-  args: unknown;
-}) =>
-  normalizeWorkspaceScopedArgs({
-    workspaceId,
-    args,
-    normalizeData: ({ workspaceId: nextWorkspaceId, data }) =>
-      normalizeWorkspaceCreateManyData({
-        workspaceId: nextWorkspaceId,
-        data,
-      }),
-  });
-
-export const normalizeWorkspaceScopedUpdateManyArgs = ({
-  workspaceId,
-  args,
-}: {
-  workspaceId: string;
-  args: unknown;
-}) =>
-  normalizeWorkspaceScopedArgs({
-    workspaceId,
-    args,
-    scopeWhere: true,
-    normalizeData: normalizeWorkspaceUpdateData,
-  });
 
 const createUnsupportedWorkspaceMutationHandler = (message: string) => () => {
   throw new Error(message);
@@ -287,9 +210,10 @@ const resolveReadOperationHandler = ({
       methodName: UNIQUE_READ_OPERATION_MAP[property],
       errorMessage: `Workspace scope proxy requires a ${UNIQUE_READ_OPERATION_MAP[property]}() delegate method.`,
       normalizeArgs: (args) =>
-        normalizeWorkspaceScopedReadArgs({
+        normalizeWorkspaceScopedArgs({
           workspaceId,
           args,
+          operation: "read",
         }),
     });
   }
@@ -299,9 +223,10 @@ const resolveReadOperationHandler = ({
       method: value,
       target,
       normalizeArgs: (args) =>
-        normalizeWorkspaceScopedReadArgs({
+        normalizeWorkspaceScopedArgs({
           workspaceId,
           args,
+          operation: "read",
         }),
     });
   }
@@ -320,15 +245,15 @@ const resolveWriteOperationHandler = ({
   receiver: object;
   workspaceId: string;
 }) => {
-  const bulkMutationNormalizers = {
-    create: normalizeWorkspaceScopedCreateArgs,
-    createMany: normalizeWorkspaceScopedCreateManyArgs,
-    updateMany: normalizeWorkspaceScopedUpdateManyArgs,
-    deleteMany: normalizeWorkspaceScopedUpdateManyArgs,
+  const bulkMutationOperations = {
+    create: "create",
+    createMany: "createMany",
+    updateMany: "updateMany",
+    deleteMany: "deleteMany",
   } as const;
 
-  if (property in bulkMutationNormalizers) {
-    const normalizeArgs = bulkMutationNormalizers[property as keyof typeof bulkMutationNormalizers];
+  if (property in bulkMutationOperations) {
+    const operation = bulkMutationOperations[property as keyof typeof bulkMutationOperations];
 
     return createMutationOperationHandler({
       target,
@@ -336,9 +261,10 @@ const resolveWriteOperationHandler = ({
       methodName: property,
       errorMessage: `Workspace scope proxy requires a ${property}() delegate method.`,
       normalizeArgs: (args) =>
-        normalizeArgs({
+        normalizeWorkspaceScopedArgs({
           workspaceId,
           args,
+          operation,
         }),
     });
   }
