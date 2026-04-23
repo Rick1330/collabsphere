@@ -1,51 +1,48 @@
-import type { $Enums } from "@prisma/client";
+export const GLOBAL_ROLES = ["USER", "ADMIN"] as const;
+export type GlobalRole = (typeof GLOBAL_ROLES)[number];
 
-export type GlobalRole = $Enums.GlobalRole;
-export const GLOBAL_ROLES = ["USER", "ADMIN"] as const satisfies readonly GlobalRole[];
+export const AUTH_PROVIDERS = ["local", "google"] as const;
+export type AuthProvider = (typeof AUTH_PROVIDERS)[number];
 
-export type AuthProvider = $Enums.AuthProvider;
-export const AUTH_PROVIDERS = ["local", "google"] as const satisfies readonly AuthProvider[];
+export const WORKSPACE_TYPES = ["professional", "academic", "general"] as const;
+export type WorkspaceType = (typeof WORKSPACE_TYPES)[number];
 
-export type WorkspaceType = $Enums.WorkspaceType;
-export const WORKSPACE_TYPES = ["professional", "academic", "general"] as const satisfies readonly WorkspaceType[];
+export const WORKSPACE_ROLES = ["OWNER", "ADMIN", "MANAGER", "MEMBER", "VIEWER"] as const;
+export type WorkspaceRole = (typeof WORKSPACE_ROLES)[number];
 
-export type WorkspaceRole = $Enums.WorkspaceRole;
-export const WORKSPACE_ROLES = ["OWNER", "ADMIN", "MANAGER", "MEMBER", "VIEWER"] as const satisfies readonly WorkspaceRole[];
+export const WORKSPACE_STATUSES = ["active", "archived"] as const;
+export type WorkspaceStatus = (typeof WORKSPACE_STATUSES)[number];
 
-export type WorkspaceStatus = $Enums.WorkspaceStatus;
-export const WORKSPACE_STATUSES = ["active", "archived"] as const satisfies readonly WorkspaceStatus[];
-
-export type DocumentStatus = $Enums.DocumentStatus;
 export const DOCUMENT_STATUSES = [
   "draft",
   "submitted",
   "changes_requested",
   "approved",
   "archived",
-] as const satisfies readonly DocumentStatus[];
+] as const;
+export type DocumentStatus = (typeof DOCUMENT_STATUSES)[number];
 
-export type TaskStatus = $Enums.TaskStatus;
-export const TASK_STATUSES = ["backlog", "todo", "in_progress", "in_review", "done"] as const satisfies readonly TaskStatus[];
+export const TASK_STATUSES = ["backlog", "todo", "in_progress", "in_review", "done"] as const;
+export type TaskStatus = (typeof TASK_STATUSES)[number];
 
-export type TaskPriority = $Enums.TaskPriority;
-export const TASK_PRIORITIES = ["low", "medium", "high", "urgent"] as const satisfies readonly TaskPriority[];
+export const TASK_PRIORITIES = ["low", "medium", "high", "urgent"] as const;
+export type TaskPriority = (typeof TASK_PRIORITIES)[number];
 
-export type InvitationStatus = $Enums.InvitationStatus;
-export const INVITATION_STATUSES = ["pending", "accepted", "expired", "revoked"] as const satisfies readonly InvitationStatus[];
+export const INVITATION_STATUSES = ["pending", "accepted", "expired", "revoked"] as const;
+export type InvitationStatus = (typeof INVITATION_STATUSES)[number];
 
-export type FileStatus = $Enums.FileStatus;
-export const FILE_STATUSES = ["pending", "uploaded", "ready", "failed", "deleted"] as const satisfies readonly FileStatus[];
+export const FILE_STATUSES = ["pending", "uploaded", "ready", "failed", "deleted"] as const;
+export type FileStatus = (typeof FILE_STATUSES)[number];
 
-export type StorageProvider = $Enums.StorageProvider;
-export const STORAGE_PROVIDERS = ["s3"] as const satisfies readonly StorageProvider[];
+export const STORAGE_PROVIDERS = ["s3"] as const;
+export type StorageProvider = (typeof STORAGE_PROVIDERS)[number];
 
-export type CommentTargetType = $Enums.CommentTargetType;
-export const COMMENT_TARGET_TYPES = ["document", "task"] as const satisfies readonly CommentTargetType[];
+export const COMMENT_TARGET_TYPES = ["document", "task"] as const;
+export type CommentTargetType = (typeof COMMENT_TARGET_TYPES)[number];
 
-export type CommentThreadStatus = $Enums.CommentThreadStatus;
-export const COMMENT_THREAD_STATUSES = ["open", "resolved"] as const satisfies readonly CommentThreadStatus[];
+export const COMMENT_THREAD_STATUSES = ["open", "resolved"] as const;
+export type CommentThreadStatus = (typeof COMMENT_THREAD_STATUSES)[number];
 
-export type ResourceType = $Enums.ResourceType;
 export const RESOURCE_TYPES = [
   "workspace",
   "document",
@@ -53,4 +50,5 @@ export const RESOURCE_TYPES = [
   "comment_thread",
   "file",
   "export",
-] as const satisfies readonly ResourceType[];
+] as const;
+export type ResourceType = (typeof RESOURCE_TYPES)[number];
