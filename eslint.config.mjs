@@ -1,5 +1,4 @@
 import js from "@eslint/js";
-import nextPlugin from "@next/eslint-plugin-next";
 import globals from "globals";
 import tsParser from "@typescript-eslint/parser";
 
@@ -13,6 +12,7 @@ export default [
       "**/node_modules/**",
       ".turbo/**",
       "coverage/**",
+      "apps/web/**",
     ],
   },
   {
@@ -95,31 +95,6 @@ export default [
     },
     rules: {
       "no-unused-vars": "off",
-    },
-  },
-  {
-    files: [
-      "apps/web/**/*.ts",
-      "apps/web/**/*.tsx",
-    ],
-    settings: {
-      next: {
-        rootDir: "apps/web",
-      },
-    },
-    plugins: {
-      "@next/next": nextPlugin,
-    },
-    languageOptions: {
-      globals: {
-        ...globals.browser,
-        ...globals.node,
-      },
-    },
-    rules: {
-      ...nextPlugin.configs.recommended.rules,
-      ...nextPlugin.configs["core-web-vitals"].rules,
-      "@next/next/no-html-link-for-pages": "off",
     },
   },
 ];
