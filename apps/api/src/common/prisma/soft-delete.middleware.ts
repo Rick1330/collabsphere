@@ -6,7 +6,6 @@ import {
   createUniqueReadOperationHandler,
   isCallable,
   isRecordLike,
-  type RecordLike,
   type UnknownFn,
 } from "./prisma-proxy.shared.js";
 
