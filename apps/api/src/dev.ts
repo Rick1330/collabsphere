@@ -2,6 +2,10 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { randomUUID } from "node:crypto";
 import { EnvValidationError, parseApiRuntimeEnv } from "../../../packages/shared/src/api-env.js";
 import { resolveEmailConfig } from "./config/email.js";
+import {
+  type SuccessResponsePayload,
+  wrapSuccessResponse,
+} from "./common/interceptors/response-envelope.interceptor.js";
 import { createHealthModule } from "./health/health.module.js";
 import {
   startHttpBootstrapServer,
@@ -40,6 +44,22 @@ const writeJson = (
   response.end(JSON.stringify(payload, null, 2));
 };
 
+const writeSuccessJson = (
+  response: ServerResponse,
+  statusCode: number,
+  payload: SuccessResponsePayload,
+  requestId: string,
+) =>
+  writeJson(
+    response,
+    statusCode,
+    wrapSuccessResponse({
+      payload,
+      requestId,
+    }),
+    requestId,
+  );
+
 const createRequestId = () => `req_${randomUUID()}`;
 const { healthController } = createHealthModule({
   databaseUrl: apiEnv.DATABASE_URL,
@@ -71,8 +91,8 @@ const server = createServer((request: IncomingMessage, response: ServerResponse)
     }
 
     if (request.method === "GET" && url.pathname === "/api/v1/health") {
-      const healthResponse = await healthController.getHealth(requestId);
-      return writeJson(response, healthResponse.statusCode, healthResponse.payload, requestId);
+      const healthResponse = await healthController.getHealth();
+      return writeSuccessJson(response, healthResponse.statusCode, healthResponse.payload, requestId);
     }
 
     return writeJson(

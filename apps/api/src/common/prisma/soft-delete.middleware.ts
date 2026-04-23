@@ -93,6 +93,23 @@ export const addDefaultSoftDeleteWhere = ({
   };
 };
 
+const addDefaultSoftDeleteUniqueWhere = ({ where }: { where: unknown }) => {
+  if (!isRecordLike(where) || Object.keys(where).length === 0) {
+    return where;
+  }
+
+  if (Object.hasOwn(where, "deletedAt")) {
+    return where;
+  }
+
+  // Keep unique selectors at the top level so redirected delete -> update
+  // calls still satisfy Prisma's unique-where validation.
+  return {
+    ...(where as Record<string, unknown>),
+    deletedAt: null,
+  };
+};
+
 export const normalizeSoftDeleteReadArgs = ({
   args,
   includeDeleted = false,
@@ -154,7 +171,7 @@ export const normalizeSoftDeleteDeleteArgs = ({
   normalizeSoftDeleteWriteArgs({
     args,
     now,
-    where: addDefaultSoftDeleteWhere({
+    where: addDefaultSoftDeleteUniqueWhere({
       where: cloneArgs(args).where,
     }),
   });
