@@ -9,7 +9,7 @@ datasource db {
 
 model User {
   id                String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email             Unsupported("citext")
+  email             String                @db.Citext
   fullName          String                @map("full_name") @db.VarChar(200)
   avatarUrl         String?               @map("avatar_url") @db.VarChar(500)
   bio               String?               @db.VarChar(500)
@@ -179,7 +179,7 @@ model WorkspaceSettings {
 model Invitation {
   id               String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   workspaceId      String                @map("workspace_id") @db.Uuid
-  invitedEmail     Unsupported("citext") @map("invited_email")
+  invitedEmail     String                @map("invited_email") @db.Citext
   role             String                @db.VarChar(20)
   tokenHash        String                @unique(map: "uq_invitations_token_hash") @map("token_hash") @db.Char(64)
   status           String                @default("pending") @db.VarChar(20)
@@ -228,7 +228,7 @@ model Document {
   isLocked         Boolean                  @default(false) @map("is_locked")
   lockedByUserId   String?                  @map("locked_by_user_id") @db.Uuid
   lockedAt         DateTime?                @map("locked_at") @db.Timestamptz(6)
-  contentYjs       Bytes                    @default(dbgenerated("'\\\\x'::bytea")) @map("content_yjs")
+  contentYjs       Bytes                    @default(dbgenerated("''::bytea")) @map("content_yjs")
   contentPlaintext String                   @default("") @map("content_plaintext") @db.Text
   searchVector     Unsupported("tsvector")? @map("search_vector")
   createdById      String                   @map("created_by") @db.Uuid
@@ -483,7 +483,7 @@ model AuditLog {
   severity        String                 @db.VarChar(10)
   actionKey       String                 @map("action_key") @db.VarChar(120)
   actorId         String?                @map("actor_id") @db.Uuid
-  actorEmail      Unsupported("citext")? @map("actor_email")
+  actorEmail      String?                @map("actor_email") @db.Citext
   actorGlobalRole String?                @map("actor_global_role") @db.VarChar(20)
   workspaceId     String?                @map("workspace_id") @db.Uuid
   targetType      String?                @map("target_type") @db.VarChar(40)
@@ -595,7 +595,7 @@ model Attachment {
 model EmailDeliveryLog {
   id                String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId            String?               @map("user_id") @db.Uuid
-  toEmail           Unsupported("citext") @map("to_email")
+  toEmail           String                @map("to_email") @db.Citext
   templateKey       String                @map("template_key") @db.VarChar(120)
   provider          String                @db.VarChar(50)
   providerMessageId String?               @map("provider_message_id") @db.VarChar(255)
