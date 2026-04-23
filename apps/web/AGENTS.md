@@ -9,9 +9,9 @@ Local hard rules for `apps/web` implementation work. These are the Tier A fronte
 ## Tier A Hard Rules
 
 ### Architecture And Runtime
-- Preserve the Next.js App Router foundation in `src/app`; do not reintroduce `src/index.html` as the web source-of-truth.
+- Preserve the current Vite + React SPA foundation in `src`; do not reintroduce a second web runtime or framework-specific server assumptions.
 - Treat current routes and layouts as architectural foundation, not proof that downstream feature stories are already complete.
-- Keep Vercel as the web deployment target and keep local, dev, and build contracts truthful with the implemented Next runtime.
+- Keep Vercel as the web deployment target and keep local, dev, and build contracts truthful with the implemented Vite runtime.
 - Do not invent frontend architecture that conflicts with canonical repo and spec docs.
 
 ### Styling And Component Rules

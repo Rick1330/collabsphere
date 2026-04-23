@@ -275,6 +275,37 @@ pnpm review:coderabbit
 
 For docs-only changes, validate by checking the expected files and key sections exist and match the referenced workflows.
 
+## Database Schema Conventions
+
+Database schema and migrations live in `packages/database`.
+
+Follow these rules for schema work:
+
+- Prisma schema is the canonical ORM contract: `packages/database/prisma/schema.prisma`
+- Tracked SQL migrations are the canonical deployment artifacts: `packages/database/prisma/migrations/*`
+- Required PostgreSQL extensions for the baseline schema are `pgcrypto` and `citext`
+- Use `gen_random_uuid()` for UUID defaults
+- Use `citext` for case-insensitive email columns
+- Keep user-facing entities on the soft-delete model with `deleted_at` where the spec requires it
+- Keep workspace-owned entities explicitly scoped by `workspace_id`
+- Preserve spec-required partial indexes, GIN indexes, and unique constraints even when they must be expressed in migration SQL instead of Prisma schema syntax
+- Prefer additive migrations; do not use destructive shortcut changes without a backfill and review plan
+
+Recommended schema workflow:
+
+```bash
+pnpm prisma validate
+pnpm --filter @collabsphere/database run generate
+pnpm --filter @collabsphere/database run migrate:dev -- --name <migration_name>
+```
+
+Before opening a schema PR:
+
+- cross-check tables, indexes, and constraints against `docs/spec/08-data-model/*`
+- cross-check lifecycle and workspace-isolation rules against `docs/agent-ref/data/*`
+- confirm migration SQL includes extension setup when required
+- record any Prisma limitations that required manual SQL
+
 ## CI and Required Checks
 
 `main` is branch-protected with required CI job checks and repo-owned merge gate checks. GitHub currently enforces the raw check identities emitted by the workflows, so ordinary delivery PRs must pass these exact required checks before merge:

@@ -34,7 +34,7 @@ pnpm dev
 ```
 
 `pnpm dev` starts:
-- `apps/web` (Next.js App Router dev server for the current frontend foundation)
+- `apps/web` (Vite dev server for the current frontend foundation)
 - `apps/api` (NestJS REST + Socket.IO)
 - `apps/collab` (Hocuspocus)
 - `apps/worker` (BullMQ workers)

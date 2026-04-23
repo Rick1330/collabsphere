@@ -1,0 +1,612 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email             String                @db.Citext
+  fullName          String                @map("full_name") @db.VarChar(200)
+  avatarUrl         String?               @map("avatar_url") @db.VarChar(500)
+  bio               String?               @db.VarChar(500)
+  globalRole        String                @default("USER") @map("global_role") @db.VarChar(20)
+  authProvider      String                @default("local") @map("auth_provider") @db.VarChar(20)
+  authProviderId    String?               @map("auth_provider_id") @db.VarChar(255)
+  passwordHash      String?               @map("password_hash") @db.VarChar(255)
+  themePreference   String                @default("system") @map("theme_preference") @db.VarChar(20)
+  isVerified        Boolean               @default(false) @map("is_verified")
+  isActive          Boolean               @default(true) @map("is_active")
+  lastLoginAt       DateTime?             @map("last_login_at") @db.Timestamptz(6)
+  passwordChangedAt DateTime?             @map("password_changed_at") @db.Timestamptz(6)
+  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt         DateTime?             @map("deleted_at") @db.Timestamptz(6)
+
+  ownedWorkspaces              Workspace[]              @relation("WorkspaceOwner")
+  refreshTokens                RefreshToken[]
+  emailVerificationTokens      EmailVerificationToken[]
+  passwordResetTokens          PasswordResetToken[]
+  workspaceMemberships         WorkspaceMember[]
+  invitationsSent              Invitation[]             @relation("InvitationInvitedByUser")
+  invitationsAccepted          Invitation[]             @relation("InvitationAcceptedByUser")
+  foldersCreated               Folder[]                 @relation("FolderCreatedByUser")
+  documentsCreated             Document[]               @relation("DocumentCreatedByUser")
+  documentsUpdated             Document[]               @relation("DocumentUpdatedByUser")
+  documentsLocked              Document[]               @relation("DocumentLockedByUser")
+  documentVersionsCreated      DocumentVersion[]        @relation("DocumentVersionCreatedByUser")
+  documentSubmissionsSubmitted DocumentSubmission[]     @relation("DocumentSubmissionSubmittedBy")
+  documentSubmissionsDecided   DocumentSubmission[]     @relation("DocumentSubmissionDecidedBy")
+  taskAssignments              Task[]                   @relation("TaskAssignee")
+  taskReports                  Task[]                   @relation("TaskReporter")
+  taskDocumentLinksCreated     TaskDocumentLink[]       @relation("TaskDocumentLinkCreatedBy")
+  commentThreadsCreated        CommentThread[]          @relation("CommentThreadCreatedBy")
+  commentThreadsResolved       CommentThread[]          @relation("CommentThreadResolvedBy")
+  commentsAuthored             Comment[]                @relation("CommentAuthor")
+  commentMentionsReceived      CommentMention[]         @relation("CommentMentionedUser")
+  notificationsReceived        Notification[]           @relation("NotificationRecipient")
+  notificationsTriggered       Notification[]           @relation("NotificationActor")
+  notificationPreference       NotificationPreference?
+  activityEventsAuthored       ActivityEvent[]          @relation("ActivityEventActor")
+  auditLogEntries              AuditLog[]               @relation("AuditLogActor")
+  templatesCreated             Template[]               @relation("TemplateCreatedByUser")
+  exportJobsRequested          ExportJob[]              @relation("ExportJobRequestedBy")
+  filesUploaded                File[]                   @relation("FileUploadedByUser")
+  attachmentsCreated           Attachment[]             @relation("AttachmentCreatedByUser")
+  emailDeliveryLogEntries      EmailDeliveryLog[]       @relation("EmailDeliveryLogUser")
+
+  @@index([createdAt(sort: Desc)], map: "idx_users_created_at")
+  @@map("users")
+}
+
+model RefreshToken {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String    @map("user_id") @db.Uuid
+  tokenHash         String    @unique(map: "uq_refresh_tokens_token_hash") @map("token_hash") @db.Char(64)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt         DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt         DateTime? @map("revoked_at") @db.Timestamptz(6)
+  replacedByTokenId String?   @map("replaced_by_token_id") @db.Uuid
+  ipAddress         String?   @map("ip_address") @db.VarChar(64)
+  userAgent         String?   @map("user_agent") @db.Text
+
+  user            User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  replacedByToken RefreshToken?  @relation("RefreshTokenRotation", fields: [replacedByTokenId], references: [id], onDelete: SetNull)
+  replacementFor  RefreshToken[] @relation("RefreshTokenRotation")
+
+  @@index([userId, expiresAt(sort: Desc)], map: "idx_refresh_tokens_user_expires")
+  @@map("refresh_tokens")
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique(map: "uq_email_verification_token_hash") @map("token_hash") @db.Char(64)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt(sort: Desc)], map: "idx_email_verification_user")
+  @@map("email_verification_tokens")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique(map: "uq_password_reset_token_hash") @map("token_hash") @db.Char(64)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt(sort: Desc)], map: "idx_password_reset_user")
+  @@map("password_reset_tokens")
+}
+
+model Workspace {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String    @db.VarChar(60)
+  description String?   @db.VarChar(280)
+  icon        String?   @db.VarChar(16)
+  type        String    @db.VarChar(20)
+  status      String    @default("active") @db.VarChar(20)
+  ownerId     String    @map("owner_id") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  owner               User                 @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  members             WorkspaceMember[]
+  settings            WorkspaceSettings?
+  invitations         Invitation[]
+  folders             Folder[]
+  documents           Document[]
+  documentVersions    DocumentVersion[]
+  documentSubmissions DocumentSubmission[]
+  taskColumns         TaskColumn[]
+  tasks               Task[]
+  taskDocumentLinks   TaskDocumentLink[]
+  commentThreads      CommentThread[]
+  comments            Comment[]
+  commentMentions     CommentMention[]
+  notifications       Notification[]
+  activityEvents      ActivityEvent[]
+  auditLogs           AuditLog[]
+  templates           Template[]
+  exportJobs          ExportJob[]
+  files               File[]
+  attachments         Attachment[]
+
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId    String    @map("workspace_id") @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  role           String    @db.VarChar(20)
+  joinedAt       DateTime  @default(now()) @map("joined_at") @db.Timestamptz(6)
+  leftAt         DateTime? @map("left_at") @db.Timestamptz(6)
+  isActive       Boolean   @default(true) @map("is_active")
+  lastAccessedAt DateTime? @map("last_accessed_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@map("workspace_members")
+}
+
+model WorkspaceSettings {
+  workspaceId String   @id @map("workspace_id") @db.Uuid
+  settings    Json     @default(dbgenerated("'{}'::jsonb")) @db.JsonB
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+
+  @@map("workspace_settings")
+}
+
+model Invitation {
+  id               String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId      String                @map("workspace_id") @db.Uuid
+  invitedEmail     String                @map("invited_email") @db.Citext
+  role             String                @db.VarChar(20)
+  tokenHash        String                @unique(map: "uq_invitations_token_hash") @map("token_hash") @db.Char(64)
+  status           String                @default("pending") @db.VarChar(20)
+  invitedByUserId  String                @map("invited_by_user_id") @db.Uuid
+  acceptedByUserId String?               @map("accepted_by_user_id") @db.Uuid
+  expiresAt        DateTime              @map("expires_at") @db.Timestamptz(6)
+  acceptedAt       DateTime?             @map("accepted_at") @db.Timestamptz(6)
+  createdAt        DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt        DateTime?             @map("deleted_at") @db.Timestamptz(6)
+
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  invitedByUser  User      @relation("InvitationInvitedByUser", fields: [invitedByUserId], references: [id], onDelete: Restrict)
+  acceptedByUser User?     @relation("InvitationAcceptedByUser", fields: [acceptedByUserId], references: [id], onDelete: SetNull)
+
+  @@map("invitations")
+}
+
+model Folder {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String    @map("workspace_id") @db.Uuid
+  name        String    @db.VarChar(120)
+  parentId    String?   @map("parent_id") @db.Uuid
+  position    Decimal   @db.Decimal(20, 10)
+  createdById String    @map("created_by") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  workspace Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  parent    Folder?    @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  children  Folder[]   @relation("FolderHierarchy")
+  createdBy User       @relation("FolderCreatedByUser", fields: [createdById], references: [id], onDelete: Restrict)
+  documents Document[]
+
+  @@map("folders")
+}
+
+model Document {
+  id               String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId      String                   @map("workspace_id") @db.Uuid
+  folderId         String?                  @map("folder_id") @db.Uuid
+  title            String                   @db.VarChar(200)
+  position         Decimal                  @db.Decimal(20, 10)
+  status           String                   @default("draft") @db.VarChar(30)
+  isLocked         Boolean                  @default(false) @map("is_locked")
+  lockedByUserId   String?                  @map("locked_by_user_id") @db.Uuid
+  lockedAt         DateTime?                @map("locked_at") @db.Timestamptz(6)
+  contentYjs       Bytes                    @default(dbgenerated("''::bytea")) @map("content_yjs")
+  contentPlaintext String                   @default("") @map("content_plaintext") @db.Text
+  searchVector     Unsupported("tsvector")? @map("search_vector")
+  createdById      String                   @map("created_by") @db.Uuid
+  updatedById      String?                  @map("updated_by") @db.Uuid
+  createdAt        DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime                 @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt        DateTime?                @map("deleted_at") @db.Timestamptz(6)
+
+  workspace    Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  folder       Folder?              @relation(fields: [folderId], references: [id], onDelete: Restrict)
+  lockedByUser User?                @relation("DocumentLockedByUser", fields: [lockedByUserId], references: [id], onDelete: SetNull)
+  createdBy    User                 @relation("DocumentCreatedByUser", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy    User?                @relation("DocumentUpdatedByUser", fields: [updatedById], references: [id], onDelete: SetNull)
+  versions     DocumentVersion[]
+  submissions  DocumentSubmission[]
+  taskLinks    TaskDocumentLink[]
+
+  @@map("documents")
+}
+
+model DocumentVersion {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId   String   @map("workspace_id") @db.Uuid
+  documentId    String   @map("document_id") @db.Uuid
+  versionNumber Int      @map("version_number")
+  reason        String   @db.VarChar(30)
+  yjsState      Bytes    @map("yjs_state")
+  plaintext     String?  @db.Text
+  createdById   String?  @map("created_by") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  workspace   Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  document    Document             @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  createdBy   User?                @relation("DocumentVersionCreatedByUser", fields: [createdById], references: [id], onDelete: SetNull)
+  submissions DocumentSubmission[] @relation("DocumentSubmissionSnapshotVersion")
+
+  @@unique([documentId, versionNumber], map: "uq_doc_versions_number")
+  @@index([documentId, createdAt(sort: Desc)], map: "idx_doc_versions_doc_created")
+  @@index([workspaceId, createdAt(sort: Desc)], map: "idx_doc_versions_workspace_created")
+  @@map("document_versions")
+}
+
+model DocumentSubmission {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId       String    @map("workspace_id") @db.Uuid
+  documentId        String    @map("document_id") @db.Uuid
+  submittedById     String    @map("submitted_by") @db.Uuid
+  submittedAt       DateTime  @default(now()) @map("submitted_at") @db.Timestamptz(6)
+  snapshotVersionId String?   @map("snapshot_version_id") @db.Uuid
+  decision          String?   @db.VarChar(30)
+  decidedById       String?   @map("decided_by") @db.Uuid
+  decidedAt         DateTime? @map("decided_at") @db.Timestamptz(6)
+  decisionNote      String?   @map("decision_note") @db.Text
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  workspace       Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  document        Document         @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  submittedBy     User             @relation("DocumentSubmissionSubmittedBy", fields: [submittedById], references: [id], onDelete: Restrict)
+  snapshotVersion DocumentVersion? @relation("DocumentSubmissionSnapshotVersion", fields: [snapshotVersionId], references: [id], onDelete: SetNull)
+  decidedBy       User?            @relation("DocumentSubmissionDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([documentId, submittedAt(sort: Desc)], map: "idx_doc_submissions_document")
+  @@index([workspaceId, submittedAt(sort: Desc)], map: "idx_doc_submissions_workspace")
+  @@map("document_submissions")
+}
+
+model TaskColumn {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String    @map("workspace_id") @db.Uuid
+  name        String    @db.VarChar(50)
+  status      String    @db.VarChar(30)
+  position    Decimal   @db.Decimal(20, 10)
+  isHidden    Boolean   @default(false) @map("is_hidden")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+
+  @@map("task_columns")
+}
+
+model Task {
+  id           String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId  String                   @map("workspace_id") @db.Uuid
+  title        String                   @db.VarChar(200)
+  description  String?                  @db.Text
+  status       String                   @default("todo") @db.VarChar(30)
+  priority     String                   @default("medium") @db.VarChar(20)
+  assigneeId   String?                  @map("assignee_id") @db.Uuid
+  reporterId   String                   @map("reporter_id") @db.Uuid
+  dueDate      DateTime?                @map("due_date") @db.Date
+  labels       String[]                 @default([])
+  position     Decimal                  @db.Decimal(20, 10)
+  searchVector Unsupported("tsvector")? @map("search_vector")
+  createdAt    DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime                 @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt    DateTime?                @map("deleted_at") @db.Timestamptz(6)
+
+  workspace     Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  assignee      User?              @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  reporter      User               @relation("TaskReporter", fields: [reporterId], references: [id], onDelete: Restrict)
+  documentLinks TaskDocumentLink[]
+
+  @@map("tasks")
+}
+
+model TaskDocumentLink {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String    @map("workspace_id") @db.Uuid
+  taskId      String    @map("task_id") @db.Uuid
+  documentId  String    @map("document_id") @db.Uuid
+  anchor      Json?     @db.JsonB
+  createdById String    @map("created_by") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  task      Task      @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  document  Document  @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  createdBy User      @relation("TaskDocumentLinkCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@map("task_document_links")
+}
+
+model CommentThread {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId  String    @map("workspace_id") @db.Uuid
+  targetType   String    @map("target_type") @db.VarChar(20)
+  targetId     String    @map("target_id") @db.Uuid
+  anchor       Json?     @db.JsonB
+  status       String    @default("open") @db.VarChar(20)
+  resolvedById String?   @map("resolved_by") @db.Uuid
+  resolvedAt   DateTime? @map("resolved_at") @db.Timestamptz(6)
+  createdById  String    @map("created_by") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  workspace  Workspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  resolvedBy User?     @relation("CommentThreadResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+  createdBy  User      @relation("CommentThreadCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  comments   Comment[]
+
+  @@map("comment_threads")
+}
+
+model Comment {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId          String    @map("workspace_id") @db.Uuid
+  threadId             String    @map("thread_id") @db.Uuid
+  authorId             String?   @map("author_id") @db.Uuid
+  authorNameSnapshot   String    @map("author_name_snapshot") @db.VarChar(200)
+  authorAvatarSnapshot String?   @map("author_avatar_snapshot") @db.VarChar(500)
+  content              Json      @db.JsonB
+  contentPlaintext     String    @default("") @map("content_plaintext") @db.Text
+  isDeleted            Boolean   @default(false) @map("is_deleted")
+  deletedAt            DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  thread    CommentThread    @relation(fields: [threadId], references: [id], onDelete: Restrict)
+  author    User?            @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  mentions  CommentMention[]
+
+  @@index([threadId, createdAt(sort: Asc)], map: "idx_comments_thread_created")
+  @@index([workspaceId, createdAt(sort: Desc)], map: "idx_comments_workspace_created")
+  @@map("comments")
+}
+
+model CommentMention {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId     String   @map("workspace_id") @db.Uuid
+  commentId       String   @map("comment_id") @db.Uuid
+  mentionedUserId String   @map("mentioned_user_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  comment       Comment   @relation(fields: [commentId], references: [id], onDelete: Restrict)
+  mentionedUser User      @relation("CommentMentionedUser", fields: [mentionedUserId], references: [id], onDelete: Restrict)
+
+  @@unique([commentId, mentionedUserId], map: "uq_comment_mentions_unique")
+  @@index([mentionedUserId, createdAt(sort: Desc)], map: "idx_comment_mentions_user")
+  @@map("comment_mentions")
+}
+
+model Notification {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  recipientId  String    @map("recipient_id") @db.Uuid
+  workspaceId  String?   @map("workspace_id") @db.Uuid
+  actorId      String?   @map("actor_id") @db.Uuid
+  type         String    @db.VarChar(80)
+  title        String    @db.VarChar(200)
+  body         String?   @db.Text
+  resourceType String?   @map("resource_type") @db.VarChar(40)
+  resourceId   String?   @map("resource_id") @db.Uuid
+  url          String?   @db.VarChar(500)
+  metadata     Json      @default(dbgenerated("'{}'::jsonb")) @db.JsonB
+  isRead       Boolean   @default(false) @map("is_read")
+  readAt       DateTime? @map("read_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  recipient User       @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Restrict)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  actor     User?      @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  userId              String   @id @map("user_id") @db.Uuid
+  inApp               Json     @default(dbgenerated("'{}'::jsonb")) @map("in_app") @db.JsonB
+  email               Json     @default(dbgenerated("'{}'::jsonb")) @db.JsonB
+  dailyDigestEnabled  Boolean  @default(false) @map("daily_digest_enabled")
+  weeklyDigestEnabled Boolean  @default(false) @map("weekly_digest_enabled")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@map("notification_preferences")
+}
+
+model ActivityEvent {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId           String   @map("workspace_id") @db.Uuid
+  actorId               String?  @map("actor_id") @db.Uuid
+  actorNameSnapshot     String   @map("actor_name_snapshot") @db.VarChar(200)
+  actorAvatarSnapshot   String?  @map("actor_avatar_snapshot") @db.VarChar(500)
+  eventKey              String   @map("event_key") @db.VarChar(80)
+  summary               String   @db.VarChar(255)
+  resourceType          String?  @map("resource_type") @db.VarChar(40)
+  resourceId            String?  @map("resource_id") @db.Uuid
+  resourceTitleSnapshot String?  @map("resource_title_snapshot") @db.VarChar(255)
+  metadata              Json     @default(dbgenerated("'{}'::jsonb")) @db.JsonB
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  actor     User?     @relation("ActivityEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt(sort: Desc)], map: "idx_activity_events_workspace_created")
+  @@index([workspaceId, eventKey, createdAt(sort: Desc)], map: "idx_activity_events_workspace_event")
+  @@index([workspaceId, actorId, createdAt(sort: Desc)], map: "idx_activity_events_workspace_actor")
+  @@map("activity_events")
+}
+
+model AuditLog {
+  id              String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  requestId       String?                @map("request_id") @db.VarChar(64)
+  severity        String                 @db.VarChar(10)
+  actionKey       String                 @map("action_key") @db.VarChar(120)
+  actorId         String?                @map("actor_id") @db.Uuid
+  actorEmail      String?                @map("actor_email") @db.Citext
+  actorGlobalRole String?                @map("actor_global_role") @db.VarChar(20)
+  workspaceId     String?                @map("workspace_id") @db.Uuid
+  targetType      String?                @map("target_type") @db.VarChar(40)
+  targetId        String?                @map("target_id") @db.Uuid
+  ipAddress       String?                @map("ip_address") @db.VarChar(64)
+  userAgent       String?                @map("user_agent") @db.Text
+  metadata        Json                   @default(dbgenerated("'{}'::jsonb")) @db.JsonB
+  createdAt       DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  actor     User?      @relation("AuditLogActor", fields: [actorId], references: [id], onDelete: SetNull)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+
+  @@index([createdAt(sort: Desc)], map: "idx_audit_log_created")
+  @@index([actionKey, createdAt(sort: Desc)], map: "idx_audit_log_action_created")
+  @@index([actorEmail(sort: Asc), createdAt(sort: Desc)], map: "idx_audit_log_actor_email")
+  @@index([workspaceId, createdAt(sort: Desc)], map: "idx_audit_log_workspace")
+  @@map("audit_log")
+}
+
+model Template {
+  id              String   @id @db.VarChar(120)
+  kind            String   @db.VarChar(20)
+  category        String   @db.VarChar(20)
+  scope           String   @default("system") @db.VarChar(20)
+  name            String   @db.VarChar(120)
+  description     String?  @db.VarChar(280)
+  version         Int      @default(1)
+  schemaVersion   Int      @default(1) @map("schema_version")
+  contentFormat   String?  @map("content_format") @db.VarChar(20)
+  content         Json     @db.JsonB
+  isEnabled       Boolean  @default(true) @map("is_enabled")
+  createdByUserId String?  @map("created_by_user_id") @db.Uuid
+  workspaceId     String?  @map("workspace_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  createdByUser User?      @relation("TemplateCreatedByUser", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  workspace     Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+
+  @@index([kind, category, scope], map: "idx_templates_kind_category_scope")
+  @@map("templates")
+}
+
+model File {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId      String    @map("workspace_id") @db.Uuid
+  uploadedByUserId String    @map("uploaded_by_user_id") @db.Uuid
+  status           String    @default("pending") @db.VarChar(20)
+  originalFilename String    @map("original_filename") @db.VarChar(255)
+  contentType      String    @map("content_type") @db.VarChar(120)
+  sizeBytes        BigInt    @map("size_bytes")
+  storageProvider  String    @map("storage_provider") @db.VarChar(50)
+  storageBucket    String    @map("storage_bucket") @db.VarChar(120)
+  storageKey       String    @map("storage_key") @db.VarChar(500)
+  checksumSha256   String?   @map("checksum_sha256") @db.Char(64)
+  metadata         Json      @default(dbgenerated("'{}'::jsonb")) @db.JsonB
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt        DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  workspace      Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  uploadedByUser User         @relation("FileUploadedByUser", fields: [uploadedByUserId], references: [id], onDelete: Restrict)
+  attachments    Attachment[]
+  exportOutputs  ExportJob[]  @relation("ExportJobOutputFile")
+
+  @@map("files")
+}
+
+model ExportJob {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId      String    @map("workspace_id") @db.Uuid
+  requestedById    String    @map("requested_by") @db.Uuid
+  resourceType     String    @map("resource_type") @db.VarChar(40)
+  resourceId       String    @map("resource_id") @db.Uuid
+  format           String    @db.VarChar(20)
+  status           String    @default("queued") @db.VarChar(20)
+  errorMessage     String?   @map("error_message") @db.Text
+  outputFileId     String?   @map("output_file_id") @db.Uuid
+  outputStorageKey String?   @map("output_storage_key") @db.VarChar(500)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  completedAt      DateTime? @map("completed_at") @db.Timestamptz(6)
+  deletedAt        DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  requestedBy User      @relation("ExportJobRequestedBy", fields: [requestedById], references: [id], onDelete: Restrict)
+  outputFile  File?     @relation("ExportJobOutputFile", fields: [outputFileId], references: [id], onDelete: SetNull)
+
+  @@map("export_jobs")
+}
+
+model Attachment {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId     String    @map("workspace_id") @db.Uuid
+  fileId          String    @map("file_id") @db.Uuid
+  targetType      String    @map("target_type") @db.VarChar(20)
+  targetId        String    @map("target_id") @db.Uuid
+  createdByUserId String    @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  deletedAt       DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  file          File      @relation(fields: [fileId], references: [id], onDelete: Restrict)
+  createdByUser User      @relation("AttachmentCreatedByUser", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@map("attachments")
+}
+
+model EmailDeliveryLog {
+  id                String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String?               @map("user_id") @db.Uuid
+  toEmail           String                @map("to_email") @db.Citext
+  templateKey       String                @map("template_key") @db.VarChar(120)
+  provider          String                @db.VarChar(50)
+  providerMessageId String?               @map("provider_message_id") @db.VarChar(255)
+  status            String                @db.VarChar(20)
+  errorMessage      String?               @map("error_message") @db.Text
+  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User? @relation("EmailDeliveryLogUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt(sort: Desc)], map: "idx_email_delivery_user_created")
+  @@index([status, createdAt(sort: Desc)], map: "idx_email_delivery_status")
+  @@map("email_delivery_log")
+}

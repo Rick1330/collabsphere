@@ -28,7 +28,7 @@ Provide an execution-focused reference for CollabSphere deployment strategy, uni
 - `api`, `collab`, `worker` deployed together on a shared network.
 
 ### Recommended v1 Hosting
-- Frontend (`web`): Vercel deploying the Next.js App Router application in `apps/web`.
+- Frontend (`web`): Vercel deploying the Vite + React SPA in `apps/web`.
 - Backend services (`api`, `collab`, `worker`): Azure Container Apps as the preferred managed runtime.
 - Backend portability: keep backend services packaged as OCI-compatible containers so another host such as DigitalOcean remains viable without a runtime rewrite.
 - Database: managed Postgres selected separately from the compute runtime.

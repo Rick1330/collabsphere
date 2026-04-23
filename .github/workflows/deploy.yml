@@ -302,6 +302,11 @@ jobs:
             exit 1
           fi
 
+          if [[ ! -f "apps/web/vercel.json" ]]; then
+            echo "::error::apps/web/vercel.json is required for the Vercel SPA deployment contract."
+            exit 1
+          fi
+
       - name: Authenticate to Azure
         uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5
         with:
