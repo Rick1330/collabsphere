@@ -45,15 +45,13 @@ pnpm migrate:dev --name initial_schema_creation
 Prerequisites:
 
 1. PostgreSQL is running locally.
-2. Copy `.env.example` to `.env`, then adjust `DATABASE_URL` and `POSTGRES_PORT` if your local Docker port differs from the default.
+2. `DATABASE_URL` points at the intended local database.
 3. Dependencies are installed with `pnpm install`.
 
 Open Prisma Studio:
 
 ```bash
 pnpm --filter @collabsphere/database run studio
-
-The repo-local Prisma launcher prefers `.env` and `.env.local` values over inherited shell environment values so local Studio and migration commands target the intended workspace database.
 ```
 
 ## Working Rules

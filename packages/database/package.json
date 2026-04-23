@@ -9,11 +9,11 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
-    "generate": "node ../../scripts/prisma-local.mjs generate",
-    "validate": "node ../../scripts/prisma-local.mjs validate",
-    "migrate:dev": "node ../../scripts/prisma-local.mjs migrate dev",
-    "migrate:deploy": "node ../../scripts/prisma-local.mjs migrate deploy",
-    "studio": "node ../../scripts/prisma-local.mjs studio"
+    "generate": "prisma generate",
+    "validate": "prisma validate",
+    "migrate:dev": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
+    "studio": "prisma studio"
   },
   "dependencies": {
     "@prisma/client": "^6.7.0"
