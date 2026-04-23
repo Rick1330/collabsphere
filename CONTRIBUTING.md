@@ -178,6 +178,15 @@ Examples:
 - `notification_type` remains a string key and must not be converted into a Prisma enum.
 - Do not introduce non-canonical enums without first updating the spec and agent-ref data contracts.
 
+## Workspace Scoping
+
+- Workspace-owned persistence tables must carry `workspace_id` and must be queried with explicit workspace scope.
+- The current workspace-owned table set is `workspace_members`, `workspace_settings`, `invitations`, `folders`, `documents`, `document_versions`, `document_submissions`, `task_columns`, `tasks`, `task_document_links`, `comment_threads`, `comments`, `comment_mentions`, `activity_events`, `export_jobs`, `files`, and `attachments`.
+- `notifications` is a mixed-scope table: workspace-owned notifications carry `workspace_id`, while global user notifications may use `workspace_id = null`.
+- In the API layer, use `withWorkspaceScope(prisma, workspaceId)` from `apps/api/src/common/prisma/prisma.service.ts` for workspace-scoped Prisma access, including notification queries that are explicitly workspace-owned.
+- `withWorkspaceScope(...)` rejects missing `workspaceId`, injects `workspaceId` into workspace-scoped create payloads, preserves `$withDeleted()` / `$withHardDeletes()` chaining, and rejects unsafe unique `update` / `delete` / `upsert` flows that Prisma cannot scope atomically.
+- Cross-workspace links remain invalid even when foreign keys are individually valid. Validate that related task, document, comment, file, and attachment records all belong to the same workspace before writing them.
+
 ## Issue Workflow
 
 ### Delivery lane

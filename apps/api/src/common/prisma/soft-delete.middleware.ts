@@ -1,3 +1,14 @@
+import {
+  cloneArgs,
+  createMutationOperationHandler,
+  createPassthroughHandler,
+  createReadOperationHandler,
+  createUniqueReadOperationHandler,
+  isCallable,
+  isRecordLike,
+  type UnknownFn,
+} from "./prisma-proxy.shared.js";
+
 export const SOFT_DELETE_MODELS = [
   "User",
   "Workspace",
@@ -27,12 +38,10 @@ export const SOFT_DELETE_READ_OPERATIONS = [
   "groupBy",
 ] as const;
 
-export const SOFT_DELETE_DELEGATE_KEYS = SOFT_DELETE_MODELS.map((modelName) =>
-  modelName[0].toLowerCase() + modelName.slice(1),
-);
-
-type RecordLike = Record<string | symbol, unknown>;
-type UnknownFn = (...args: unknown[]) => unknown;
+export const SOFT_DELETE_DELEGATE_KEYS = SOFT_DELETE_MODELS.map((modelName) => {
+  const firstCharacter = modelName.charAt(0);
+  return firstCharacter.toLowerCase() + modelName.slice(1);
+});
 
 export type SoftDeleteProxyOptions = {
   includeDeleted?: boolean;
@@ -51,20 +60,6 @@ const UNIQUE_READ_OPERATION_MAP = {
   findUnique: "findFirst",
   findUniqueOrThrow: "findFirstOrThrow",
 } as const;
-
-const isRecordLike = (value: unknown): value is RecordLike =>
-  typeof value === "object" && value !== null;
-
-const isCallable = (value: unknown): value is UnknownFn =>
-  typeof value === "function";
-
-const cloneArgs = (args: unknown): Record<string, unknown> => {
-  if (!isRecordLike(args)) {
-    return {};
-  }
-
-  return { ...(args as Record<string, unknown>) };
-};
 
 const cloneData = (value: unknown) => {
   if (!isRecordLike(value)) {
@@ -89,7 +84,7 @@ export const addDefaultSoftDeleteWhere = ({
     return { deletedAt: null };
   }
 
-  if ("deletedAt" in where) {
+  if (Object.hasOwn(where, "deletedAt")) {
     return where;
   }
 
@@ -159,6 +154,9 @@ export const normalizeSoftDeleteDeleteArgs = ({
   normalizeSoftDeleteWriteArgs({
     args,
     now,
+    where: addDefaultSoftDeleteWhere({
+      where: cloneArgs(args).where,
+    }),
   });
 
 export const normalizeSoftDeleteDeleteManyArgs = ({
@@ -175,105 +173,6 @@ export const normalizeSoftDeleteDeleteManyArgs = ({
       where: cloneArgs(args).where,
     }),
   });
-
-const createReadOperationHandler = ({
-  method,
-  target,
-  includeDeleted,
-}: {
-  method: (...args: unknown[]) => unknown;
-  target: object;
-  includeDeleted?: boolean;
-}) =>
-  (args?: unknown) =>
-    Reflect.apply(method, target, [
-      normalizeSoftDeleteReadArgs({
-        args,
-        includeDeleted,
-      }),
-    ]);
-
-const resolveRequiredDelegateMethod = ({
-  target,
-  receiver,
-  methodName,
-  errorMessage,
-}: {
-  target: object;
-  receiver: object;
-  methodName: string;
-  errorMessage: string;
-}) => {
-  const delegateMethod = Reflect.get(target, methodName, receiver);
-  if (!isCallable(delegateMethod)) {
-    throw new Error(errorMessage);
-  }
-
-  return delegateMethod;
-};
-
-const createUniqueReadOperationHandler = ({
-  target,
-  receiver,
-  methodName,
-  includeDeleted,
-}: {
-  target: object;
-  receiver: object;
-  methodName: "findFirst" | "findFirstOrThrow";
-  includeDeleted?: boolean;
-}) =>
-  (args?: unknown) =>
-    Reflect.apply(
-      resolveRequiredDelegateMethod({
-        target,
-        receiver,
-        methodName,
-        errorMessage: `Soft delete proxy requires a ${methodName}() delegate method.`,
-      }),
-      target,
-      [
-        normalizeSoftDeleteReadArgs({
-          args,
-          includeDeleted,
-        }),
-      ],
-    );
-
-const createMutationOperationHandler = ({
-  target,
-  receiver,
-  methodName,
-  errorMessage,
-  normalizeArgs,
-}: {
-  target: object;
-  receiver: object;
-  methodName: "update" | "updateMany";
-  errorMessage: string;
-  normalizeArgs: (args: unknown) => Record<string, unknown>;
-}) =>
-  (args?: unknown) =>
-    Reflect.apply(
-      resolveRequiredDelegateMethod({
-        target,
-        receiver,
-        methodName,
-        errorMessage,
-      }),
-      target,
-      [normalizeArgs(args)],
-    );
-
-const createPassthroughHandler = ({
-  method,
-  target,
-}: {
-  method: (...args: unknown[]) => unknown;
-  target: object;
-}) =>
-  (...args: unknown[]) =>
-    Reflect.apply(method, target, args);
 
 const resolveReadOperationHandler = ({
   property,
@@ -293,7 +192,12 @@ const resolveReadOperationHandler = ({
       target,
       receiver,
       methodName: UNIQUE_READ_OPERATION_MAP[property],
-      includeDeleted: options.includeDeleted,
+      errorMessage: `Soft delete proxy requires a ${UNIQUE_READ_OPERATION_MAP[property]}() delegate method.`,
+      normalizeArgs: (args) =>
+        normalizeSoftDeleteReadArgs({
+          args,
+          includeDeleted: options.includeDeleted,
+        }),
     });
   }
 
@@ -301,7 +205,11 @@ const resolveReadOperationHandler = ({
     return createReadOperationHandler({
       method: value,
       target,
-      includeDeleted: options.includeDeleted,
+      normalizeArgs: (args) =>
+        normalizeSoftDeleteReadArgs({
+          args,
+          includeDeleted: options.includeDeleted,
+        }),
     });
   }
 
