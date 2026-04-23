@@ -115,22 +115,51 @@ export const normalizeSoftDeleteReadArgs = ({
   return nextArgs;
 };
 
+const createSoftDeleteMutationData = ({
+  args,
+  now = () => new Date(),
+}: {
+  args: Record<string, unknown>;
+  now?: () => Date;
+}) => ({
+  ...cloneData(args.data),
+  deletedAt: now(),
+});
+
+const normalizeSoftDeleteWriteArgs = ({
+  args,
+  now = () => new Date(),
+  where,
+}: {
+  args: unknown;
+  now?: () => Date;
+  where?: unknown;
+}) => {
+  const nextArgs = cloneArgs(args);
+
+  if (where !== undefined) {
+    nextArgs.where = where;
+  }
+
+  nextArgs.data = createSoftDeleteMutationData({
+    args: nextArgs,
+    now,
+  });
+
+  return nextArgs;
+};
+
 export const normalizeSoftDeleteDeleteArgs = ({
   args,
   now = () => new Date(),
 }: {
   args: unknown;
   now?: () => Date;
-}) => {
-  const nextArgs = cloneArgs(args);
-
-  nextArgs.data = {
-    ...cloneData(nextArgs.data),
-    deletedAt: now(),
-  };
-
-  return nextArgs;
-};
+}) =>
+  normalizeSoftDeleteWriteArgs({
+    args,
+    now,
+  });
 
 export const normalizeSoftDeleteDeleteManyArgs = ({
   args,
@@ -138,18 +167,14 @@ export const normalizeSoftDeleteDeleteManyArgs = ({
 }: {
   args: unknown;
   now?: () => Date;
-}) => {
-  const nextArgs = cloneArgs(args);
-
-  nextArgs.where = addDefaultSoftDeleteWhere({
-    where: nextArgs.where,
+}) =>
+  normalizeSoftDeleteWriteArgs({
+    args,
+    now,
+    where: addDefaultSoftDeleteWhere({
+      where: cloneArgs(args).where,
+    }),
   });
-  nextArgs.data = {
-    deletedAt: now(),
-  };
-
-  return nextArgs;
-};
 
 const createReadOperationHandler = ({
   method,
@@ -250,23 +275,19 @@ const createPassthroughHandler = ({
   (...args: unknown[]) =>
     Reflect.apply(method, target, args);
 
-const resolveDelegateProperty = ({
+const resolveReadOperationHandler = ({
   property,
-  value,
   target,
   receiver,
+  value,
   options,
 }: {
   property: string;
-  value: unknown;
   target: object;
   receiver: object;
+  value: UnknownFn;
   options: SoftDeleteProxyOptions;
 }) => {
-  if (!isCallable(value)) {
-    return value;
-  }
-
   if (property === "findUnique" || property === "findUniqueOrThrow") {
     return createUniqueReadOperationHandler({
       target,
@@ -284,6 +305,20 @@ const resolveDelegateProperty = ({
     });
   }
 
+  return null;
+};
+
+const resolveWriteOperationHandler = ({
+  property,
+  target,
+  receiver,
+  options,
+}: {
+  property: string;
+  target: object;
+  receiver: object;
+  options: SoftDeleteProxyOptions;
+}) => {
   if (property === "delete" && !options.allowHardDelete) {
     return createMutationOperationHandler({
       target,
@@ -310,6 +345,47 @@ const resolveDelegateProperty = ({
           now: options.now,
         }),
     });
+  }
+
+  return null;
+};
+
+const resolveDelegateProperty = ({
+  property,
+  value,
+  target,
+  receiver,
+  options,
+}: {
+  property: string;
+  value: unknown;
+  target: object;
+  receiver: object;
+  options: SoftDeleteProxyOptions;
+}) => {
+  if (!isCallable(value)) {
+    return value;
+  }
+
+  const readOperationHandler = resolveReadOperationHandler({
+    property,
+    target,
+    receiver,
+    value,
+    options,
+  });
+  if (readOperationHandler) {
+    return readOperationHandler;
+  }
+
+  const writeOperationHandler = resolveWriteOperationHandler({
+    property,
+    target,
+    receiver,
+    options,
+  });
+  if (writeOperationHandler) {
+    return writeOperationHandler;
   }
 
   return createPassthroughHandler({
