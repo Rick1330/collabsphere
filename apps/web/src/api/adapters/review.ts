@@ -11,8 +11,12 @@
  * page resets it. That's fine for a mock; it keeps the demo deterministic.
  */
 
-import { MOCK_ACADEMIC_PROGRESS, type AcademicQueueItem } from "@/lib/mock-academic";
-import { MOCK_SUBMISSION_HISTORY, type SubmissionRecord } from "@/lib/mock-academic";
+import {
+  MOCK_ACADEMIC_PROGRESS,
+  MOCK_SUBMISSION_HISTORY,
+  type AcademicQueueItem,
+  type SubmissionRecord,
+} from "@/lib/mock-academic";
 
 export type ReviewDecision = "approved" | "changes_requested";
 

@@ -39,7 +39,7 @@ const Harness = ({ documentIds, initialFocus = 0, busyRowId, onOpenDialog }: Har
     if (documentIds.length === 0) return;
     const docId = documentIds[focusedIdx];
     if (!docId) return;
-    window.dispatchEvent(
+    globalThis.dispatchEvent(
       new CustomEvent("cs:review:start-decision", {
         detail: { documentId: docId, decision },
       }),
@@ -77,8 +77,8 @@ const Row = ({
       setOpen(true);
       onOpen?.(id, detail.decision);
     };
-    window.addEventListener("cs:review:start-decision", handler);
-    return () => window.removeEventListener("cs:review:start-decision", handler);
+    globalThis.addEventListener("cs:review:start-decision", handler);
+    return () => globalThis.removeEventListener("cs:review:start-decision", handler);
   }, [id, open, onOpen]);
   return (
     <li data-testid={`row-${id}`} data-state={open ? "open" : "closed"}>
@@ -88,7 +88,7 @@ const Row = ({
 };
 
 const fireKey = (key: string) => {
-  fireEvent.keyDown(window, { key, bubbles: true, cancelable: true });
+  fireEvent.keyDown(globalThis as unknown as Window, { key, bubbles: true, cancelable: true });
 };
 
 describe("ReviewQueue — a / r hotkeys", () => {

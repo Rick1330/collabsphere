@@ -51,7 +51,7 @@ export const DocumentCommentComposer = ({
 
   /** Detect '@token' immediately preceding the caret to drive the autocomplete */
   const detectMentionTrigger = useCallback(() => {
-    const sel = window.getSelection();
+    const sel = globalThis.getSelection();
     if (!sel || sel.rangeCount === 0 || !editableRef.current?.contains(sel.anchorNode)) {
       setMentionQuery(null);
       return;
@@ -81,7 +81,7 @@ export const DocumentCommentComposer = ({
 
   const insertMention = useCallback(
     (member: { id: string; fullName: string; color: string }) => {
-      const sel = window.getSelection();
+      const sel = globalThis.getSelection();
       if (!sel || sel.rangeCount === 0 || !editableRef.current) return;
       const range = sel.getRangeAt(0);
       const node = range.startContainer;
@@ -214,7 +214,8 @@ export const DocumentCommentComposer = ({
             onKeyDown={handleKeyDown}
             onKeyUp={detectMentionTrigger}
             onMouseUp={detectMentionTrigger}
-            onBlur={() => window.setTimeout(() => setMentionQuery(null), 120)}
+            tabIndex={disabled ? -1 : 0}
+            onBlur={() => globalThis.setTimeout(() => setMentionQuery(null), 120)}
             className={cn(
               "w-full outline-none text-sm text-stone-800 leading-relaxed",
               size === "sm" ? "px-3 py-2 min-h-[60px]" : "px-3 py-2.5 min-h-[72px]",

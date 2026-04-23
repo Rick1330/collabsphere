@@ -154,8 +154,8 @@ export const TaskList = ({
   useEffect(() => {
     if (!selectedTaskId) return;
     setSheetLoading(true);
-    const t = window.setTimeout(() => setSheetLoading(false), 180);
-    return () => window.clearTimeout(t);
+    const t = globalThis.setTimeout(() => setSheetLoading(false), 180);
+    return () => globalThis.clearTimeout(t);
   }, [selectedTaskId]);
 
   const isArchived = workspaceStatus === "archived";
@@ -419,7 +419,7 @@ export const TaskList = ({
   const refetch = () => {
     setIsError(false);
     setIsLoading(true);
-    window.setTimeout(() => setIsLoading(false), 300);
+    globalThis.setTimeout(() => setIsLoading(false), 300);
   };
 
   return (

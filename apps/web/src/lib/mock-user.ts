@@ -70,8 +70,8 @@ function buildProfile(accountId: string | null): UserProfile {
     id: account.id,
     fullName: overlay.fullName ?? account.fullName,
     email: account.email,
-    bio: overlay.bio !== undefined ? overlay.bio : account.bio,
-    avatarUrl: overlay.avatarUrl !== undefined ? overlay.avatarUrl : account.avatarUrl,
+    bio: "bio" in overlay ? overlay.bio : account.bio,
+    avatarUrl: "avatarUrl" in overlay ? overlay.avatarUrl : account.avatarUrl,
     globalRole: account.globalRole,
     authProvider: account.authProvider,
   };

@@ -164,12 +164,15 @@ const MOCK_EVENTS: EventItem[] = [
   },
 ];
 
-const typeBadge = (t: WorkspaceForSidebar["type"]) =>
-  t === "professional"
-    ? "bg-teal-50 text-teal-600 border-teal-200"
-    : t === "academic"
-      ? "bg-amber-50 text-amber-600 border-amber-200"
-      : "bg-stone-100 text-stone-500 border-stone-200";
+const typeBadge = (t: WorkspaceForSidebar["type"]) => {
+  if (t === "professional") {
+    return "bg-teal-50 text-teal-600 border-teal-200";
+  }
+  if (t === "academic") {
+    return "bg-amber-50 text-amber-600 border-amber-200";
+  }
+  return "bg-stone-100 text-stone-500 border-stone-200";
+};
 
 const isRecentlyEdited = (updatedAt: string) =>
   Date.now() - new Date(updatedAt).getTime() < 60 * 60 * 1000;

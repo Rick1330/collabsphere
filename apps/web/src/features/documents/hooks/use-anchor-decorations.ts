@@ -32,7 +32,7 @@ export function useAnchorDecorations({
     const view = editor.view;
     // ProseMirror's updateState reads view.docView which is null when the
     // editor DOM has been detached. Bail out if the view isn't fully alive.
-    if (!view || !view.dom || !(view as any).docView) return;
+    if (!view || !view.dom || !("docView" in view) || !Reflect.get(view, "docView")) return;
 
     const buildDecorations = () => {
       const docText = editor.state.doc.textBetween(0, editor.state.doc.content.size, "\n", " ");

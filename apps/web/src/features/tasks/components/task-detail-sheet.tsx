@@ -3,13 +3,10 @@ import {
   AlertCircle,
   Archive,
   Calendar,
-  CheckCircle2,
   ExternalLink,
   Lock,
-  MessageSquare,
   Pencil,
   Trash2,
-  X,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
@@ -34,9 +31,7 @@ import {
   canTransition,
   transitionReason,
   type TaskAssignee,
-  type TaskComment,
   type TaskDetail,
-  type TaskLinkedResource,
   type TaskPriority,
   type TaskStatus,
 } from "@/api/adapters/tasks";

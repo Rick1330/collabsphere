@@ -45,7 +45,7 @@ const MOCK_WORKSPACES: WorkspaceSummary[] = [
       { id: "7", fullName: "Lukas Berger" },
     ],
     roleLabel: "STUDENT",
-    lastAccessedAt: new Date(Date.now() - 26 * 3600_000).toISOString(),
+    lastAccessedAt: new Date(Date.now() - 26 * 3_600_000).toISOString(),
     isAdminOrOwner: false,
   },
   {
@@ -63,7 +63,7 @@ const MOCK_WORKSPACES: WorkspaceSummary[] = [
       { id: "10", fullName: "Nora Khan" },
     ],
     roleLabel: "EDITOR",
-    lastAccessedAt: new Date(Date.now() - 2 * 3600_000).toISOString(),
+    lastAccessedAt: new Date(Date.now() - 2 * 3_600_000).toISOString(),
     isAdminOrOwner: true,
   },
   {

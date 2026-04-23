@@ -168,13 +168,13 @@ function PasswordField({
   autoComplete,
   register,
   error,
-}: {
+}: Readonly<{
   id: string;
   label: string;
   autoComplete: string;
   register: ReturnType<ReturnType<typeof useForm<PasswordValues>>["register"]>;
   error?: string;
-}) {
+}>) {
   return (
     <div>
       <label htmlFor={id} className="block text-[13px] font-medium text-stone-700 mb-1.5">

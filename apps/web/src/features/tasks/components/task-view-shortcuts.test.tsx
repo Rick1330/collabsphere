@@ -67,7 +67,7 @@ const renderAt = (initial: string) =>
 
 const fireSequence = (keys: string[]) => {
   for (const key of keys) {
-    fireEvent.keyDown(window, { key, bubbles: true, cancelable: true });
+    fireEvent.keyDown(globalThis as unknown as Window, { key, bubbles: true, cancelable: true });
   }
 };
 

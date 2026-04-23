@@ -169,8 +169,6 @@ export const WorkspaceSwitcher = () => {
     );
   }
 
-  const ActiveIcon = TYPE_META[active.type].icon;
-
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>

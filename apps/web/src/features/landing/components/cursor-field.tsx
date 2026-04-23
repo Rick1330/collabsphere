@@ -1,5 +1,5 @@
 import { motion, useReducedMotion, useAnimationControls } from "framer-motion";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 type Easing =
   | "easeInOut"
@@ -80,8 +80,6 @@ const AnimatedCursor = ({ data, seed }: { data: CursorData; seed: number }) => {
     }),
     [data, seed],
   );
-  const [label, setLabel] = useState({ x: initial.x, y: initial.y });
-
   useEffect(() => {
     if (reduced) return;
     alive.current = true;
@@ -128,8 +126,6 @@ const AnimatedCursor = ({ data, seed }: { data: CursorData; seed: number }) => {
           });
         }
         if (!alive.current) return;
-        setLabel({ x: target.x, y: target.y });
-
         // Optional click pulse at destination
         if (Math.random() < data.clickRate) {
           pulse.start({

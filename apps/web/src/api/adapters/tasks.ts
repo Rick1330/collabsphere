@@ -44,10 +44,10 @@ export {
 export type {
   TaskBoardColumn,
   TaskBoardColumnConfig,
-  TaskBoardItem,
   TaskDetail,
   TaskAssignee,
 };
+export type { TaskBoardItem } from "@/features/tasks/mocks/tasks";
 
 /**
  * Synchronous seed data exposed for board/list views that currently boot
