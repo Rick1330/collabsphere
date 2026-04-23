@@ -1,3 +1,16 @@
+import {
+  cloneArgs,
+  createMutationOperationHandler,
+  createPassthroughHandler,
+  createReadOperationHandler,
+  createUniqueReadOperationHandler,
+  isCallable,
+  isRecordLike,
+  resolveRequiredDelegateMethod,
+  type RecordLike,
+  type UnknownFn,
+} from "./prisma-proxy.shared.js";
+
 const WORKSPACE_SCOPED_MODELS = [
   "workspaceMember",
   "workspaceSettings",
@@ -32,9 +45,6 @@ const WORKSPACE_SCOPED_READ_OPERATIONS = [
 
 const WORKSPACE_SCOPED_CLIENT_CONTROLS = ["$withDeleted", "$withHardDeletes"] as const;
 
-type RecordLike = Record<string | symbol, unknown>;
-type UnknownFn = (...args: unknown[]) => unknown;
-
 const WORKSPACE_SCOPED_MODEL_SET = new Set<string>(WORKSPACE_SCOPED_MODELS);
 const WORKSPACE_SCOPED_READ_OPERATION_SET = new Set<string>(WORKSPACE_SCOPED_READ_OPERATIONS);
 const WORKSPACE_SCOPED_CLIENT_CONTROL_SET = new Set<string>(WORKSPACE_SCOPED_CLIENT_CONTROLS);
@@ -48,20 +58,6 @@ export const MISSING_WORKSPACE_SCOPE_ERROR =
 export const CROSS_WORKSPACE_WRITE_ERROR = "Cross-workspace writes are not allowed.";
 export const UNSUPPORTED_WORKSPACE_UPSERT_ERROR =
   "Workspace-scoped upsert is not supported; split it into explicit read/create or read/update flows.";
-
-const isRecordLike = (value: unknown): value is RecordLike =>
-  typeof value === "object" && value !== null;
-
-const isCallable = (value: unknown): value is UnknownFn =>
-  typeof value === "function";
-
-const cloneArgs = (args: unknown): Record<string, unknown> => {
-  if (!isRecordLike(args)) {
-    return {};
-  }
-
-  return { ...(args as Record<string, unknown>) };
-};
 
 const cloneData = (value: unknown) => {
   if (!isRecordLike(value)) {
@@ -262,105 +258,6 @@ const normalizeWorkspaceScopedUpdateArgs = ({
   return nextArgs;
 };
 
-const resolveRequiredDelegateMethod = ({
-  target,
-  receiver,
-  methodName,
-  errorMessage,
-}: {
-  target: object;
-  receiver: object;
-  methodName: string;
-  errorMessage: string;
-}) => {
-  const delegateMethod = Reflect.get(target, methodName, receiver);
-  if (!isCallable(delegateMethod)) {
-    throw new Error(errorMessage);
-  }
-
-  return delegateMethod;
-};
-
-const createPassthroughHandler = ({
-  method,
-  target,
-}: {
-  method: (...args: unknown[]) => unknown;
-  target: object;
-}) =>
-  (...args: unknown[]) =>
-    Reflect.apply(method, target, args);
-
-const createReadOperationHandler = ({
-  method,
-  target,
-  workspaceId,
-}: {
-  method: (...args: unknown[]) => unknown;
-  target: object;
-  workspaceId: string;
-}) =>
-  (args?: unknown) =>
-    Reflect.apply(method, target, [
-      normalizeWorkspaceScopedReadArgs({
-        workspaceId,
-        args,
-      }),
-    ]);
-
-const createUniqueReadOperationHandler = ({
-  target,
-  receiver,
-  methodName,
-  workspaceId,
-}: {
-  target: object;
-  receiver: object;
-  methodName: "findFirst" | "findFirstOrThrow";
-  workspaceId: string;
-}) =>
-  (args?: unknown) =>
-    Reflect.apply(
-      resolveRequiredDelegateMethod({
-        target,
-        receiver,
-        methodName,
-        errorMessage: `Workspace scope proxy requires a ${methodName}() delegate method.`,
-      }),
-      target,
-      [
-        normalizeWorkspaceScopedReadArgs({
-          workspaceId,
-          args,
-        }),
-      ],
-    );
-
-const createMutationOperationHandler = ({
-  target,
-  receiver,
-  methodName,
-  errorMessage,
-  normalizeArgs,
-}: {
-  target: object;
-  receiver: object;
-  methodName: string;
-  errorMessage: string;
-  normalizeArgs: (args: unknown) => Record<string, unknown>;
-}) =>
-  (args?: unknown) =>
-    Reflect.apply(
-      resolveRequiredDelegateMethod({
-        target,
-        receiver,
-        methodName,
-        errorMessage,
-      }),
-      target,
-      [normalizeArgs(args)],
-    );
-
 const createGuardedUniqueMutationHandler = ({
   property,
   target,
@@ -429,7 +326,12 @@ const resolveReadOperationHandler = ({
       target,
       receiver,
       methodName: UNIQUE_READ_OPERATION_MAP[property],
-      workspaceId,
+      errorMessage: `Workspace scope proxy requires a ${UNIQUE_READ_OPERATION_MAP[property]}() delegate method.`,
+      normalizeArgs: (args) =>
+        normalizeWorkspaceScopedReadArgs({
+          workspaceId,
+          args,
+        }),
     });
   }
 
@@ -437,7 +339,11 @@ const resolveReadOperationHandler = ({
     return createReadOperationHandler({
       method: value,
       target,
-      workspaceId,
+      normalizeArgs: (args) =>
+        normalizeWorkspaceScopedReadArgs({
+          workspaceId,
+          args,
+        }),
     });
   }
 
@@ -455,42 +361,23 @@ const resolveWriteOperationHandler = ({
   receiver: object;
   workspaceId: string;
 }) => {
-  if (property === "create") {
-    return createMutationOperationHandler({
-      target,
-      receiver,
-      methodName: "create",
-      errorMessage: "Workspace scope proxy requires a create() delegate method.",
-      normalizeArgs: (args) =>
-        normalizeWorkspaceScopedCreateArgs({
-          workspaceId,
-          args,
-        }),
-    });
-  }
+  const bulkMutationNormalizers = {
+    create: normalizeWorkspaceScopedCreateArgs,
+    createMany: normalizeWorkspaceScopedCreateManyArgs,
+    updateMany: normalizeWorkspaceScopedUpdateManyArgs,
+    deleteMany: normalizeWorkspaceScopedUpdateManyArgs,
+  } as const;
 
-  if (property === "createMany") {
-    return createMutationOperationHandler({
-      target,
-      receiver,
-      methodName: "createMany",
-      errorMessage: "Workspace scope proxy requires a createMany() delegate method.",
-      normalizeArgs: (args) =>
-        normalizeWorkspaceScopedCreateManyArgs({
-          workspaceId,
-          args,
-        }),
-    });
-  }
+  if (property in bulkMutationNormalizers) {
+    const normalizeArgs = bulkMutationNormalizers[property as keyof typeof bulkMutationNormalizers];
 
-  if (property === "updateMany" || property === "deleteMany") {
     return createMutationOperationHandler({
       target,
       receiver,
       methodName: property,
       errorMessage: `Workspace scope proxy requires a ${property}() delegate method.`,
       normalizeArgs: (args) =>
-        normalizeWorkspaceScopedUpdateManyArgs({
+        normalizeArgs({
           workspaceId,
           args,
         }),
