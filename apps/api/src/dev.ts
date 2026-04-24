@@ -10,8 +10,10 @@ import {
   type SuccessResponsePayload,
   wrapSuccessResponse,
 } from "./common/interceptors/response-envelope.interceptor.js";
+import { createPaginatedListPayload } from "./common/interceptors/pagination.interceptor.js";
 import { createLoggerModule } from "./common/logging/logger.module.js";
 import { initializeRequestContext } from "./common/middleware/request-id.middleware.js";
+import { parsePaginationParams } from "./common/pagination/pagination.js";
 import { runWithRequestContext } from "./common/request-context.js";
 import { createHealthModule } from "./health/health.module.js";
 import {
@@ -34,6 +36,11 @@ try {
 }
 
 const { logger } = createLoggerModule();
+
+const paginationFixtureItems = Array.from({ length: 53 }, (_, index) => ({
+  id: `fixture_${String(index + 1).padStart(3, "0")}`,
+  name: `Fixture Item ${index + 1}`,
+}));
 
 const writeJson = (
   response: ServerResponse,
@@ -139,6 +146,23 @@ const server = createServer((request: IncomingMessage, response: ServerResponse)
         response,
         healthResponse.statusCode,
         healthResponse.payload,
+        requestContext.requestId,
+      );
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/v1/pagination/fixtures") {
+      const pagination = parsePaginationParams({
+        page: url.searchParams.get("page"),
+        pageSize: url.searchParams.get("pageSize"),
+      });
+
+      return writeSuccessJson(
+        response,
+        200,
+        createPaginatedListPayload({
+          items: paginationFixtureItems,
+          pagination,
+        }),
         requestContext.requestId,
       );
     }

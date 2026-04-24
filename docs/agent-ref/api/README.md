@@ -33,6 +33,17 @@ Provide a compact, execution-focused index of CollabSphere API references for ag
 - Idempotency via `X-Idempotency-Key` for POST creates.
 - Rate limiting must return `429 RATE_LIMITED` with `Retry-After`.
 
+## Pagination Parameters
+- `page` is 1-based and defaults to `1`.
+- `pageSize` defaults to `25`.
+- Allowed `pageSize` values: `10`, `25`, `50`, `100`.
+- Invalid `page` or `pageSize` values must return `400 VALIDATION_ERROR` before the list query runs.
+
+Example request:
+```http
+GET /api/v1/pagination/fixtures?page=2&pageSize=10
+```
+
 ## Success Envelope Examples
 Single resource:
 ```json
@@ -68,6 +79,32 @@ List resource:
       "totalPages": 1,
       "hasNextPage": false,
       "hasPreviousPage": false
+    }
+  }
+}
+```
+
+Paginated list example:
+```json
+{
+  "data": {
+    "items": [
+      {
+        "id": "fixture_011",
+        "name": "Fixture Item 11"
+      }
+    ],
+    "total": 53
+  },
+  "meta": {
+    "requestId": "req_abc123",
+    "pagination": {
+      "page": 2,
+      "pageSize": 10,
+      "totalItems": 53,
+      "totalPages": 6,
+      "hasNextPage": true,
+      "hasPreviousPage": true
     }
   }
 }
