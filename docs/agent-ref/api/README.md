@@ -85,6 +85,31 @@ Action response:
 }
 ```
 
+## Error Envelope Example
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Validation failed",
+    "details": [
+      {
+        "field": "title",
+        "message": "Title is required",
+        "rule": "isNotEmpty"
+      }
+    ],
+    "requestId": "req_abc123",
+    "timestamp": "2025-07-17T12:00:00Z"
+  }
+}
+```
+
+Error rules:
+- `error.code` must come from the canonical catalog in `docs/spec/12-errors/12.4-error-code-catalog.md`.
+- `error.requestId` must always be present.
+- `error.details` is only for validation failures.
+- Never expose stack traces, SQL text, secrets, or internal identifiers in client responses.
+
 ## Edge Cases / Failure Modes
 - Authenticated non-member workspace access returns `403 NOT_WORKSPACE_MEMBER` consistently.
 - Admin endpoints require global role `ADMIN`.

@@ -14,7 +14,7 @@
     "lint": "pnpm exec eslint . --max-warnings=0",
     "typecheck": "pnpm exec tsc -p packages/shared/tsconfig.json --noEmit && pnpm exec tsc -p packages/ui/tsconfig.json --noEmit && pnpm exec tsc -p packages/database/tsconfig.json --noEmit && pnpm --filter @collabsphere/web run typecheck",
     "test": "pnpm exec turbo run //#test:unit && pnpm exec turbo run //#test:integration --env-mode=loose",
-    "test:unit": "pnpm --filter @collabsphere/web run test:unit && pnpm exec tsx --test --test-concurrency=1 .github/scripts/story-project-gates.test.ts tests/unit/api-bootstrap-env.test.ts tests/unit/api-email-config.test.ts tests/unit/api-response-envelope.test.ts tests/unit/api-soft-delete-prisma.test.ts tests/unit/api-workspace-scope-prisma.test.ts tests/unit/ci-workflow.test.ts tests/unit/collab-worker-bootstrap-env.test.ts tests/unit/integration-fixtures.test.ts tests/unit/shared-env.test.ts tests/unit/shared-prisma-enums.test.ts",
+    "test:unit": "pnpm --filter @collabsphere/web run test:unit && pnpm exec tsx --test --test-concurrency=1 .github/scripts/story-project-gates.test.ts tests/unit/api-bootstrap-env.test.ts tests/unit/api-email-config.test.ts tests/unit/api-error-filter.test.ts tests/unit/api-response-envelope.test.ts tests/unit/api-soft-delete-prisma.test.ts tests/unit/api-workspace-scope-prisma.test.ts tests/unit/ci-workflow.test.ts tests/unit/collab-worker-bootstrap-env.test.ts tests/unit/integration-fixtures.test.ts tests/unit/shared-env.test.ts tests/unit/shared-prisma-enums.test.ts",
     "test:integration": "node --test tests/integration",
     "build": "pnpm exec turbo run build",
     "build:web": "pnpm --filter @collabsphere/web run build",
