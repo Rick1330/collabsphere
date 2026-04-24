@@ -173,7 +173,11 @@ type JsonResponse = {
   body: unknown;
 };
 
-export const getJson = (port: number, pathName = "/") =>
+export const getJson = (
+  port: number,
+  pathName = "/",
+  options: { headers?: http.OutgoingHttpHeaders } = {},
+) =>
   new Promise<JsonResponse>((resolve, reject) => {
     let settled = false;
     const settle = <T>(callback: (value: T) => void) => (value: T) => {
@@ -191,6 +195,7 @@ export const getJson = (port: number, pathName = "/") =>
         host: "127.0.0.1",
         port,
         path: pathName,
+        headers: options.headers,
       },
       (response) => {
         let body = "";

@@ -3,6 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "scripts": {
+    "build": "pnpm exec tsc -p tsconfig.build.json"
+  },
   "exports": {
     ".": "./src/index.ts"
   },

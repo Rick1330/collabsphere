@@ -165,7 +165,11 @@ const getBootstrapHealthResponse = async ({
 
 const withBootstrappedApi = async (
   callback: (context: {
-    request: (pathName?: string) => ReturnType<typeof getJson>;
+    request: (
+      pathName?: string,
+      options?: Parameters<typeof getJson>[2],
+    ) => ReturnType<typeof getJson>;
+    stdout: () => string;
     stderr: () => string;
   }) => Promise<void>,
   {
@@ -190,7 +194,8 @@ const withBootstrappedApi = async (
     const port = Number.parseInt(match[1], 10);
 
     await callback({
-      request: (pathName = "/api/v1/health") => getJson(port, pathName),
+      request: (pathName = "/api/v1/health", options) => getJson(port, pathName, options),
+      stdout: stdoutText,
       stderr: stderrText,
     });
   } finally {
@@ -223,6 +228,13 @@ const getHealthEnvelope = (response: HealthResponse) => {
 
 const getRequestIdHeader = (response: HealthResponse) =>
   typeof response.headers?.["x-request-id"] === "string" ? response.headers["x-request-id"] : null;
+
+const extractStructuredLogEntries = (value: string) =>
+  value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("{"))
+    .map((line) => JSON.parse(line) as Record<string, unknown>);
 
 const assertHealthyBootstrap = async (options = {}) => {
   const { response, stderr } = await getBootstrapHealthResponse(options);
@@ -302,7 +314,7 @@ test("built API bootstrap artifact stays runnable without monorepo source import
 test("unknown bootstrap routes return the canonical error envelope with requestId", async () => {
   await withMockDependencies(async (dependencyEnv) => {
     await withBootstrappedApi(
-      async ({ request }) => {
+      async ({ request, stderr }) => {
         const response = await request("/api/v1/missing");
         const body = response.body as {
           error?: {
@@ -321,6 +333,100 @@ test("unknown bootstrap routes return the canonical error envelope with requestI
         assert.match(body.error.requestId ?? "", /^req_/);
         assert.equal(requestIdHeader, body.error.requestId);
         assert.match(body.error.timestamp ?? "", /^\d{4}-\d{2}-\d{2}T/);
+
+        const logEntries = extractStructuredLogEntries(stderr());
+        const requestLog = logEntries.find((entry) => entry.message === "request_failed");
+
+        assert.ok(requestLog);
+        assert.equal(requestLog.requestId, body.error.requestId);
+        assert.equal(requestLog.method, "GET");
+        assert.equal(requestLog.path, "/api/v1/missing");
+        assert.equal(requestLog.statusCode, 404);
+        assert.equal(requestLog.errorCode, "NOT_FOUND");
+      },
+      {
+        envOverrides: {
+          ...validApiEnv,
+          ...dependencyEnv,
+        },
+      },
+    );
+  });
+});
+
+test("bootstrap preserves valid incoming request IDs", async () => {
+  await withMockDependencies(async (dependencyEnv) => {
+    await withBootstrappedApi(
+      async ({ request }) => {
+        const response = await request("/api/v1/health", {
+          headers: {
+            "x-request-id": "req_client_trace_123",
+          },
+        });
+        const envelope = getHealthEnvelope(response);
+
+        assert.equal(response.statusCode, 200);
+        assert.equal(envelope.meta.requestId, "req_client_trace_123");
+        assert.equal(getRequestIdHeader(response), "req_client_trace_123");
+      },
+      {
+        envOverrides: {
+          ...validApiEnv,
+          ...dependencyEnv,
+        },
+      },
+    );
+  });
+});
+
+test("bootstrap replaces invalid incoming request IDs with generated values", async () => {
+  await withMockDependencies(async (dependencyEnv) => {
+    await withBootstrappedApi(
+      async ({ request }) => {
+        const response = await request("/api/v1/health", {
+          headers: {
+            "x-request-id": "invalid request id",
+          },
+        });
+        const envelope = getHealthEnvelope(response);
+        const requestIdHeader = getRequestIdHeader(response);
+
+        assert.equal(response.statusCode, 200);
+        assert.match(envelope.meta.requestId, /^req_[0-9A-HJKMNP-TV-Z]{26}$/);
+        assert.equal(requestIdHeader, envelope.meta.requestId);
+        assert.notEqual(envelope.meta.requestId, "invalid request id");
+      },
+      {
+        envOverrides: {
+          ...validApiEnv,
+          ...dependencyEnv,
+        },
+      },
+    );
+  });
+});
+
+test("bootstrap emits structured request logs with requestId and request metadata", async () => {
+  await withMockDependencies(async (dependencyEnv) => {
+    await withBootstrappedApi(
+      async ({ request, stdout }) => {
+        const response = await request("/api/v1/health", {
+          headers: {
+            "user-agent": "api-bootstrap-test",
+          },
+        });
+        const envelope = getHealthEnvelope(response);
+        const logEntries = extractStructuredLogEntries(stdout());
+        const requestLog = logEntries.find((entry) => entry.message === "request_completed");
+
+        assert.ok(requestLog);
+        assert.equal(requestLog.requestId, envelope.meta.requestId);
+        assert.equal(requestLog.method, "GET");
+        assert.equal(requestLog.path, "/api/v1/health");
+        assert.equal(requestLog.statusCode, 200);
+        assert.equal(requestLog.userAgent, "api-bootstrap-test");
+        assert.equal(requestLog.ip, "127.0.0.1");
+        assert.equal(typeof requestLog.durationMs, "number");
       },
       {
         envOverrides: {
@@ -375,7 +481,13 @@ test("health endpoint returns 503 quickly when redis probe times out", async () 
     assert.equal(envelope.resource.checks.database.status, "healthy");
     assert.equal(envelope.resource.checks.redis.status, "unhealthy");
     assert.equal(envelope.resource.checks.redis.detail, "REDIS_TIMEOUT");
-    assert.match(stderr, /\[api\] health redis probe timed out after 200ms/);
+    const logEntries = extractStructuredLogEntries(stderr);
+    const requestLog = logEntries.find((entry) => entry.message === "request_failed");
+
+    assert.ok(requestLog);
+    assert.equal(requestLog.requestId, envelope.meta.requestId);
+    assert.equal(requestLog.path, "/api/v1/health");
+    assert.equal(requestLog.statusCode, 503);
     assert.ok(elapsedMs < 2000, `expected timeout response under 2s, got ${elapsedMs}ms`);
   }, createHangingRedisServer);
 });
