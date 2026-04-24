@@ -130,6 +130,21 @@ const sanitizeValidationDetails = (details: ValidationErrorDetail[] | undefined)
     rule: detail.rule,
   }));
 
+const isAlwaysSanitizedServerError = (code: CanonicalErrorCode) =>
+  code === "DATABASE_ERROR" || code === "INTERNAL_ERROR";
+
+const sanitizeValidationPayload = ({
+  message,
+  details,
+}: Pick<ErrorEnvelopePayload, "message" | "details">): SanitizedErrorEnvelopePayload => ({
+  message: containsSensitiveContent(message) ? defaultErrorMessages.VALIDATION_ERROR : message,
+  details: sanitizeValidationDetails(details),
+});
+
+const sanitizeServerErrorPayload = (code: CanonicalErrorCode): SanitizedErrorEnvelopePayload => ({
+  message: getDefaultErrorMessage(code),
+});
+
 export const getDefaultErrorMessage = (code: CanonicalErrorCode) => defaultErrorMessages[code];
 
 export const sanitizeErrorEnvelopePayload = ({
@@ -137,19 +152,19 @@ export const sanitizeErrorEnvelopePayload = ({
   message,
   details,
 }: ErrorEnvelopePayload): SanitizedErrorEnvelopePayload => {
-  const defaultMessage = getDefaultErrorMessage(code);
-
   if (code === "VALIDATION_ERROR") {
-    return {
-      message: containsSensitiveContent(message) ? defaultMessage : message,
-      details: sanitizeValidationDetails(details),
-    };
+    return sanitizeValidationPayload({
+      message,
+      details,
+    });
   }
 
-  if (code === "DATABASE_ERROR" || code === "INTERNAL_ERROR" || containsSensitiveContent(message)) {
-    return {
-      message: defaultMessage,
-    };
+  if (isAlwaysSanitizedServerError(code)) {
+    return sanitizeServerErrorPayload(code);
+  }
+
+  if (containsSensitiveContent(message)) {
+    return sanitizeServerErrorPayload(code);
   }
 
   return {
