@@ -131,6 +131,9 @@ const server = createServer((request: IncomingMessage, response: ServerResponse)
       logger.logRequestLifecycle({
         statusCode: healthResponse.statusCode,
         durationMs: getDurationMs(),
+        ...(healthResponse.statusCode >= 400
+          ? { errorCode: "SERVICE_UNAVAILABLE" as const }
+          : {}),
       });
       return writeSuccessJson(
         response,

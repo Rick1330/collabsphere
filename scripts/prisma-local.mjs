@@ -7,34 +7,53 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const databasePackageRoot = resolve(repoRoot, "packages", "database");
 const defaultSchemaPath = resolve(databasePackageRoot, "prisma", "schema.prisma");
 
+const isBlankOrComment = (line) => line.length === 0 || line.startsWith("#");
+
+const isValidEnvKey = (value) => /^[A-Za-z_]\w*$/u.test(value);
+
+const unwrapQuotedValue = (value) => {
+  if (value.length < 2) {
+    return value;
+  }
+
+  const quote = value.at(0);
+  if ((quote !== '"' && quote !== "'") || value.at(-1) !== quote) {
+    return value;
+  }
+
+  return value.slice(1, -1);
+};
+
+const parseEnvAssignment = (line) => {
+  const separatorIndex = line.indexOf("=");
+  if (separatorIndex <= 0) {
+    return null;
+  }
+
+  const key = line.slice(0, separatorIndex).trim();
+  if (!isValidEnvKey(key)) {
+    return null;
+  }
+
+  return [key, unwrapQuotedValue(line.slice(separatorIndex + 1))];
+};
+
 const parseEnvFile = (filePath) => {
   const parsed = {};
   const lines = readFileSync(filePath, "utf8").split(/\r?\n/u);
 
   for (const line of lines) {
     const trimmed = line.trim();
-    if (trimmed.length === 0 || trimmed.startsWith("#")) {
+    if (isBlankOrComment(trimmed)) {
       continue;
     }
 
-    const separatorIndex = trimmed.indexOf("=");
-    if (separatorIndex <= 0) {
+    const entry = parseEnvAssignment(trimmed);
+    if (!entry) {
       continue;
     }
 
-    const key = trimmed.slice(0, separatorIndex).trim();
-    if (!/^[A-Za-z_][A-Za-z0-9_]*$/u.test(key)) {
-      continue;
-    }
-
-    let value = trimmed.slice(separatorIndex + 1);
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-
+    const [key, value] = entry;
     parsed[key] = value;
   }
 

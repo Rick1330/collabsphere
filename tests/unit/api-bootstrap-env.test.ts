@@ -117,7 +117,11 @@ const withOccupiedPort = async (callback: (port: number) => Promise<void>) => {
 
 const withMockDependencies = async (
   callback: (dependencyEnv: { DATABASE_URL: string; REDIS_URL: string }) => Promise<void>,
-  createRedisServer = createMockRedisServer,
+  {
+    createRedisServer = createMockRedisServer,
+  }: {
+    createRedisServer?: typeof createMockRedisServer;
+  } = {},
 ) => {
   const postgres = await createMockPostgresServer();
   const redis = await createRedisServer();
@@ -441,7 +445,7 @@ test("bootstrap emits structured request logs with requestId and request metadat
 test("health endpoint returns 503 when redis dependency check fails", async () => {
   await withMockDependencies(async (dependencyEnv) => {
     await withOccupiedPort(async (occupiedPort) => {
-      const { response } = await getBootstrapHealthResponse({
+      const { response, stderr } = await getBootstrapHealthResponse({
         envOverrides: {
           ...validApiEnv,
           ...dependencyEnv,
@@ -458,6 +462,15 @@ test("health endpoint returns 503 when redis dependency check fails", async () =
       assert.equal(envelope.resource.checks.redis.status, "unhealthy");
       assert.match(envelope.meta.requestId, /^req_/);
       assert.equal(requestIdHeader, envelope.meta.requestId);
+
+      const logEntries = extractStructuredLogEntries(stderr);
+      const requestLog = logEntries.find((entry) => entry.message === "request_failed");
+
+      assert.ok(requestLog);
+      assert.equal(requestLog.requestId, envelope.meta.requestId);
+      assert.equal(requestLog.path, "/api/v1/health");
+      assert.equal(requestLog.statusCode, 503);
+      assert.equal(requestLog.errorCode, "SERVICE_UNAVAILABLE");
     });
   });
 });
@@ -488,6 +501,7 @@ test("health endpoint returns 503 quickly when redis probe times out", async () 
     assert.equal(requestLog.requestId, envelope.meta.requestId);
     assert.equal(requestLog.path, "/api/v1/health");
     assert.equal(requestLog.statusCode, 503);
+    assert.equal(requestLog.errorCode, "SERVICE_UNAVAILABLE");
     assert.ok(elapsedMs < 2000, `expected timeout response under 2s, got ${elapsedMs}ms`);
-  }, createHangingRedisServer);
+  }, { createRedisServer: createHangingRedisServer });
 });
