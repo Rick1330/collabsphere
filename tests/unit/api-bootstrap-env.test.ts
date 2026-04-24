@@ -163,6 +163,41 @@ const getBootstrapHealthResponse = async ({
   }
 };
 
+const withBootstrappedApi = async (
+  callback: (context: {
+    request: (pathName?: string) => ReturnType<typeof getJson>;
+    stderr: () => string;
+  }) => Promise<void>,
+  {
+    spawn = spawnApi,
+    envOverrides = validApiEnv,
+  }: {
+    spawn?: (envOverrides: NodeJS.ProcessEnv) => ReturnType<typeof spawnBootstrap>;
+    envOverrides?: NodeJS.ProcessEnv;
+  } = {},
+) => {
+  const child = spawn(envOverrides);
+  const stdoutText = collectStream(child.stdout);
+  const stderrText = collectStream(child.stderr);
+
+  try {
+    const match = await waitForStdoutMatch(
+      child,
+      stdoutText,
+      /bootstrap listening on http:\/\/[^:]+:(\d+)\/api\/v1\/health/,
+      "API bootstrap readiness",
+    );
+    const port = Number.parseInt(match[1], 10);
+
+    await callback({
+      request: (pathName = "/api/v1/health") => getJson(port, pathName),
+      stderr: stderrText,
+    });
+  } finally {
+    await stopChild(child);
+  }
+};
+
 const getHealthEnvelope = (response: HealthResponse) => {
   const body = response.body as {
     data?: {
@@ -261,6 +296,39 @@ test("built API bootstrap artifact stays runnable without monorepo source import
         ...dependencyEnv,
       },
     });
+  });
+});
+
+test("unknown bootstrap routes return the canonical error envelope with requestId", async () => {
+  await withMockDependencies(async (dependencyEnv) => {
+    await withBootstrappedApi(
+      async ({ request }) => {
+        const response = await request("/api/v1/missing");
+        const body = response.body as {
+          error?: {
+            code?: string;
+            message?: string;
+            requestId?: string;
+            timestamp?: string;
+          };
+        };
+        const requestIdHeader = getRequestIdHeader(response);
+
+        assert.equal(response.statusCode, 404);
+        assert.ok(body.error);
+        assert.equal(body.error.code, "NOT_FOUND");
+        assert.equal(body.error.message, "No bootstrap route for GET /api/v1/missing");
+        assert.match(body.error.requestId ?? "", /^req_/);
+        assert.equal(requestIdHeader, body.error.requestId);
+        assert.match(body.error.timestamp ?? "", /^\d{4}-\d{2}-\d{2}T/);
+      },
+      {
+        envOverrides: {
+          ...validApiEnv,
+          ...dependencyEnv,
+        },
+      },
+    );
   });
 });
 

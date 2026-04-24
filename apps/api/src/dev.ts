@@ -3,6 +3,12 @@ import { randomUUID } from "node:crypto";
 import { EnvValidationError, parseApiRuntimeEnv } from "../../../packages/shared/src/api-env.js";
 import { resolveEmailConfig } from "./config/email.js";
 import {
+  AppError,
+  createErrorResponse,
+  logApiError,
+  ValidationAppError,
+} from "./common/filters/app-error.filter.js";
+import {
   type SuccessResponsePayload,
   wrapSuccessResponse,
 } from "./common/interceptors/response-envelope.interceptor.js";
@@ -60,6 +66,18 @@ const writeSuccessJson = (
     requestId,
   );
 
+const writeErrorJson = (response: ServerResponse, error: unknown, requestId: string) => {
+  const { statusCode, payload, normalizedError } = createErrorResponse({
+    error,
+    requestId,
+  });
+  logApiError({
+    requestId,
+    normalizedError,
+  });
+  return writeJson(response, statusCode, payload, requestId);
+};
+
 const createRequestId = () => `req_${randomUUID()}`;
 const { healthController } = createHealthModule({
   databaseUrl: apiEnv.DATABASE_URL,
@@ -74,18 +92,20 @@ const server = createServer((request: IncomingMessage, response: ServerResponse)
 
     try {
       url = new URL(request.url ?? "/", "http://bootstrap");
-    } catch {
-      return writeJson(
+    } catch (error) {
+      return writeErrorJson(
         response,
-        400,
-        {
-          error: {
-            code: "VALIDATION_ERROR",
-            message: "Invalid request URL",
-            requestId,
-            timestamp: new Date().toISOString()
-          }
-        },
+        new ValidationAppError({
+          message: "Invalid request URL",
+          issues: [
+            {
+              field: "url",
+              message: "Invalid request URL",
+              rule: "isUrl",
+            },
+          ],
+          cause: error,
+        }),
         requestId,
       );
     }
@@ -95,36 +115,16 @@ const server = createServer((request: IncomingMessage, response: ServerResponse)
       return writeSuccessJson(response, healthResponse.statusCode, healthResponse.payload, requestId);
     }
 
-    return writeJson(
+    return writeErrorJson(
       response,
-      404,
-      {
-        error: {
-          code: "NOT_FOUND",
-          message: `No bootstrap route for ${request.method} ${url.pathname}`,
-          requestId,
-          timestamp: new Date().toISOString()
-        }
-      },
+      new AppError({
+        code: "NOT_FOUND",
+        message: `No bootstrap route for ${request.method} ${url.pathname}`,
+      }),
       requestId,
     );
   })().catch((error: unknown) => {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error(`[api] bootstrap request failed (${requestId}): ${message}`);
-
-    writeJson(
-      response,
-      500,
-      {
-        error: {
-          code: "INTERNAL_ERROR",
-          message: "Unexpected server error",
-          requestId,
-          timestamp: new Date().toISOString(),
-        },
-      },
-      requestId,
-    );
+    writeErrorJson(response, error, requestId);
   });
 });
 
