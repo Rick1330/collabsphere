@@ -60,7 +60,7 @@ test("shared canonical enums stay aligned with the Prisma mirror arrays", () => 
   assert.deepEqual(Object.values(ResourceTypeEnum), RESOURCE_TYPES);
 });
 
-test("shared role levels and canonical error-code exports match the spec contracts", () => {
+test("shared role levels stay aligned with the permission-enforcement contract", () => {
   assert.deepEqual(ROLE_LEVELS, {
     VIEWER: 1,
     MEMBER: 2,
@@ -68,7 +68,9 @@ test("shared role levels and canonical error-code exports match the spec contrac
     ADMIN: 4,
     OWNER: 5,
   });
+});
 
+test("shared validation and authentication error-code catalogs stay canonical", () => {
   assert.deepEqual(VALIDATION_ERROR_CODES, [
     "VALIDATION_ERROR",
     "INVALID_EMAIL",
@@ -101,7 +103,9 @@ test("shared role levels and canonical error-code exports match the spec contrac
     "OAUTH_INVALID_CALLBACK",
     "OAUTH_STATE_MISMATCH",
   ]);
+});
 
+test("shared authorization, not-found, and conflict error-code catalogs stay canonical", () => {
   assert.deepEqual(AUTHORIZATION_ERROR_CODES, [
     "FORBIDDEN",
     "NOT_WORKSPACE_MEMBER",
@@ -148,7 +152,9 @@ test("shared role levels and canonical error-code exports match the spec contrac
   ]);
 
   assert.deepEqual(RATE_LIMIT_ERROR_CODES, ["RATE_LIMITED"]);
+});
 
+test("shared workflow and dependency error-code catalogs stay canonical", () => {
   assert.deepEqual(WORKFLOW_ERROR_CODES, [
     "INVALID_TRANSITION",
     "INVALID_STATUS",
@@ -187,7 +193,9 @@ test("shared role levels and canonical error-code exports match the spec contrac
     "TEMPLATE_APPLICATION_FAILED",
     "EXPORT_FAILED",
   ]);
+});
 
+test("shared aggregate error-code export stays aligned with the category catalogs", () => {
   assert.deepEqual(ERROR_CODES, [
     "VALIDATION_ERROR",
     "INVALID_EMAIL",

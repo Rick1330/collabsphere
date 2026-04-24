@@ -16,8 +16,23 @@ const randomUint32 = () => {
 
 export const randomFraction = () => randomUint32() / 0x1_0000_0000;
 
+const assertFiniteNumber = (value: number, label: string) => {
+  if (!Number.isFinite(value)) {
+    throw new Error(`Invalid secure random ${label}.`);
+  }
+};
+
+const assertIntegerNumber = (value: number, label: string) => {
+  if (!Number.isInteger(value)) {
+    throw new Error(`Invalid secure random ${label}.`);
+  }
+};
+
 export const randomInRange = (min: number, max: number) => {
-  if (!Number.isFinite(min) || !Number.isFinite(max) || max < min) {
+  assertFiniteNumber(min, "range minimum");
+  assertFiniteNumber(max, "range maximum");
+
+  if (max < min) {
     throw new Error("Invalid secure random range.");
   }
 
@@ -25,7 +40,10 @@ export const randomInRange = (min: number, max: number) => {
 };
 
 export const randomInt = (minInclusive: number, maxExclusive: number) => {
-  if (!Number.isInteger(minInclusive) || !Number.isInteger(maxExclusive) || maxExclusive <= minInclusive) {
+  assertIntegerNumber(minInclusive, "integer range minimum");
+  assertIntegerNumber(maxExclusive, "integer range maximum");
+
+  if (maxExclusive <= minInclusive) {
     throw new Error("Invalid secure random integer range.");
   }
 

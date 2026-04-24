@@ -367,6 +367,7 @@ Before opening a schema PR:
 - `unit-tests`
 - `integration-tests`
 - `build-web`
+- `build-shared`
 - `build-api`
 - `build-collab`
 - `build-worker`
