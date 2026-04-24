@@ -14,7 +14,7 @@ type SanitizedErrorEnvelopePayload = {
 
 const sqlPattern =
   /\b(select|insert|update|delete|drop|alter|create|truncate)\b[\s\S]*\b(from|into|table|values|set)\b/i;
-const prismaPattern = /\bprisma(client)?\b/i;
+const prismaPattern = /\bprisma(?:client)?\w*\b/i;
 const secretPattern = /\b(password|secret|token|api[_-]?key|authorization)\b/i;
 const internalIdPattern =
   /\b(?:[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|(?:user|workspace|document|task|file|member|invitation|export)_\w+)\b/i;

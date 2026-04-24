@@ -4,8 +4,8 @@ import {
   AppError,
   createErrorResponse,
   ValidationAppError,
-} from "../../apps/api/src/common/filters/app-error.filter.ts";
-import { createValidationErrorDetails } from "../../apps/api/src/common/errors/validation-errors.ts";
+} from "../../apps/api/src/common/filters/app-error.filter.js";
+import { createValidationErrorDetails } from "../../apps/api/src/common/errors/validation-errors.js";
 
 test("validation issues are normalized to canonical detail objects", () => {
   assert.deepEqual(
