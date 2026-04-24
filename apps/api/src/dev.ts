@@ -103,80 +103,123 @@ const { healthController } = createHealthModule({
   redisUrl: apiEnv.REDIS_URL,
 });
 
+const createInvalidUrlError = (error: unknown) =>
+  new ValidationAppError({
+    message: "Invalid request URL",
+    issues: [
+      {
+        field: "url",
+        message: "Invalid request URL",
+        rule: "isUrl",
+      },
+    ],
+    cause: error,
+  });
+
+const parseRequestUrl = (request: IncomingMessage) => {
+  try {
+    return new URL(request.url ?? "/", "http://bootstrap");
+  } catch (error) {
+    throw createInvalidUrlError(error);
+  }
+};
+
+const handleHealthRequest = async ({
+  response,
+  requestId,
+  getDurationMs,
+}: {
+  response: ServerResponse;
+  requestId: string;
+  getDurationMs: () => number;
+}) => {
+  const healthResponse = await healthController.getHealth();
+  logger.logRequestLifecycle({
+    statusCode: healthResponse.statusCode,
+    durationMs: getDurationMs(),
+    ...(healthResponse.statusCode >= 400 ? { errorCode: "SERVICE_UNAVAILABLE" as const } : {}),
+  });
+  return writeSuccessJson(response, healthResponse.statusCode, healthResponse.payload, requestId);
+};
+
+const handlePaginationFixturesRequest = ({
+  response,
+  requestId,
+  url,
+}: {
+  response: ServerResponse;
+  requestId: string;
+  url: URL;
+}) => {
+  const pagination = parsePaginationParams({
+    page: url.searchParams.get("page"),
+    pageSize: url.searchParams.get("pageSize"),
+  });
+
+  return writeSuccessJson(
+    response,
+    200,
+    createPaginatedListPayload({
+      items: paginationFixtureItems,
+      pagination,
+    }),
+    requestId,
+  );
+};
+
+const handleRequest = async ({
+  request,
+  response,
+  requestId,
+  getDurationMs,
+}: {
+  request: IncomingMessage;
+  response: ServerResponse;
+  requestId: string;
+  getDurationMs: () => number;
+}) => {
+  const url = parseRequestUrl(request);
+
+  if (request.method === "GET" && url.pathname === "/api/v1/health") {
+    return handleHealthRequest({
+      response,
+      requestId,
+      getDurationMs,
+    });
+  }
+
+  if (request.method === "GET" && url.pathname === "/api/v1/pagination/fixtures") {
+    return handlePaginationFixturesRequest({
+      response,
+      requestId,
+      url,
+    });
+  }
+
+  return writeErrorJson({
+    response,
+    error: new AppError({
+      code: "NOT_FOUND",
+      message: `No bootstrap route for ${request.method} ${url.pathname}`,
+    }),
+    requestId,
+    durationMs: getDurationMs(),
+  });
+};
+
 const server = createServer((request: IncomingMessage, response: ServerResponse) => {
   const requestContext = initializeRequestContext(request, response);
   const startedAt = Date.now();
-
   const getDurationMs = () => Date.now() - startedAt;
 
-  const requestTask = runWithRequestContext(requestContext, async () => {
-    let url;
-
-    try {
-      url = new URL(request.url ?? "/", "http://bootstrap");
-    } catch (error) {
-      return writeErrorJson({
-        response,
-        error: new ValidationAppError({
-          message: "Invalid request URL",
-          issues: [
-            {
-              field: "url",
-              message: "Invalid request URL",
-              rule: "isUrl",
-            },
-          ],
-          cause: error,
-        }),
-        requestId: requestContext.requestId,
-        durationMs: getDurationMs(),
-      });
-    }
-
-    if (request.method === "GET" && url.pathname === "/api/v1/health") {
-      const healthResponse = await healthController.getHealth();
-      logger.logRequestLifecycle({
-        statusCode: healthResponse.statusCode,
-        durationMs: getDurationMs(),
-        ...(healthResponse.statusCode >= 400
-          ? { errorCode: "SERVICE_UNAVAILABLE" as const }
-          : {}),
-      });
-      return writeSuccessJson(
-        response,
-        healthResponse.statusCode,
-        healthResponse.payload,
-        requestContext.requestId,
-      );
-    }
-
-    if (request.method === "GET" && url.pathname === "/api/v1/pagination/fixtures") {
-      const pagination = parsePaginationParams({
-        page: url.searchParams.get("page"),
-        pageSize: url.searchParams.get("pageSize"),
-      });
-
-      return writeSuccessJson(
-        response,
-        200,
-        createPaginatedListPayload({
-          items: paginationFixtureItems,
-          pagination,
-        }),
-        requestContext.requestId,
-      );
-    }
-
-    return writeErrorJson({
+  const requestTask = runWithRequestContext(requestContext, () =>
+    handleRequest({
+      request,
       response,
-      error: new AppError({
-        code: "NOT_FOUND",
-        message: `No bootstrap route for ${request.method} ${url.pathname}`,
-      }),
       requestId: requestContext.requestId,
-      durationMs: getDurationMs(),
-    });
-  });
+      getDurationMs,
+    }),
+  );
 
   void requestTask.catch((error: unknown) => {
     runWithRequestContext(requestContext, () => {
