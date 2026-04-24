@@ -48,7 +48,7 @@ const normalizePath = (value: string | undefined) => {
   }
 
   try {
-    const parsed = new URL(value, "http://bootstrap");
+    const parsed = new URL(value, "https://request-id.invalid");
     return `${parsed.pathname}${parsed.search}`;
   } catch {
     return value;

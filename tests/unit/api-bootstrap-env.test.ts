@@ -198,7 +198,7 @@ const withBootstrappedApi = async (
     const port = Number.parseInt(match[1], 10);
 
     await callback({
-      request: (pathName = "/api/v1/health", options) => getJson(port, pathName, options),
+      request: (pathName, options) => getJson(port, pathName ?? "/api/v1/health", options),
       stdout: stdoutText,
       stderr: stderrText,
     });

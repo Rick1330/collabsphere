@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const databasePackageRoot = resolve(repoRoot, "packages", "database");
 const defaultSchemaPath = resolve(databasePackageRoot, "prisma", "schema.prisma");
+const pnpmCliPath = process.env.npm_execpath;
 
 const isBlankOrComment = (line) => line.length === 0 || line.startsWith("#");
 
@@ -125,10 +126,14 @@ if (useDryRunCompat) {
 }
 
 const prismaArgs = useDryRunCompat ? buildDryRunCompatArgs(rawArgs) : rawArgs;
-const result = spawnSync("pnpm", ["exec", "prisma", ...prismaArgs], {
+
+if (!pnpmCliPath) {
+  throw new Error("Unable to resolve pnpm CLI path from npm_execpath.");
+}
+
+const result = spawnSync(process.execPath, [pnpmCliPath, "exec", "prisma", ...prismaArgs], {
   cwd: databasePackageRoot,
   env: loadLocalEnv(),
-  shell: process.platform === "win32",
   stdio: "inherit",
 });
 
