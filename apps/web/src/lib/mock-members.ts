@@ -3,6 +3,7 @@
 // types so role labels, identities, and avatars stay consistent.
 
 import { getWorkspaceRoleLabel, type WorkspaceTypeForLabels } from "@/lib/role-labels";
+import { createOpaqueId } from "@/lib/secure-random";
 
 export type WorkspaceRole = "OWNER" | "ADMIN" | "MANAGER" | "MEMBER" | "VIEWER";
 
@@ -450,7 +451,7 @@ const wait = (ms = 240) => new Promise((res) => setTimeout(res, ms));
 function makeError(code: string, message: string): ApiError {
   const err = new Error(message) as ApiError;
   err.code = code;
-  err.requestId = `req_${Math.random().toString(36).slice(2, 10)}`;
+  err.requestId = createOpaqueId("req_");
   return err;
 }
 

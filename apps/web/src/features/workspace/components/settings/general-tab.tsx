@@ -46,10 +46,10 @@ export const GeneralTab = ({ workspaceId, workspace, onSaved }: GeneralTabProps)
   const onSubmit = async (values: GeneralValues) => {
     try {
       await new Promise((r) => setTimeout(r, 400));
-      const stored = workspaceStore.getById(workspaceId);
+      const stored = workspaceStore.getById({ workspaceId });
       if (stored) {
         // mutate via store API: re-create with new fields
-        workspaceStore.remove(workspaceId);
+        workspaceStore.remove({ workspaceId });
         workspaceStore.create({
           id: workspaceId,
           name: values.name.trim(),

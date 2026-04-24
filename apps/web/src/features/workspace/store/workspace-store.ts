@@ -21,19 +21,65 @@ export interface StoredWorkspace {
   lastAccessedAt: string;
 }
 
+interface WorkspaceIdentifier {
+  workspaceId: string;
+}
+
+interface CreateStoredWorkspaceInput
+  extends Omit<StoredWorkspace, "id" | "createdAt" | "lastAccessedAt" | "status" | "roleLabel"> {
+  id?: string;
+  roleLabel?: string;
+}
+
+interface WorkspaceStatusUpdate extends WorkspaceIdentifier {
+  status: StoredWorkspaceStatus;
+}
+
 const STORAGE_KEY = "collabsphere.workspaces.v1";
 
 const listeners = new Set<() => void>();
 
 const isBrowser = typeof window !== "undefined";
 
-const slugify = (name: string) =>
-  name
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 40) || "workspace";
+const isSlugCharacter = ({ character }: { character: string }) =>
+  (character >= "a" && character <= "z") || (character >= "0" && character <= "9");
+
+const trimTrailingDashes = ({ value }: { value: string }) => {
+  let end = value.length;
+
+  while (end > 0 && value[end - 1] === "-") {
+    end -= 1;
+  }
+
+  return value.slice(0, end);
+};
+
+const slugify = ({ name }: { name: string }) => {
+  const normalized = name.toLowerCase().trim();
+  let slug = "";
+  let previousWasDash = false;
+
+  for (const character of normalized) {
+    if (slug.length >= 40) {
+      break;
+    }
+
+    if (isSlugCharacter({ character })) {
+      slug += character;
+      previousWasDash = false;
+      continue;
+    }
+
+    if (slug.length === 0 || previousWasDash) {
+      continue;
+    }
+
+    slug += "-";
+    previousWasDash = true;
+  }
+
+  return trimTrailingDashes({ value: slug }) || "workspace";
+};
 
 const read = (): StoredWorkspace[] => {
   if (!isBrowser) return [];
@@ -76,15 +122,12 @@ export const workspaceStore = {
   getAll(): StoredWorkspace[] {
     return cache;
   },
-  getById(id: string): StoredWorkspace | undefined {
-    return cache.find((w) => w.id === id);
+  getById({ workspaceId }: WorkspaceIdentifier): StoredWorkspace | undefined {
+    return cache.find((workspace) => workspace.id === workspaceId);
   },
-  create(input: Omit<StoredWorkspace, "id" | "createdAt" | "lastAccessedAt" | "status" | "roleLabel"> & {
-    id?: string;
-    roleLabel?: string;
-  }): StoredWorkspace {
-    const baseSlug = input.id || slugify(input.name);
-    const existing = new Set(cache.map((w) => w.id));
+  create(input: CreateStoredWorkspaceInput): StoredWorkspace {
+    const baseSlug = input.id || slugify({ name: input.name });
+    const existing = new Set(cache.map((workspace) => workspace.id));
     let id = baseSlug;
     let n = 2;
     while (existing.has(id)) {
@@ -108,22 +151,22 @@ export const workspaceStore = {
     write(cache);
     return ws;
   },
-  touch(id: string) {
-    const idx = cache.findIndex((w) => w.id === id);
+  touch({ workspaceId }: WorkspaceIdentifier) {
+    const idx = cache.findIndex((workspace) => workspace.id === workspaceId);
     if (idx === -1) return;
     cache = [...cache];
     cache[idx] = { ...cache[idx], lastAccessedAt: new Date().toISOString() };
     write(cache);
   },
-  setStatus(id: string, status: StoredWorkspaceStatus) {
-    const idx = cache.findIndex((w) => w.id === id);
+  setStatus({ workspaceId, status }: WorkspaceStatusUpdate) {
+    const idx = cache.findIndex((workspace) => workspace.id === workspaceId);
     if (idx === -1) return;
     cache = [...cache];
     cache[idx] = { ...cache[idx], status };
     write(cache);
   },
-  remove(id: string) {
-    cache = cache.filter((w) => w.id !== id);
+  remove({ workspaceId }: WorkspaceIdentifier) {
+    cache = cache.filter((workspace) => workspace.id !== workspaceId);
     write(cache);
   },
   subscribe(listener: () => void): () => void {

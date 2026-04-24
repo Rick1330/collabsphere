@@ -151,7 +151,7 @@ export const WorkspaceSwitcher = () => {
   }, [filtered]);
 
   const handlePick = (w: WSItem) => {
-    workspaceStore.touch(w.id);
+    workspaceStore.touch({ workspaceId: w.id });
     setOpen(false);
     setQuery("");
     navigate(`/w/${w.id}`);

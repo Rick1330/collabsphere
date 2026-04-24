@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { createOpaqueId } from "@/lib/secure-random";
 import { workspaceStore } from "@/features/workspace/store/workspace-store";
 import {
   WORKSPACE_TEMPLATES,
@@ -71,7 +72,7 @@ export const CreateWorkspaceWizard = () => {
   const idempotencyKeyRef = useRef<string>(
     typeof crypto !== "undefined" && "randomUUID" in crypto
       ? crypto.randomUUID()
-      : Math.random().toString(36),
+      : createOpaqueId("idem_"),
   );
 
   const goNext = () =>

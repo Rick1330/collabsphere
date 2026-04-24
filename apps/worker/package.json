@@ -3,6 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "dependencies": {
+    "@collabsphere/shared": "workspace:*"
+  },
   "scripts": {
     "dev": "tsx watch src/dev.ts",
     "build": "pnpm exec tsc -p tsconfig.json && tsx ../../scripts/build-bootstrap-app.ts ."

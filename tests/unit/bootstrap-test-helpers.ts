@@ -9,6 +9,12 @@ import type { Readable } from "node:stream";
 export const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const tsxCli = path.join(repoRoot, "node_modules", "tsx", "dist", "cli.mjs");
 const tscCli = path.join(repoRoot, "node_modules", "typescript", "bin", "tsc");
+const packageManagerCli = process.env.npm_execpath
+  ? path.isAbsolute(process.env.npm_execpath)
+    ? process.env.npm_execpath
+    : path.resolve(repoRoot, process.env.npm_execpath)
+  : null;
+let prismaClientGenerated = false;
 
 export const collectStream = (stream: Readable) => {
   let value = "";
@@ -251,6 +257,19 @@ export const spawnBootstrap = ({ entryPath, cwd, envOverrides }: SpawnBootstrapO
 };
 
 export const runTsc = (projectPath: string) => {
+  if (!prismaClientGenerated) {
+    assert.ok(
+      packageManagerCli,
+      "npm_execpath is required to generate the Prisma client during isolated compile tests.",
+    );
+
+    execFileSync(process.execPath, [packageManagerCli, "--filter", "@collabsphere/database", "run", "generate"], {
+      cwd: repoRoot,
+      stdio: "inherit",
+    });
+    prismaClientGenerated = true;
+  }
+
   execFileSync(process.execPath, [tscCli, "-p", projectPath], {
     cwd: repoRoot,
     stdio: "inherit",

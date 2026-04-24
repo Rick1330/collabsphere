@@ -47,7 +47,6 @@ const compileSharedEnvModule = () => {
       tempBuildDir,
       path.join("packages", "shared", "src", "env.schema.ts"),
       path.join("packages", "shared", "src", "env.ts"),
-      path.join("packages", "shared", "src", "index.ts"),
       path.join("packages", "shared", "src", "api-env.ts"),
       path.join("packages", "shared", "src", "runtime-env.ts"),
       path.join("packages", "shared", "src", "env-core.ts"),

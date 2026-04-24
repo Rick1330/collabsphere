@@ -17,6 +17,9 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "paths": {
+      "@collabsphere/shared": [
+        "../../packages/shared/src/index.ts"
+      ],
       "@/*": [
         "./src/*"
       ]

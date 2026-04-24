@@ -175,6 +175,10 @@ Examples:
 - Canonical persistence enums must match `docs/spec/08-data-model/08.2-enums.md` exactly.
 - Prisma enum definitions in `packages/database/prisma/schema.prisma` are the source of truth for persistence-level enum values.
 - Shared app-facing enum types and runtime lists live in `packages/shared/src/enums/prisma.ts`.
+- Canonical shared TypeScript enums live in `packages/shared/src/enums/canonical-enums.ts`.
+- Canonical shared constants live in `packages/shared/src/constants/canonical-constants.ts`.
+- Shared Prisma model types are re-exported from `packages/shared/src/types/prisma.ts` using `Prisma*` aliases; do not import Prisma client types directly from app packages.
+- Import shared cross-app contracts from `@collabsphere/shared` instead of redeclaring enums, role levels, or error-code catalogs inside individual apps.
 - `notification_type` remains a string key and must not be converted into a Prisma enum.
 - Do not introduce non-canonical enums without first updating the spec and agent-ref data contracts.
 
@@ -296,6 +300,7 @@ Re-run `pnpm review:coderabbit` after meaningful code changes from review feedba
 Use the task or story issue as the primary validation source. Common commands include:
 
 ```bash
+pnpm --filter @collabsphere/shared run build
 pnpm lint
 pnpm typecheck
 pnpm test
@@ -362,6 +367,7 @@ Before opening a schema PR:
 - `unit-tests`
 - `integration-tests`
 - `build-web`
+- `build-shared`
 - `build-api`
 - `build-collab`
 - `build-worker`
@@ -371,13 +377,14 @@ Before opening a schema PR:
 
 Current CI workflow surface:
 
-- `.github/workflows/ci.yml` emits the `lint`, `typecheck`, `unit-tests`, `integration-tests`, `build-web`, `build-api`, `build-collab`, and `build-worker` checks
+- `.github/workflows/ci.yml` emits the `lint`, `typecheck`, `unit-tests`, `integration-tests`, `build-web`, `build-shared`, `build-api`, `build-collab`, and `build-worker` checks
 - `.github/workflows/handoff-check.yml`, `.github/workflows/pr-status-sync.yml`, and `.github/workflows/review-router.yml` emit the repo-owned gate checks `validate`, `sync`, and `route`
 - `.github/workflows/queue-manifest-validate.yml` is path-scoped to queue-manifest surfaces and is not a universal required check for ordinary delivery PRs
 
 Local parity commands for the main CI jobs:
 
 ```bash
+pnpm --filter @collabsphere/shared run build
 pnpm lint
 pnpm typecheck
 pnpm test:unit

@@ -111,8 +111,8 @@ const WorkspaceHomePage = () => {
   }, [workspace.name]);
 
   useEffect(() => {
-    if (workspaceId && workspaceStore.getById(workspaceId)) {
-      workspaceStore.touch(workspaceId);
+    if (workspaceId && workspaceStore.getById({ workspaceId })) {
+      workspaceStore.touch({ workspaceId });
     }
   }, [workspaceId]);
 
