@@ -13,7 +13,7 @@ import {
 import { createPaginatedListPayload } from "./common/interceptors/pagination.interceptor.js";
 import { createLoggerModule } from "./common/logging/logger.module.js";
 import { initializeRequestContext } from "./common/middleware/request-id.middleware.js";
-import { parsePaginationParams } from "./common/pagination/pagination.js";
+import { parsePaginationParams, slicePageItems } from "./common/pagination/pagination.js";
 import { runWithRequestContext } from "./common/request-context.js";
 import { createHealthModule } from "./health/health.module.js";
 import {
@@ -146,21 +146,30 @@ const handlePaginationFixturesRequest = ({
   response,
   requestId,
   url,
+  getDurationMs,
 }: {
   response: ServerResponse;
   requestId: string;
   url: URL;
+  getDurationMs: () => number;
 }) => {
   const pagination = parsePaginationParams({
     page: url.searchParams.get("page"),
     pageSize: url.searchParams.get("pageSize"),
+  });
+  const pagedItems = slicePageItems(paginationFixtureItems, pagination);
+
+  logger.logRequestLifecycle({
+    statusCode: 200,
+    durationMs: getDurationMs(),
   });
 
   return writeSuccessJson(
     response,
     200,
     createPaginatedListPayload({
-      items: paginationFixtureItems,
+      items: pagedItems,
+      totalItems: paginationFixtureItems.length,
       pagination,
     }),
     requestId,
@@ -193,6 +202,7 @@ const handleRequest = async ({
       response,
       requestId,
       url,
+      getDurationMs,
     });
   }
 

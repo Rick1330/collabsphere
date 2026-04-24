@@ -19,6 +19,20 @@ export type PaginationParams = {
   limit: AllowedPageSize;
 };
 
+const createValidationIssue = ({
+  field,
+  message,
+  rule,
+}: {
+  field: "page" | "pageSize" | "totalItems";
+  message: string;
+  rule: string;
+}) => ({
+  field,
+  message,
+  rule,
+});
+
 const parseIntegerParameter = ({
   value,
   field,
@@ -75,22 +89,47 @@ export const parsePaginationParams = ({
     defaultValue: DEFAULT_PAGE_SIZE,
   });
 
-  const issues: Array<{ field: "page" | "pageSize"; message: string; rule: string }> = [];
+  const issues: Array<ReturnType<typeof createValidationIssue>> = [];
 
   if (resolvedPage <= 0) {
-    issues.push({
-      field: "page",
-      message: "page must be greater than or equal to 1",
-      rule: "min",
-    });
+    issues.push(
+      createValidationIssue({
+        field: "page",
+        message: "page must be greater than or equal to 1",
+        rule: "min",
+      }),
+    );
+  }
+
+  if (!Number.isSafeInteger(resolvedPage)) {
+    issues.push(
+      createValidationIssue({
+        field: "page",
+        message: "page must be a safe integer",
+        rule: "isSafeInteger",
+      }),
+    );
   }
 
   if (!ALLOWED_PAGE_SIZES.includes(resolvedPageSize as AllowedPageSize)) {
-    issues.push({
-      field: "pageSize",
-      message: `pageSize must be one of ${ALLOWED_PAGE_SIZES.join(", ")}`,
-      rule: "isIn",
-    });
+    issues.push(
+      createValidationIssue({
+        field: "pageSize",
+        message: `pageSize must be one of ${ALLOWED_PAGE_SIZES.join(", ")}`,
+        rule: "isIn",
+      }),
+    );
+  }
+
+  const offset = (resolvedPage - 1) * resolvedPageSize;
+  if (!Number.isSafeInteger(offset)) {
+    issues.push(
+      createValidationIssue({
+        field: "page",
+        message: "page is too large",
+        rule: "maxSafeOffset",
+      }),
+    );
   }
 
   if (issues.length > 0) {
@@ -100,7 +139,7 @@ export const parsePaginationParams = ({
   return {
     page: resolvedPage,
     pageSize: resolvedPageSize as AllowedPageSize,
-    offset: (resolvedPage - 1) * resolvedPageSize,
+    offset,
     limit: resolvedPageSize as AllowedPageSize,
   };
 };
@@ -114,6 +153,42 @@ export const createPaginationMeta = ({
   pageSize: number;
   totalItems: number;
 }): ResponsePaginationMeta => {
+  const issues: Array<ReturnType<typeof createValidationIssue>> = [];
+
+  if (!Number.isSafeInteger(page) || page <= 0) {
+    issues.push(
+      createValidationIssue({
+        field: "page",
+        message: "page must be a positive safe integer",
+        rule: "isSafePositiveInt",
+      }),
+    );
+  }
+
+  if (!Number.isSafeInteger(pageSize) || pageSize <= 0) {
+    issues.push(
+      createValidationIssue({
+        field: "pageSize",
+        message: "pageSize must be a positive safe integer",
+        rule: "isSafePositiveInt",
+      }),
+    );
+  }
+
+  if (!Number.isSafeInteger(totalItems) || totalItems < 0) {
+    issues.push(
+      createValidationIssue({
+        field: "totalItems",
+        message: "totalItems must be a non-negative safe integer",
+        rule: "isSafeNonNegativeInt",
+      }),
+    );
+  }
+
+  if (issues.length > 0) {
+    throw new ValidationAppError({ issues });
+  }
+
   const totalPages = totalItems === 0 ? 0 : Math.ceil(totalItems / pageSize);
 
   return {

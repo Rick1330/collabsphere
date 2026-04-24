@@ -47,6 +47,14 @@ test("pagination helpers reject invalid page and pageSize values with VALIDATION
       error.code === "VALIDATION_ERROR" &&
       error.details?.some((detail) => detail.field === "pageSize"),
   );
+
+  assert.throws(
+    () => parsePaginationParams({ page: "9007199254740992" }),
+    (error: unknown) =>
+      error instanceof ValidationAppError &&
+      error.code === "VALIDATION_ERROR" &&
+      error.details?.some((detail) => detail.field === "page"),
+  );
 });
 
 test("pagination metadata calculator derives total pages and navigation flags", () => {
@@ -84,14 +92,17 @@ test("pagination metadata calculator derives total pages and navigation flags", 
 });
 
 test("paginated list payloads preserve canonical envelope-ready data and meta", () => {
+  const allItems = Array.from({ length: 53 }, (_, index) => ({
+    id: `fixture_${String(index + 1).padStart(3, "0")}`,
+  }));
+  const pagination = parsePaginationParams({
+    page: "2",
+    pageSize: "10",
+  });
   const payload = createPaginatedListPayload({
-    items: Array.from({ length: 53 }, (_, index) => ({
-      id: `fixture_${String(index + 1).padStart(3, "0")}`,
-    })),
-    pagination: parsePaginationParams({
-      page: "2",
-      pageSize: "10",
-    }),
+    items: allItems.slice(pagination.offset, pagination.offset + pagination.pageSize),
+    totalItems: allItems.length,
+    pagination,
   });
 
   assert.equal(payload.kind, "list");
@@ -106,4 +117,32 @@ test("paginated list payloads preserve canonical envelope-ready data and meta", 
     hasNextPage: true,
     hasPreviousPage: true,
   });
+});
+
+test("pagination metadata rejects invalid exported inputs", () => {
+  assert.throws(
+    () =>
+      createPaginationMeta({
+        page: 1,
+        pageSize: 0,
+        totalItems: 10,
+      }),
+    (error: unknown) =>
+      error instanceof ValidationAppError &&
+      error.code === "VALIDATION_ERROR" &&
+      error.details?.some((detail) => detail.field === "pageSize"),
+  );
+
+  assert.throws(
+    () =>
+      createPaginationMeta({
+        page: 1,
+        pageSize: 10,
+        totalItems: -1,
+      }),
+    (error: unknown) =>
+      error instanceof ValidationAppError &&
+      error.code === "VALIDATION_ERROR" &&
+      error.details?.some((detail) => detail.field === "totalItems"),
+  );
 });

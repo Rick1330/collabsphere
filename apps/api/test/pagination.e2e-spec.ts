@@ -135,14 +135,13 @@ const assertValidationError = ({
   assert.ok(body.error.details?.some((detail) => detail.field === expectedField));
 };
 
-test("pagination fixture route returns default pagination metadata", async () => {
-  await withPaginationApi(async ({ request }) => {
-    const response = await request("/api/v1/pagination/fixtures");
-
-    assertFixtureListResponse({
-      response,
+test("pagination fixture route returns canonical list payloads for default and explicit pagination", async () => {
+  const scenarios = [
+    {
+      pathName: "/api/v1/pagination/fixtures",
       expectedItemCount: 25,
       expectedFirstItemId: "fixture_001",
+      expectRequestId: true,
       expectedPagination: {
         page: 1,
         pageSize: 25,
@@ -151,17 +150,9 @@ test("pagination fixture route returns default pagination metadata", async () =>
         hasNextPage: true,
         hasPreviousPage: false,
       },
-      expectRequestId: true,
-    });
-  });
-});
-
-test("pagination fixture route respects explicit page and pageSize", async () => {
-  await withPaginationApi(async ({ request }) => {
-    const response = await request("/api/v1/pagination/fixtures?page=2&pageSize=10");
-
-    assertFixtureListResponse({
-      response,
+    },
+    {
+      pathName: "/api/v1/pagination/fixtures?page=2&pageSize=10",
       expectedItemCount: 10,
       expectedFirstItemId: "fixture_011",
       expectedPagination: {
@@ -172,7 +163,21 @@ test("pagination fixture route respects explicit page and pageSize", async () =>
         hasNextPage: true,
         hasPreviousPage: true,
       },
-    });
+    },
+  ] as const;
+
+  await withPaginationApi(async ({ request }) => {
+    for (const scenario of scenarios) {
+      const response = await request(scenario.pathName);
+
+      assertFixtureListResponse({
+        response,
+        expectedItemCount: scenario.expectedItemCount,
+        expectedFirstItemId: scenario.expectedFirstItemId,
+        expectedPagination: scenario.expectedPagination,
+        expectRequestId: scenario.expectRequestId,
+      });
+    }
   });
 });
 
