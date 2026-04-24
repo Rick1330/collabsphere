@@ -11,13 +11,19 @@ const isBlankOrComment = (line) => line.length === 0 || line.startsWith("#");
 
 const isValidEnvKey = (value) => /^[A-Za-z_]\w*$/u.test(value);
 
+const isSupportedQuote = (value) => value === '"' || value === "'";
+
 const unwrapQuotedValue = (value) => {
   if (value.length < 2) {
     return value;
   }
 
   const quote = value.at(0);
-  if ((quote !== '"' && quote !== "'") || value.at(-1) !== quote) {
+  if (!isSupportedQuote(quote)) {
+    return value;
+  }
+
+  if (value.at(-1) !== quote) {
     return value;
   }
 
