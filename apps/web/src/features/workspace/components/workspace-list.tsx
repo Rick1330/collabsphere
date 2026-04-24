@@ -181,7 +181,7 @@ export const WorkspaceList = () => {
     )
       return;
     if (stored.some((s) => s.id === workspace.id)) {
-      workspaceStore.setStatus(workspace.id, "archived");
+      workspaceStore.setStatus({ workspaceId: workspace.id, status: "archived" });
     } else {
       setOverrides((prev) => ({ ...prev, [workspace.id]: "archived" }));
     }
@@ -190,7 +190,7 @@ export const WorkspaceList = () => {
 
   const handleUnarchive = (workspace: WorkspaceSummary) => {
     if (stored.some((s) => s.id === workspace.id)) {
-      workspaceStore.setStatus(workspace.id, "active");
+      workspaceStore.setStatus({ workspaceId: workspace.id, status: "active" });
     } else {
       setOverrides((prev) => ({ ...prev, [workspace.id]: "active" }));
     }

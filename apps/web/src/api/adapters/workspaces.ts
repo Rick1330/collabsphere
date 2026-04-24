@@ -28,5 +28,5 @@ export async function listMyWorkspaces(): Promise<WorkspaceSummaryContract[]> {
 export async function getStoredWorkspace(
   id: string,
 ): Promise<StoredWorkspace | null> {
-  return workspaceStore.getById(id) ?? null;
+  return workspaceStore.getById({ workspaceId: id }) ?? null;
 }

@@ -124,7 +124,7 @@ export const WorkspaceSettings = ({
     queryKey: ["workspace-settings", workspaceId, refreshKey],
     queryFn: async () => {
       await new Promise((r) => setTimeout(r, 200));
-      const stored = workspaceStore.getById(workspaceId);
+      const stored = workspaceStore.getById({ workspaceId });
       return buildSettings(workspaceId, fallback, myRole, stored);
     },
   });

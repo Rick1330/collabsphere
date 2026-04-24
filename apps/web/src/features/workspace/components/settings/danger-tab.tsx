@@ -227,7 +227,7 @@ export const DangerTab = ({ workspaceId, workspace, onChanged }: DangerTabProps)
         onClose={closeConfirm}
         onConfirm={async () => {
           await new Promise((r) => setTimeout(r, 400));
-          workspaceStore.setStatus(workspaceId, "archived");
+          workspaceStore.setStatus({ workspaceId, status: "archived" });
           toast.success(`"${workspace.name}" archived`);
           onChanged();
         }}
@@ -242,7 +242,7 @@ export const DangerTab = ({ workspaceId, workspace, onChanged }: DangerTabProps)
         onClose={closeConfirm}
         onConfirm={async () => {
           await new Promise((r) => setTimeout(r, 400));
-          workspaceStore.setStatus(workspaceId, "active");
+          workspaceStore.setStatus({ workspaceId, status: "active" });
           toast.success(`"${workspace.name}" unarchived`);
           onChanged();
         }}
@@ -257,7 +257,7 @@ export const DangerTab = ({ workspaceId, workspace, onChanged }: DangerTabProps)
         onClose={closeConfirm}
         onConfirm={async () => {
           await new Promise((r) => setTimeout(r, 500));
-          workspaceStore.remove(workspaceId);
+          workspaceStore.remove({ workspaceId });
           toast.success("Workspace deleted. It can be restored within 90 days.");
           navigate("/workspaces");
         }}
