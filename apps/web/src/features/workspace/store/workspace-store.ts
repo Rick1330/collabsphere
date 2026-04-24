@@ -27,13 +27,45 @@ const listeners = new Set<() => void>();
 
 const isBrowser = typeof window !== "undefined";
 
-const slugify = (name: string) =>
-  name
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 40) || "workspace";
+const isSlugCharacter = (character: string) =>
+  (character >= "a" && character <= "z") || (character >= "0" && character <= "9");
+
+const trimTrailingDashes = (value: string) => {
+  let end = value.length;
+
+  while (end > 0 && value[end - 1] === "-") {
+    end -= 1;
+  }
+
+  return value.slice(0, end);
+};
+
+const slugify = (name: string) => {
+  const normalized = name.toLowerCase().trim();
+  let slug = "";
+  let previousWasDash = false;
+
+  for (const character of normalized) {
+    if (slug.length >= 40) {
+      break;
+    }
+
+    if (isSlugCharacter(character)) {
+      slug += character;
+      previousWasDash = false;
+      continue;
+    }
+
+    if (slug.length === 0 || previousWasDash) {
+      continue;
+    }
+
+    slug += "-";
+    previousWasDash = true;
+  }
+
+  return trimTrailingDashes(slug) || "workspace";
+};
 
 const read = (): StoredWorkspace[] => {
   if (!isBrowser) return [];

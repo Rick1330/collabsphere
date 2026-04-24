@@ -1,5 +1,6 @@
 import { motion, useReducedMotion, useAnimationControls } from "framer-motion";
 import { useEffect, useMemo, useRef } from "react";
+import { randomBool, randomInRange } from "@/lib/secure-random";
 
 type Easing =
   | "easeInOut"
@@ -58,8 +59,6 @@ const cursors: CursorData[] = [
   },
 ];
 
-const rand = (min: number, max: number) => Math.random() * (max - min) + min;
-
 const CursorSVG = ({ color }: { color: string }) => (
   <svg width="14" height="18" viewBox="0 0 12 16" fill="none" aria-hidden="true">
     <path d="M1 1L11 8L5.5 8.5L3 15L1 1Z" fill={color} stroke="white" strokeWidth="0.4" />
@@ -92,20 +91,20 @@ const AnimatedCursor = ({ data, seed }: { data: CursorData; seed: number }) => {
 
       while (alive.current) {
         const target = {
-          x: rand(data.region.xMin, data.region.xMax),
-          y: rand(data.region.yMin, data.region.yMax),
+          x: randomInRange(data.region.xMin, data.region.xMax),
+          y: randomInRange(data.region.yMin, data.region.yMax),
         };
         // Per-hop jitter so timing varies even when distance is similar
         const dx = target.x - initial.x;
         const dy = target.y - initial.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        const duration = data.pace * (0.55 + dist / 90) * rand(0.85, 1.2);
+        const duration = data.pace * (0.55 + dist / 90) * randomInRange(0.85, 1.2);
 
-        const doOvershoot = Math.random() < data.overshootRate;
+        const doOvershoot = randomBool(data.overshootRate);
         if (doOvershoot) {
           const overshoot = {
-            x: target.x + rand(-3, 3),
-            y: target.y + rand(-3, 3),
+            x: target.x + randomInRange(-3, 3),
+            y: target.y + randomInRange(-3, 3),
           };
           await controls.start({
             left: `${overshoot.x}%`,
@@ -127,7 +126,7 @@ const AnimatedCursor = ({ data, seed }: { data: CursorData; seed: number }) => {
         }
         if (!alive.current) return;
         // Optional click pulse at destination
-        if (Math.random() < data.clickRate) {
+        if (randomBool(data.clickRate)) {
           pulse.start({
             scale: [0, 1.4, 0],
             opacity: [0.5, 0.15, 0],
@@ -135,7 +134,7 @@ const AnimatedCursor = ({ data, seed }: { data: CursorData; seed: number }) => {
           });
         }
 
-        await sleep(rand(data.pause[0], data.pause[1]));
+        await sleep(randomInRange(data.pause[0], data.pause[1]));
       }
     };
 

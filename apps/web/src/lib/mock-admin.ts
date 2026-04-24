@@ -574,7 +574,7 @@ const AUDIT_TEMPLATES: Array<Omit<AuditEvent, "id" | "createdAt">> = [
     actorId: null,
     actorName: null,
     actorEmail: null,
-    ipAddress: "10.0.0.1",
+    ipAddress: "127.0.0.1",
     details: "Scheduled system health check completed.",
     metadata: { duration_ms: 312, services_checked: 8, services_healthy: 8 },
   },

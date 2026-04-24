@@ -36,12 +36,23 @@ importers:
         specifier: ^2.8.1
         version: 2.8.3
 
-  apps/api: {}
+  apps/api:
+    dependencies:
+      '@collabsphere/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
 
-  apps/collab: {}
+  apps/collab:
+    dependencies:
+      '@collabsphere/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
 
   apps/web:
     dependencies:
+      '@collabsphere/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@hookform/resolvers':
         specifier: ^3.10.0
         version: 3.10.0(react-hook-form@7.72.1(react@18.3.1))
@@ -287,7 +298,11 @@ importers:
         specifier: ^3.2.4
         version: 3.2.4(@types/node@22.19.17)(jsdom@20.0.3)(lightningcss@1.32.0)
 
-  apps/worker: {}
+  apps/worker:
+    dependencies:
+      '@collabsphere/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
 
   packages/database:
     dependencies:
@@ -301,6 +316,9 @@ importers:
 
   packages/shared:
     dependencies:
+      '@collabsphere/database':
+        specifier: workspace:*
+        version: link:../database
       zod:
         specifier: ^4.3.6
         version: 4.3.6
