@@ -155,11 +155,13 @@ const server = createServer((request: IncomingMessage, response: ServerResponse)
   });
 
   void requestTask.catch((error: unknown) => {
-    writeErrorJson({
-      response,
-      error,
-      requestId: requestContext.requestId,
-      durationMs: getDurationMs(),
+    runWithRequestContext(requestContext, () => {
+      writeErrorJson({
+        response,
+        error,
+        requestId: requestContext.requestId,
+        durationMs: getDurationMs(),
+      });
     });
   });
 });
