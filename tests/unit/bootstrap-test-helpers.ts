@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import http from "node:http";
+import net from "node:net";
 import path from "node:path";
 import { once } from "node:events";
 import { fileURLToPath } from "node:url";
@@ -79,6 +80,18 @@ export const stopChild = async (child: ChildProcessWithoutNullStreams) => {
     await waitForChildExitWithTimeout(child, childExitTimeoutMs, "SIGKILL");
   }
 };
+
+export const closeServer = (server: net.Server) =>
+  new Promise<void>((resolve, reject) => {
+    server.close((error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+
+      resolve();
+    });
+  });
 
 type ValidationFailureOptions = {
   spawnFn: (envOverrides: NodeJS.ProcessEnv) => ChildProcessWithoutNullStreams;
@@ -285,4 +298,69 @@ export const runTsx = (...args: string[]) => {
     },
     stdio: "inherit",
   });
+};
+
+const postgresSslResponseBuffer = Buffer.from("S");
+const redisExpectedPing = "*1\r\n$4\r\nPING\r\n";
+const redisPongBuffer = Buffer.from("+PONG\r\n");
+
+export const createMockDependencyServer = async (
+  onData: (chunk: Buffer, socket: net.Socket) => void,
+) => {
+  const server = net.createServer((socket) => {
+    socket.once("data", (chunk) => onData(chunk, socket));
+    socket.once("error", () => {});
+  });
+
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+
+  return {
+    server,
+    port: address.port,
+  };
+};
+
+export const createMockPostgresServer = () =>
+  createMockDependencyServer((_, socket) => {
+    socket.write(postgresSslResponseBuffer);
+    socket.end();
+  });
+
+export const createMockRedisServer = () =>
+  createMockDependencyServer((chunk, socket) => {
+    if (chunk.toString("utf8").startsWith(redisExpectedPing)) {
+      socket.write(redisPongBuffer);
+    }
+
+    socket.end();
+  });
+
+export const createHangingRedisServer = () =>
+  createMockDependencyServer(() => {
+    // Intentionally keep the socket open to exercise timeout behavior.
+  });
+
+export const withMockDependencies = async (
+  callback: (dependencyEnv: { DATABASE_URL: string; REDIS_URL: string }) => Promise<void>,
+  {
+    createRedisServer = createMockRedisServer,
+  }: {
+    createRedisServer?: typeof createMockRedisServer;
+  } = {},
+) => {
+  const postgres = await createMockPostgresServer();
+  const redis = await createRedisServer();
+
+  try {
+    await callback({
+      DATABASE_URL: `postgresql://collab:collab@127.0.0.1:${postgres.port}/collabsphere`,
+      REDIS_URL: `redis://127.0.0.1:${redis.port}`,
+    });
+  } finally {
+    await Promise.allSettled([closeServer(postgres.server), closeServer(redis.server)]);
+  }
 };
