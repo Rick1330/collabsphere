@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
-import net from "node:net";
 import path from "node:path";
 import test from "node:test";
-import { once } from "node:events";
 
 import {
   collectStream,
@@ -11,6 +9,7 @@ import {
   spawnBootstrap,
   stopChild,
   waitForStdoutMatch,
+  withMockDependencies,
 } from "../../../tests/unit/bootstrap-test-helpers.ts";
 
 const apiEntryPath = path.join(repoRoot, "apps", "api", "src", "dev.ts");
@@ -51,71 +50,6 @@ type FixtureListBody = {
 
 type FixtureErrorBody = {
   error: { code: string; details?: Array<{ field: string }>; requestId: string };
-};
-
-const postgresSslResponseBuffer = Buffer.from("S");
-const redisExpectedPing = "*1\r\n$4\r\nPING\r\n";
-const redisPongBuffer = Buffer.from("+PONG\r\n");
-
-const closeServer = (server: net.Server) =>
-  new Promise<void>((resolve, reject) => {
-    server.close((error) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-
-      resolve();
-    });
-  });
-
-const createMockDependencyServer = async (onData: (chunk: Buffer, socket: net.Socket) => void) => {
-  const server = net.createServer((socket) => {
-    socket.once("data", (chunk) => onData(chunk, socket));
-    socket.once("error", () => {});
-  });
-
-  server.listen(0, "127.0.0.1");
-  await once(server, "listening");
-
-  const address = server.address();
-  assert.ok(address && typeof address === "object");
-
-  return {
-    server,
-    port: address.port,
-  };
-};
-
-const createMockPostgresServer = () =>
-  createMockDependencyServer((_, socket) => {
-    socket.write(postgresSslResponseBuffer);
-    socket.end();
-  });
-
-const createMockRedisServer = () =>
-  createMockDependencyServer((chunk, socket) => {
-    if (chunk.toString("utf8").startsWith(redisExpectedPing)) {
-      socket.write(redisPongBuffer);
-    }
-
-    socket.end();
-  });
-
-const withMockDependencies = async (
-  callback: (dependencyEnv: { DATABASE_URL: string; REDIS_URL: string }) => Promise<void>,
-) => {
-  const postgres = await createMockPostgresServer();
-  const redis = await createMockRedisServer();
-
-  try {
-    await callback({
-      DATABASE_URL: `postgresql://collab:collab@127.0.0.1:${postgres.port}/collabsphere`,
-      REDIS_URL: `redis://127.0.0.1:${redis.port}`,
-    });
-  } finally {
-    await Promise.allSettled([closeServer(postgres.server), closeServer(redis.server)]);
-  }
 };
 
 const withBootstrappedApi = async (

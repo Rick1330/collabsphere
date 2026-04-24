@@ -118,7 +118,7 @@ const createInvalidUrlError = (error: unknown) =>
 
 const parseRequestUrl = (request: IncomingMessage) => {
   try {
-    return new URL(request.url ?? "/", "http://bootstrap");
+    return new URL(request.url ?? "/", "https://bootstrap");
   } catch (error) {
     throw createInvalidUrlError(error);
   }
