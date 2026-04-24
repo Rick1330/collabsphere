@@ -31,7 +31,7 @@ test("pagination helpers apply canonical defaults and allowed page sizes", () =>
   });
 });
 
-test("pagination helpers reject invalid page and pageSize values with VALIDATION_ERROR", () => {
+test("pagination helpers reject page 0 with VALIDATION_ERROR", () => {
   assert.throws(
     () => parsePaginationParams({ page: "0" }),
     (error: unknown) =>
@@ -39,7 +39,9 @@ test("pagination helpers reject invalid page and pageSize values with VALIDATION
       error.code === "VALIDATION_ERROR" &&
       error.details?.some((detail) => detail.field === "page"),
   );
+});
 
+test("pagination helpers reject unsupported pageSize values with VALIDATION_ERROR", () => {
   assert.throws(
     () => parsePaginationParams({ pageSize: "150" }),
     (error: unknown) =>
@@ -47,7 +49,9 @@ test("pagination helpers reject invalid page and pageSize values with VALIDATION
       error.code === "VALIDATION_ERROR" &&
       error.details?.some((detail) => detail.field === "pageSize"),
   );
+});
 
+test("pagination helpers reject unsafe page integers with VALIDATION_ERROR", () => {
   assert.throws(
     () => parsePaginationParams({ page: "9007199254740992" }),
     (error: unknown) =>

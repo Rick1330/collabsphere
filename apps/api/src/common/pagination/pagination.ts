@@ -33,6 +33,26 @@ const createValidationIssue = ({
   rule,
 });
 
+const getPositiveSafeIntegerIssue = ({
+  field,
+  value,
+  label,
+}: {
+  field: "page" | "pageSize" | "totalItems";
+  value: number;
+  label: string;
+}) => {
+  if (Number.isSafeInteger(value) && value > 0) {
+    return null;
+  }
+
+  return createValidationIssue({
+    field,
+    message: `${label} must be a positive safe integer`,
+    rule: "isSafePositiveInt",
+  });
+};
+
 const parseIntegerParameter = ({
   value,
   field,
@@ -153,37 +173,25 @@ export const createPaginationMeta = ({
   pageSize: number;
   totalItems: number;
 }): ResponsePaginationMeta => {
-  const issues: Array<ReturnType<typeof createValidationIssue>> = [];
-
-  if (!Number.isSafeInteger(page) || page <= 0) {
-    issues.push(
-      createValidationIssue({
-        field: "page",
-        message: "page must be a positive safe integer",
-        rule: "isSafePositiveInt",
-      }),
-    );
-  }
-
-  if (!Number.isSafeInteger(pageSize) || pageSize <= 0) {
-    issues.push(
-      createValidationIssue({
-        field: "pageSize",
-        message: "pageSize must be a positive safe integer",
-        rule: "isSafePositiveInt",
-      }),
-    );
-  }
-
-  if (!Number.isSafeInteger(totalItems) || totalItems < 0) {
-    issues.push(
-      createValidationIssue({
-        field: "totalItems",
-        message: "totalItems must be a non-negative safe integer",
-        rule: "isSafeNonNegativeInt",
-      }),
-    );
-  }
+  const issues = [
+    getPositiveSafeIntegerIssue({
+      field: "page",
+      value: page,
+      label: "page",
+    }),
+    getPositiveSafeIntegerIssue({
+      field: "pageSize",
+      value: pageSize,
+      label: "pageSize",
+    }),
+    Number.isSafeInteger(totalItems) && totalItems >= 0
+      ? null
+      : createValidationIssue({
+          field: "totalItems",
+          message: "totalItems must be a non-negative safe integer",
+          rule: "isSafeNonNegativeInt",
+        }),
+  ].filter((issue): issue is ReturnType<typeof createValidationIssue> => issue !== null);
 
   if (issues.length > 0) {
     throw new ValidationAppError({ issues });
