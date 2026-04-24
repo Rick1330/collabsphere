@@ -19,11 +19,11 @@ const secretPattern = /\b(password|secret|token|api[_-]?key|authorization)\b/i;
 const internalIdPattern =
   /\b(?:[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|(?:user|workspace|document|task|file|member|invitation|export)_\w+)\b/i;
 
+const containsSensitiveValidationContent = (value: string) =>
+  sqlPattern.test(value) || prismaPattern.test(value) || internalIdPattern.test(value);
+
 const containsSensitiveContent = (value: string) =>
-  sqlPattern.test(value) ||
-  prismaPattern.test(value) ||
-  secretPattern.test(value) ||
-  internalIdPattern.test(value);
+  containsSensitiveValidationContent(value) || secretPattern.test(value);
 
 const defaultErrorMessages: Record<CanonicalErrorCode, string> = {
   VALIDATION_ERROR: "Validation failed",
@@ -124,7 +124,7 @@ const defaultErrorMessages: Record<CanonicalErrorCode, string> = {
 const sanitizeValidationDetails = (details: ValidationErrorDetail[] | undefined) =>
   details?.map((detail) => ({
     field: detail.field,
-    message: containsSensitiveContent(detail.message)
+    message: containsSensitiveValidationContent(detail.message)
       ? defaultErrorMessages.VALIDATION_ERROR
       : detail.message,
     rule: detail.rule,

@@ -35,6 +35,30 @@ test("validation issues are normalized to canonical detail objects", () => {
   );
 });
 
+test("validation detail sanitization preserves field-name words like password", () => {
+  const { payload } = createErrorResponse({
+    error: new ValidationAppError({
+      issues: [
+        {
+          field: "password",
+          message: "Password is required",
+          rule: "isNotEmpty",
+        },
+      ],
+    }),
+    requestId: "req_password",
+    timestamp: "2026-04-24T00:00:00.000Z",
+  });
+
+  assert.deepEqual(payload.error.details, [
+    {
+      field: "password",
+      message: "Password is required",
+      rule: "isNotEmpty",
+    },
+  ]);
+});
+
 test("validation app errors return canonical validation envelopes", () => {
   const { statusCode, payload } = createErrorResponse({
     error: new ValidationAppError({
