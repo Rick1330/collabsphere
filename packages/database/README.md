@@ -20,16 +20,26 @@ Local default from `.env.example`:
 DATABASE_URL=postgresql://collab:collab@localhost:5432/collabsphere
 ```
 
+Repo-root `pnpm prisma ...` commands load this worktree's `.env` / `.env.local`
+before invoking Prisma so local repo settings win over inherited shell
+variables.
+
 ## Common Commands
 
 Run from the repo root:
 
 ```bash
 pnpm prisma validate
+pnpm prisma migrate dev --dry-run
 pnpm --filter @collabsphere/database run generate
 pnpm --filter @collabsphere/database run studio
 pnpm --filter @collabsphere/database run migrate:dev -- --name initial_schema_creation
 ```
+
+`pnpm prisma migrate dev --dry-run` is a repo compatibility wrapper for Prisma
+6.x. It runs a read-only schema-to-SQL diff so issue validation steps can use a
+non-writing dry-run surface even though upstream `prisma migrate dev` does not
+support `--dry-run`.
 
 Run directly from `packages/database`:
 

@@ -178,6 +178,21 @@ Examples:
 - `notification_type` remains a string key and must not be converted into a Prisma enum.
 - Do not introduce non-canonical enums without first updating the spec and agent-ref data contracts.
 
+## Request ID Usage
+
+- Every API request must carry a request ID through the full request lifecycle.
+- The API runtime accepts a caller-provided `X-Request-Id` only when it is a safe token-style value; invalid or missing values are replaced with a server-generated ID.
+- API responses must echo the effective request ID in both the `x-request-id` header and the response body (`meta.requestId` for success responses, `error.requestId` for error responses).
+- Structured API logs must include `requestId`, `method`, `path`, `statusCode`, `durationMs`, `ip`, and `userAgent`.
+
+Example local request:
+
+```bash
+curl -H "X-Request-Id: req_local_debug_123" http://localhost:3001/api/v1/health
+```
+
+Use the echoed `x-request-id` header value when debugging request logs, CI failures, or operator-reported API errors.
+
 ## Workspace Scoping
 
 - Workspace-owned persistence tables must carry `workspace_id` and must be queried with explicit workspace scope.
@@ -323,9 +338,13 @@ Recommended schema workflow:
 
 ```bash
 pnpm prisma validate
+pnpm prisma migrate dev --dry-run
 pnpm --filter @collabsphere/database run generate
 pnpm --filter @collabsphere/database run migrate:dev -- --name <migration_name>
 ```
+
+`pnpm prisma migrate dev --dry-run` is supported through the repo wrapper and
+performs a read-only schema diff for local migration validation.
 
 Before opening a schema PR:
 

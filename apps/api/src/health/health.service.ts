@@ -209,13 +209,6 @@ export class HealthService {
       }
     } catch (error) {
       const errorCode = getErrorCode(error);
-
-      if (errorCode === timeoutErrorCode) {
-        console.warn(
-          `[api] health ${config.prefix.toLowerCase()} probe timed out after ${this.probeTimeoutMs}ms`,
-        );
-      }
-
       return createUnhealthyResult(startedAt, `${config.prefix}_${errorCode}`);
     }
   }

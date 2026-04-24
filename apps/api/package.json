@@ -6,6 +6,6 @@
   "scripts": {
     "dev": "tsx watch src/dev.ts",
     "build": "pnpm exec tsc -p tsconfig.json && tsx ../../scripts/build-bootstrap-app.ts .",
-    "test": "pnpm exec tsx --test --test-concurrency=1 ../../tests/unit/api-bootstrap-env.test.ts ../../tests/unit/api-email-config.test.ts ../../tests/unit/api-error-filter.test.ts ../../tests/unit/api-response-envelope.test.ts ../../tests/unit/api-soft-delete-prisma.test.ts ../../tests/unit/api-workspace-scope-prisma.test.ts"
+    "test": "pnpm exec tsx --test --test-concurrency=1 ../../tests/unit/api-bootstrap-env.test.ts ../../tests/unit/api-email-config.test.ts ../../tests/unit/api-error-filter.test.ts ../../tests/unit/api-request-id.test.ts ../../tests/unit/api-response-envelope.test.ts ../../tests/unit/api-soft-delete-prisma.test.ts ../../tests/unit/api-workspace-scope-prisma.test.ts"
   }
 }
