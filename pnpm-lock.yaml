@@ -316,9 +316,9 @@ importers:
 
   packages/shared:
     dependencies:
-      '@collabsphere/database':
-        specifier: workspace:*
-        version: link:../database
+      '@prisma/client':
+        specifier: ^6.7.0
+        version: 6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3)
       zod:
         specifier: ^4.3.6
         version: 4.3.6

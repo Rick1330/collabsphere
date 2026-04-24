@@ -1,4 +1,33 @@
-import type { Prisma } from "@collabsphere/database";
+import type {
+  ActivityEvent,
+  Attachment,
+  AuditLog,
+  Comment,
+  CommentMention,
+  CommentThread,
+  Document,
+  DocumentSubmission,
+  DocumentVersion,
+  EmailDeliveryLog,
+  EmailVerificationToken,
+  ExportJob,
+  File,
+  Folder,
+  Invitation,
+  Notification,
+  NotificationPreference,
+  PasswordResetToken,
+  Prisma,
+  RefreshToken,
+  Task,
+  TaskColumn,
+  TaskDocumentLink,
+  Template,
+  User,
+  Workspace,
+  WorkspaceMember,
+  WorkspaceSettings,
+} from "@prisma/client";
 
 // Shared keeps the canonical export names while generation ownership stays in packages/database.
 // All Prisma-generated model types are aliased with a Prisma* prefix to avoid collisions
@@ -35,4 +64,4 @@ export type {
   Workspace as PrismaWorkspace,
   WorkspaceMember as PrismaWorkspaceMember,
   WorkspaceSettings as PrismaWorkspaceSettings,
-} from "@collabsphere/database";
+};

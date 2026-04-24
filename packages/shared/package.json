@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "pnpm exec tsc -p tsconfig.build.json"
+    "build": "pnpm --filter @collabsphere/database run generate && pnpm exec tsc -p tsconfig.build.json"
   },
   "exports": {
     ".": "./src/index.ts",
@@ -15,7 +15,7 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "dependencies": {
-    "@collabsphere/database": "workspace:*",
+    "@prisma/client": "^6.7.0",
     "zod": "^4.3.6"
   }
 }
