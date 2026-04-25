@@ -7,11 +7,38 @@ const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..");
 const runnerDir = path.join(repoRoot, ".tmp", "aca-bootstrap");
 const args = new Set(process.argv.slice(2));
+const rawArgs = process.argv.slice(2);
 const buildAndPush = args.has("--build-and-push");
 const dryRun = args.has("--dry-run");
 const windowsQuotedQuote = String.raw`\"`;
 const windowsCmdPath = String.raw`C:\Windows\System32\cmd.exe`;
 const azureCliWindowsPath = String.raw`C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin\az.cmd`;
+const supportedDeployEnvironments = new Set(["staging", "production"]);
+
+const readEnvOrDefault = (envName: string, fallback: string) => {
+  const value = process.env[envName];
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : fallback;
+};
+
+const resolveDeployEnvironment = () => {
+  const environmentArgIndex = rawArgs.findIndex((arg) => arg === "--environment");
+  const environmentArgValue =
+    environmentArgIndex >= 0 ? rawArgs[environmentArgIndex + 1] : undefined;
+  const candidate = (environmentArgValue ?? process.env.DEPLOY_ENVIRONMENT ?? "staging")
+    .trim()
+    .toLowerCase();
+
+  if (!supportedDeployEnvironments.has(candidate)) {
+    throw new Error(
+      `Unsupported deploy environment "${candidate}". Use staging or production.`,
+    );
+  }
+
+  return candidate;
+};
+
+const deployEnvironment = resolveDeployEnvironment();
+const defaultNameSuffix = deployEnvironment === "production" ? "prod" : "stg";
 
 const quoteWindowsArg = (value) => `"${String(value).replaceAll("\"", windowsQuotedQuote)}"`;
 
@@ -47,6 +74,7 @@ const run = (command, commandArgs, options = {}) => {
 const readText = (relativePath) => readFile(path.join(repoRoot, relativePath), "utf8");
 
 const platformEnv = {
+  deployEnvironment,
   resourceGroup: process.env.AZURE_RESOURCE_GROUP,
   location: process.env.AZURE_LOCATION,
   environmentId: process.env.AZURE_MANAGED_ENVIRONMENT_ID,
@@ -55,12 +83,22 @@ const platformEnv = {
   registryUsername: process.env.AZURE_ACR_USERNAME,
   registryPassword: process.env.AZURE_ACR_PASSWORD,
   imageTag: process.env.IMAGE_TAG,
-  migrationsJobName: process.env.AZURE_MIGRATIONS_JOB_NAME ?? "collabsphere-migrations-stg",
-  apiName: process.env.AZURE_API_CONTAINERAPP_NAME ?? "collabsphere-api-stg",
-  collabName: process.env.AZURE_COLLAB_CONTAINERAPP_NAME ?? "collabsphere-collab-stg",
-  workerName: process.env.AZURE_WORKER_CONTAINERAPP_NAME ?? "collabsphere-worker-stg",
-  s3AuthIdRef: process.env.AZURE_S3_AUTH_ID_REF ?? "s3-access-key-id",
-  s3AuthValueRef: process.env.AZURE_S3_AUTH_VALUE_REF ?? "s3-secret-access-key",
+  migrationsJobName:
+    readEnvOrDefault("AZURE_MIGRATIONS_JOB_NAME", `collabsphere-migrations-${defaultNameSuffix}`),
+  apiName: readEnvOrDefault("AZURE_API_CONTAINERAPP_NAME", `collabsphere-api-${defaultNameSuffix}`),
+  collabName:
+    readEnvOrDefault("AZURE_COLLAB_CONTAINERAPP_NAME", `collabsphere-collab-${defaultNameSuffix}`),
+  workerName:
+    readEnvOrDefault("AZURE_WORKER_CONTAINERAPP_NAME", `collabsphere-worker-${defaultNameSuffix}`),
+  apiMinReplicas: readEnvOrDefault("AZURE_API_MIN_REPLICAS", "1"),
+  apiMaxReplicas: readEnvOrDefault("AZURE_API_MAX_REPLICAS", "1"),
+  collabMinReplicas: readEnvOrDefault("AZURE_COLLAB_MIN_REPLICAS", "1"),
+  collabMaxReplicas: readEnvOrDefault("AZURE_COLLAB_MAX_REPLICAS", "1"),
+  workerMinReplicas: readEnvOrDefault("AZURE_WORKER_MIN_REPLICAS", "1"),
+  workerMaxReplicas: readEnvOrDefault("AZURE_WORKER_MAX_REPLICAS", "1"),
+  s3AuthIdRef: readEnvOrDefault("AZURE_S3_AUTH_ID_REF", "s3-access-key-id"),
+  s3AuthValueRef: readEnvOrDefault("AZURE_S3_AUTH_VALUE_REF", "s3-secret-access-key"),
+  s3EndpointSecretRef: readEnvOrDefault("AZURE_S3_ENDPOINT_SECRET_REF", "s3-endpoint"),
 };
 
 const secretSpecs = [
@@ -80,6 +118,13 @@ const secretSpecs = [
   { envName: "S3_SECRET_ACCESS_KEY", secretName: platformEnv.s3AuthValueRef },
   { envName: "S3_REGION", secretName: "s3-region" },
 ];
+
+if (typeof process.env.S3_ENDPOINT === "string" && process.env.S3_ENDPOINT.trim().length > 0) {
+  secretSpecs.push({
+    envName: "S3_ENDPOINT",
+    secretName: platformEnv.s3EndpointSecretRef,
+  });
+}
 
 const requiredPlatformVars = [
   ["AZURE_RESOURCE_GROUP", platformEnv.resourceGroup],
@@ -169,10 +214,22 @@ const substitutions = new Map([
   ["__MIGRATIONS_JOB_NAME__", platformEnv.migrationsJobName],
   ["__MIGRATIONS_IMAGE__", "collabsphere-api"],
   ["__API_CONTAINERAPP_NAME__", platformEnv.apiName],
+  ["__API_MIN_REPLICAS__", platformEnv.apiMinReplicas],
+  ["__API_MAX_REPLICAS__", platformEnv.apiMaxReplicas],
   ["__COLLAB_CONTAINERAPP_NAME__", platformEnv.collabName],
+  ["__COLLAB_MIN_REPLICAS__", platformEnv.collabMinReplicas],
+  ["__COLLAB_MAX_REPLICAS__", platformEnv.collabMaxReplicas],
   ["__WORKER_CONTAINERAPP_NAME__", platformEnv.workerName],
+  ["__WORKER_MIN_REPLICAS__", platformEnv.workerMinReplicas],
+  ["__WORKER_MAX_REPLICAS__", platformEnv.workerMaxReplicas],
   ["__S3_AUTH_ID_REF__", platformEnv.s3AuthIdRef],
   ["__S3_AUTH_VALUE_REF__", platformEnv.s3AuthValueRef],
+  [
+    "__S3_ENDPOINT_ENV__",
+    typeof process.env.S3_ENDPOINT === "string" && process.env.S3_ENDPOINT.trim().length > 0
+      ? `          - name: S3_ENDPOINT\n            secretRef: ${platformEnv.s3EndpointSecretRef}`
+      : "",
+  ],
 ]);
 
 const appConfigs = [
@@ -293,7 +350,7 @@ const bootstrapJob = async () => {
 
   if (dryRun) {
     console.log(`[dry-run] rendered job bootstrap manifest ${manifestPath}`);
-    console.log("ACA staging bootstrap dry run completed.");
+    console.log(`ACA ${platformEnv.deployEnvironment} bootstrap dry run completed.`);
     return;
   }
 
@@ -319,7 +376,7 @@ const bootstrap = async () => {
     return;
   }
 
-  console.log("ACA staging bootstrap completed.");
+  console.log(`ACA ${platformEnv.deployEnvironment} bootstrap completed.`);
   console.log(`Apps: ${platformEnv.apiName}, ${platformEnv.collabName}, ${platformEnv.workerName}`);
   console.log(`Job: ${platformEnv.migrationsJobName}`);
 };

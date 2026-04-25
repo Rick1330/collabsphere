@@ -1,0 +1,581 @@
+name: Deploy Production AWS
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Optional backend image tag override
+        required: false
+        type: string
+
+env:
+  NODE_VERSION: 20.19.4
+  PNPM_VERSION: 9.15.9
+  TURBO_TELEMETRY_DISABLED: "1"
+  VERCEL_CLI_VERSION: 50.38.3
+
+concurrency:
+  group: deploy-${{ github.workflow }}-production
+  cancel-in-progress: false
+
+jobs:
+  resolve-target:
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.target.outputs.image_tag }}
+      use_existing_image: ${{ steps.target.outputs.use_existing_image }}
+
+    steps:
+      - name: Resolve production target
+        id: target
+        shell: bash
+        env:
+          INPUT_IMAGE_TAG: ${{ github.event.inputs.image_tag }}
+        run: |
+          set -euo pipefail
+
+          image_tag="${GITHUB_SHA}"
+          use_existing_image="false"
+
+          if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" == refs/tags/v* ]]; then
+            image_tag="${GITHUB_REF_NAME}"
+          elif [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && -n "${INPUT_IMAGE_TAG}" ]]; then
+            image_tag="${INPUT_IMAGE_TAG}"
+            use_existing_image="true"
+          fi
+
+          echo "image_tag=$image_tag" >> "$GITHUB_OUTPUT"
+          echo "use_existing_image=$use_existing_image" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: resolve-target
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          fetch-depth: 0
+
+      - name: Verify deploy ref is already on main
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git fetch origin main --depth=1
+
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" "origin/main"; then
+            echo "::error::Production deploys must target commits already merged to main."
+            exit 1
+          fi
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build deployable artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm --filter @collabsphere/web run build
+          pnpm --filter @collabsphere/api run build
+          pnpm --filter @collabsphere/collab run build
+          pnpm --filter @collabsphere/worker run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: deploy-build-artifacts
+          path: |
+            apps/api/dist
+            apps/collab/dist
+            apps/worker/dist
+          if-no-files-found: error
+
+  deploy:
+    needs:
+      - resolve-target
+      - build
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      DEPLOY_ENVIRONMENT: production
+      IMAGE_TAG: ${{ needs.resolve-target.outputs.image_tag }}
+      USE_EXISTING_IMAGE: ${{ needs.resolve-target.outputs.use_existing_image }}
+      AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+      AWS_ECS_CLUSTER_NAME: ${{ vars.AWS_ECS_CLUSTER_NAME }}
+      AWS_ECS_API_SERVICE_NAME: ${{ vars.AWS_ECS_API_SERVICE_NAME }}
+      AWS_ECS_COLLAB_SERVICE_NAME: ${{ vars.AWS_ECS_COLLAB_SERVICE_NAME }}
+      AWS_ECS_WORKER_SERVICE_NAME: ${{ vars.AWS_ECS_WORKER_SERVICE_NAME }}
+      AWS_ECS_API_CONTAINER_NAME: ${{ vars.AWS_ECS_API_CONTAINER_NAME }}
+      AWS_ECS_COLLAB_CONTAINER_NAME: ${{ vars.AWS_ECS_COLLAB_CONTAINER_NAME }}
+      AWS_ECS_WORKER_CONTAINER_NAME: ${{ vars.AWS_ECS_WORKER_CONTAINER_NAME }}
+      AWS_ECR_REPOSITORY_API: ${{ vars.AWS_ECR_REPOSITORY_API }}
+      AWS_ECR_REPOSITORY_COLLAB: ${{ vars.AWS_ECR_REPOSITORY_COLLAB }}
+      AWS_ECR_REPOSITORY_WORKER: ${{ vars.AWS_ECR_REPOSITORY_WORKER }}
+      AWS_PRODUCTION_API_HEALTH_URL: ${{ vars.AWS_PRODUCTION_API_HEALTH_URL }}
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: deploy-build-artifacts
+          path: ${{ runner.temp }}/deploy-build-artifacts
+
+      - name: Stage downloaded build artifacts into workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          artifact_root="${RUNNER_TEMP}/deploy-build-artifacts"
+
+          for service in api collab worker; do
+            artifact_dir="$(
+              find "$artifact_root" -path "*/${service}/dist" -type d -print -quit
+            )"
+
+            if [[ -z "$artifact_dir" ]]; then
+              echo "::error::Missing downloaded build artifact for ${service}."
+              exit 1
+            fi
+
+            rm -rf "apps/${service}/dist"
+            mkdir -p "apps/${service}"
+            cp -R "$artifact_dir" "apps/${service}/"
+          done
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Resolve and validate Vercel deploy token
+        id: vercel-token
+        shell: bash
+        env:
+          VERCEL_TOKEN_PRIMARY: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TOKEN_ROLLOVER: ${{ secrets.VERCEL_TOKEN_ROLLOVER }}
+        run: |
+          set -euo pipefail
+          bash .github/scripts/resolve-vercel-token.sh
+
+      - name: Validate required deployment contracts
+        shell: bash
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          RESOLVED_VERCEL_TOKEN: ${{ steps.vercel-token.outputs.vercel_token }}
+        run: |
+          set -euo pipefail
+
+          required_vars=(
+            AWS_ACCOUNT_ID
+            AWS_REGION
+            AWS_DEPLOY_ROLE_ARN
+            AWS_ECS_CLUSTER_NAME
+            AWS_ECS_API_SERVICE_NAME
+            AWS_ECS_COLLAB_SERVICE_NAME
+            AWS_ECS_WORKER_SERVICE_NAME
+            AWS_ECR_REPOSITORY_API
+            AWS_ECR_REPOSITORY_COLLAB
+            AWS_ECR_REPOSITORY_WORKER
+            AWS_PRODUCTION_API_HEALTH_URL
+            VERCEL_ORG_ID
+            VERCEL_PROJECT_ID
+          )
+
+          required_secrets=(
+            DATABASE_URL
+          )
+
+          for name in "${required_vars[@]}"; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::$name is required for deploy-production-aws.yml."
+              exit 1
+            fi
+          done
+
+          for name in "${required_secrets[@]}"; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::$name is required for deploy-production-aws.yml."
+              exit 1
+            fi
+          done
+
+          if [[ -z "${AWS_ECS_API_CONTAINER_NAME:-}" ]]; then
+            echo "AWS_ECS_API_CONTAINER_NAME=api" >> "$GITHUB_ENV"
+          fi
+
+          if [[ -z "${AWS_ECS_COLLAB_CONTAINER_NAME:-}" ]]; then
+            echo "AWS_ECS_COLLAB_CONTAINER_NAME=collab" >> "$GITHUB_ENV"
+          fi
+
+          if [[ -z "${AWS_ECS_WORKER_CONTAINER_NAME:-}" ]]; then
+            echo "AWS_ECS_WORKER_CONTAINER_NAME=worker" >> "$GITHUB_ENV"
+          fi
+
+          if [[ -z "${RESOLVED_VERCEL_TOKEN:-}" ]]; then
+            echo "::error::Resolved Vercel token is missing."
+            exit 1
+          fi
+
+          if [[ ! -f "apps/web/vercel.json" ]]; then
+            echo "::error::apps/web/vercel.json is required for the Vercel SPA deployment contract."
+            exit 1
+          fi
+
+      - name: Authenticate to AWS
+        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6b8631557f0a4f8c82f3c4b9a
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+
+      - name: Ensure ECR repositories exist
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for repo in "$AWS_ECR_REPOSITORY_API" "$AWS_ECR_REPOSITORY_COLLAB" "$AWS_ECR_REPOSITORY_WORKER"; do
+            if ! aws ecr describe-repositories --repository-names "$repo" >/dev/null 2>&1; then
+              aws ecr create-repository \
+                --repository-name "$repo" \
+                --image-tag-mutability MUTABLE \
+                --image-scanning-configuration scanOnPush=true >/dev/null
+            fi
+          done
+
+      - name: Verify ECS deploy surfaces exist
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if ! aws ecs describe-clusters --clusters "$AWS_ECS_CLUSTER_NAME" --query 'failures[0]' --output text | grep -q "None"; then
+            echo "::error::ECS cluster ${AWS_ECS_CLUSTER_NAME} is missing. Run the AWS production bootstrap flow first."
+            exit 1
+          fi
+
+          for service_name in "$AWS_ECS_API_SERVICE_NAME" "$AWS_ECS_COLLAB_SERVICE_NAME" "$AWS_ECS_WORKER_SERVICE_NAME"; do
+            service_status="$(
+              aws ecs describe-services \
+                --cluster "$AWS_ECS_CLUSTER_NAME" \
+                --services "$service_name" \
+                --query 'services[0].status' \
+                --output text 2>/dev/null || true
+            )"
+
+            if [[ -z "$service_status" || "$service_status" == "None" || "$service_status" == "MISSING" ]]; then
+              echo "::error::ECS service ${service_name} is missing. Bootstrap ECS services before using this workflow."
+              exit 1
+            fi
+          done
+
+      - name: Log in to Amazon ECR
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws ecr get-login-password | docker login --username AWS --password-stdin "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+
+      - name: Build and push backend images
+        if: ${{ env.USE_EXISTING_IMAGE != 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          declare -A repositories=(
+            [api]="$AWS_ECR_REPOSITORY_API"
+            [collab]="$AWS_ECR_REPOSITORY_COLLAB"
+            [worker]="$AWS_ECR_REPOSITORY_WORKER"
+          )
+
+          for service in api collab worker; do
+            repository="${repositories[$service]}"
+            image_ref="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${repository}:${IMAGE_TAG}"
+            docker build \
+              --file infra/azure/container-apps/backend-service.Dockerfile \
+              --build-arg APP_DIR="apps/${service}" \
+              --tag "$image_ref" \
+              .
+            docker push "$image_ref"
+          done
+
+      - name: Run production database migrations
+        shell: bash
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          pnpm --filter @collabsphere/database run generate
+          pnpm --filter @collabsphere/database run migrate:deploy
+
+      - name: Update ECS services to new task definitions
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p "$RUNNER_TEMP/ecs-taskdefs"
+
+          declare -A repositories=(
+            [api]="$AWS_ECR_REPOSITORY_API"
+            [collab]="$AWS_ECR_REPOSITORY_COLLAB"
+            [worker]="$AWS_ECR_REPOSITORY_WORKER"
+          )
+
+          declare -A services=(
+            [api]="$AWS_ECS_API_SERVICE_NAME"
+            [collab]="$AWS_ECS_COLLAB_SERVICE_NAME"
+            [worker]="$AWS_ECS_WORKER_SERVICE_NAME"
+          )
+
+          declare -A containers=(
+            [api]="${AWS_ECS_API_CONTAINER_NAME:-api}"
+            [collab]="${AWS_ECS_COLLAB_CONTAINER_NAME:-collab}"
+            [worker]="${AWS_ECS_WORKER_CONTAINER_NAME:-worker}"
+          )
+
+          for service in api collab worker; do
+            service_name="${services[$service]}"
+            container_name="${containers[$service]}"
+            repository="${repositories[$service]}"
+            image_ref="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${repository}:${IMAGE_TAG}"
+            current_task_def="$(
+              aws ecs describe-services \
+                --cluster "$AWS_ECS_CLUSTER_NAME" \
+                --services "$service_name" \
+                --query 'services[0].taskDefinition' \
+                --output text
+            )"
+
+            if [[ -z "$current_task_def" || "$current_task_def" == "None" ]]; then
+              echo "::error::Could not resolve the current task definition for ${service_name}."
+              exit 1
+            fi
+
+            aws ecs describe-task-definition \
+              --task-definition "$current_task_def" \
+              --query 'taskDefinition' \
+              --output json > "$RUNNER_TEMP/ecs-taskdefs/${service}.source.json"
+
+            node --input-type=module - <<'EOF' "$RUNNER_TEMP/ecs-taskdefs/${service}.source.json" "$RUNNER_TEMP/ecs-taskdefs/${service}.register.json" "$container_name" "$image_ref"
+            import fs from "node:fs";
+
+            const [sourcePath, outputPath, containerName, imageRef] = process.argv.slice(2);
+            const source = JSON.parse(fs.readFileSync(sourcePath, "utf8"));
+            const allowed = {
+              family: source.family,
+              taskRoleArn: source.taskRoleArn,
+              executionRoleArn: source.executionRoleArn,
+              networkMode: source.networkMode,
+              containerDefinitions: source.containerDefinitions,
+              volumes: source.volumes,
+              placementConstraints: source.placementConstraints,
+              requiresCompatibilities: source.requiresCompatibilities,
+              cpu: source.cpu,
+              memory: source.memory,
+              runtimePlatform: source.runtimePlatform,
+              ephemeralStorage: source.ephemeralStorage,
+              pidMode: source.pidMode,
+              ipcMode: source.ipcMode,
+              proxyConfiguration: source.proxyConfiguration,
+              inferenceAccelerators: source.inferenceAccelerators
+            };
+
+            const target = allowed.containerDefinitions.find((definition) => definition.name === containerName);
+            if (!target) {
+              throw new Error(`Container ${containerName} not found in ${allowed.family}.`);
+            }
+
+            target.image = imageRef;
+            fs.writeFileSync(outputPath, JSON.stringify(allowed));
+            EOF
+
+            new_task_def="$(
+              aws ecs register-task-definition \
+                --cli-input-json "file://$RUNNER_TEMP/ecs-taskdefs/${service}.register.json" \
+                --query 'taskDefinition.taskDefinitionArn' \
+                --output text
+            )"
+
+            if [[ -z "$new_task_def" || "$new_task_def" == "None" ]]; then
+              echo "::error::Could not register a new task definition for ${service_name}."
+              exit 1
+            fi
+
+            aws ecs update-service \
+              --cluster "$AWS_ECS_CLUSTER_NAME" \
+              --service "$service_name" \
+              --task-definition "$new_task_def" \
+              --force-new-deployment >/dev/null
+          done
+
+      - name: Wait for ECS services to stabilize
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws ecs wait services-stable \
+            --cluster "$AWS_ECS_CLUSTER_NAME" \
+            --services "$AWS_ECS_API_SERVICE_NAME" "$AWS_ECS_COLLAB_SERVICE_NAME" "$AWS_ECS_WORKER_SERVICE_NAME"
+
+      - name: Deploy web to Vercel production
+        id: deploy-web
+        shell: bash
+        env:
+          VERCEL_TOKEN: ${{ steps.vercel-token.outputs.vercel_token }}
+        run: |
+          set -euo pipefail
+          deploy_stdout="$RUNNER_TEMP/vercel-deploy.out"
+          deploy_stderr="$RUNNER_TEMP/vercel-deploy.err"
+
+          pnpm dlx "vercel@${VERCEL_CLI_VERSION}" pull --yes --environment=production --token "$VERCEL_TOKEN"
+          pnpm dlx "vercel@${VERCEL_CLI_VERSION}" build --prod --token "$VERCEL_TOKEN"
+
+          if ! pnpm dlx "vercel@${VERCEL_CLI_VERSION}" deploy --prebuilt --prod --token "$VERCEL_TOKEN" >"$deploy_stdout" 2>"$deploy_stderr"; then
+            cat "$deploy_stderr"
+            exit 1
+          fi
+
+          cat "$deploy_stderr"
+
+          deployment_url="$(awk 'NF { value=$0 } END { print value }' "$deploy_stdout")"
+
+          if [[ -z "$deployment_url" ]]; then
+            echo "::error::Could not determine the Vercel deployment URL from vercel deploy output."
+            exit 1
+          fi
+
+          if ! node -e '
+            const candidate = process.argv[1];
+            let parsed;
+            try {
+              parsed = new URL(candidate);
+            } catch {
+              process.exit(1);
+            }
+            if (!parsed.hostname.endsWith(".vercel.app")) {
+              process.exit(1);
+            }
+          ' "$deployment_url"; then
+            echo "::error::Unexpected Vercel deployment URL: $deployment_url"
+            exit 1
+          fi
+
+          echo "deployment_url=$deployment_url" >> "$GITHUB_OUTPUT"
+
+      - name: Install Vercel CLI for smoke tests
+        shell: bash
+        run: npm install --global "vercel@${VERCEL_CLI_VERSION}"
+
+      - name: Run post-deploy smoke tests
+        timeout-minutes: 10
+        shell: bash
+        env:
+          API_HEALTH_URL: ${{ env.AWS_PRODUCTION_API_HEALTH_URL }}
+          WEB_URL: ${{ steps.deploy-web.outputs.deployment_url }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_TOKEN: ${{ steps.vercel-token.outputs.vercel_token }}
+        run: bash scripts/smoke-test.sh
+
+  notify:
+    if: ${{ always() }}
+    needs:
+      - resolve-target
+      - build
+      - deploy
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      actions: read
+      contents: read
+    env:
+      DEPLOY_ENVIRONMENT: production
+      DEPLOY_TARGET_SUMMARY: Vercel web + AWS ECS backend
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install notification runner dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Resolve notification conclusion
+        id: notification
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ needs.resolve-target.result }}" == "success" && "${{ needs.build.result }}" == "success" && "${{ needs.deploy.result }}" == "success" ]]; then
+            echo "conclusion=success" >> "$GITHUB_OUTPUT"
+          elif [[ "${{ needs.resolve-target.result }}" == "cancelled" || "${{ needs.build.result }}" == "cancelled" || "${{ needs.deploy.result }}" == "cancelled" ]]; then
+            echo "conclusion=cancelled" >> "$GITHUB_OUTPUT"
+          else
+            echo "conclusion=failure" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate notification contract
+        shell: bash
+        env:
+          DEPLOY_NOTIFICATION_WEBHOOK_URL: ${{ secrets.DEPLOY_NOTIFICATION_WEBHOOK_URL }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${DEPLOY_NOTIFICATION_WEBHOOK_URL:-}" ]]; then
+            echo "::error::DEPLOY_NOTIFICATION_WEBHOOK_URL is required for deploy notifications."
+            exit 1
+          fi
+
+      - name: Send deploy notification
+        timeout-minutes: 2
+        env:
+          DEPLOY_NOTIFICATION_WEBHOOK_URL: ${{ secrets.DEPLOY_NOTIFICATION_WEBHOOK_URL }}
+          DEPLOY_CONCLUSION: ${{ steps.notification.outputs.conclusion }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm exec tsx scripts/notify-deploy.ts

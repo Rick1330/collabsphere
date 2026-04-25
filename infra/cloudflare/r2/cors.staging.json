@@ -1,0 +1,20 @@
+{
+  "rules": [
+    {
+      "id": "browser-presigned-uploads",
+      "allowed": {
+        "origins": ["https://staging.collabsphere.com", "http://localhost:3000"],
+        "methods": ["GET", "PUT", "HEAD", "DELETE"],
+        "headers": [
+          "content-type",
+          "cache-control",
+          "content-disposition",
+          "x-amz-content-sha256",
+          "x-amz-date"
+        ]
+      },
+      "exposeHeaders": ["etag", "content-length"],
+      "maxAgeSeconds": 3600
+    }
+  ]
+}

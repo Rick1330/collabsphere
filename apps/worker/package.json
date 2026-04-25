@@ -8,6 +8,6 @@
   },
   "scripts": {
     "dev": "tsx watch src/dev.ts",
-    "build": "pnpm exec tsc -p tsconfig.json && tsx ../../scripts/build-bootstrap-app.ts ."
+    "build": "pnpm --filter @collabsphere/database run generate && pnpm exec tsc -p tsconfig.json && tsx ../../scripts/build-bootstrap-app.ts ."
   }
 }

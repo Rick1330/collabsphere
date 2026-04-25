@@ -1,21 +1,11 @@
-name: Deploy
+name: Deploy Staging
 
 on:
   push:
     branches:
       - main
-    tags:
-      - "v*"
   workflow_dispatch:
     inputs:
-      environment:
-        description: Deployment target
-        required: true
-        type: choice
-        options:
-          - staging
-          - production
-        default: production
       image_tag:
         description: Optional backend image tag override
         required: false
@@ -33,60 +23,35 @@ env:
   VERCEL_CLI_VERSION: 50.38.3
 
 concurrency:
-  group: deploy-${{ github.workflow }}-${{ github.ref_type == 'tag' && 'production' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment) || 'staging' }}
+  group: deploy-${{ github.workflow }}-staging
   cancel-in-progress: false
 
 jobs:
   resolve-target:
     runs-on: ubuntu-latest
     outputs:
-      deploy_environment: ${{ steps.target.outputs.deploy_environment }}
       image_tag: ${{ steps.target.outputs.image_tag }}
       use_existing_image: ${{ steps.target.outputs.use_existing_image }}
-      vercel_environment: ${{ steps.target.outputs.vercel_environment }}
 
     steps:
-      - name: Resolve deploy target
+      - name: Resolve staging target
         id: target
         shell: bash
         env:
-          INPUT_ENVIRONMENT: ${{ github.event.inputs.environment }}
           INPUT_IMAGE_TAG: ${{ github.event.inputs.image_tag }}
         run: |
           set -euo pipefail
 
-          deploy_environment=""
           image_tag="${GITHUB_SHA}"
           use_existing_image="false"
-          vercel_environment="preview"
 
-          if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" == "refs/heads/main" ]]; then
-            deploy_environment="staging"
-          elif [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" == refs/tags/v* ]]; then
-            deploy_environment="production"
-            image_tag="${GITHUB_REF_NAME}"
-            vercel_environment="production"
-          elif [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
-            deploy_environment="$INPUT_ENVIRONMENT"
-            if [[ "$deploy_environment" == "production" ]]; then
-              vercel_environment="production"
-            fi
-
-            if [[ -n "$INPUT_IMAGE_TAG" ]]; then
-              image_tag="$INPUT_IMAGE_TAG"
-              use_existing_image="true"
-            fi
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && -n "$INPUT_IMAGE_TAG" ]]; then
+            image_tag="$INPUT_IMAGE_TAG"
+            use_existing_image="true"
           fi
 
-          if [[ -z "$deploy_environment" ]]; then
-            echo "Unsupported deploy trigger." >&2
-            exit 1
-          fi
-
-          echo "deploy_environment=$deploy_environment" >> "$GITHUB_OUTPUT"
           echo "image_tag=$image_tag" >> "$GITHUB_OUTPUT"
           echo "use_existing_image=$use_existing_image" >> "$GITHUB_OUTPUT"
-          echo "vercel_environment=$vercel_environment" >> "$GITHUB_OUTPUT"
 
   build:
     needs: resolve-target
@@ -103,12 +68,11 @@ jobs:
       - name: Verify deploy ref is already on main
         shell: bash
         env:
-          DEPLOY_ENVIRONMENT: ${{ needs.resolve-target.outputs.deploy_environment }}
           ALLOW_BRANCH_STAGING_DEPLOY: ${{ github.event.inputs.allow_branch_staging_deploy }}
         run: |
           set -euo pipefail
 
-          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${DEPLOY_ENVIRONMENT}" == "staging" && "${ALLOW_BRANCH_STAGING_DEPLOY}" == "true" ]]; then
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${ALLOW_BRANCH_STAGING_DEPLOY}" == "true" ]]; then
             echo "Branch-based staging validation is allowed for manual workflow_dispatch runs."
             exit 0
           fi
@@ -157,18 +121,18 @@ jobs:
 
   deploy:
     needs:
-      - resolve-target
       - build
+      - resolve-target
     runs-on: ubuntu-latest
-    environment: ${{ needs.resolve-target.outputs.deploy_environment }}
+    environment: staging
     permissions:
       contents: read
       id-token: write
     env:
-      DEPLOY_ENVIRONMENT: ${{ needs.resolve-target.outputs.deploy_environment }}
+      DEPLOY_ENVIRONMENT: staging
       IMAGE_TAG: ${{ needs.resolve-target.outputs.image_tag }}
       USE_EXISTING_IMAGE: ${{ needs.resolve-target.outputs.use_existing_image }}
-      VERCEL_ENVIRONMENT: ${{ needs.resolve-target.outputs.vercel_environment }}
+      VERCEL_ENVIRONMENT: preview
       AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
       AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
       AZURE_MANAGED_ENVIRONMENT_ID: ${{ vars.AZURE_MANAGED_ENVIRONMENT_ID }}
@@ -177,10 +141,18 @@ jobs:
       AZURE_ACR_USERNAME: ${{ vars.AZURE_ACR_USERNAME }}
       AZURE_MIGRATIONS_JOB_NAME: ${{ vars.AZURE_MIGRATIONS_JOB_NAME }}
       AZURE_API_CONTAINERAPP_NAME: ${{ vars.AZURE_API_CONTAINERAPP_NAME }}
+      AZURE_API_MIN_REPLICAS: ${{ vars.AZURE_API_MIN_REPLICAS }}
+      AZURE_API_MAX_REPLICAS: ${{ vars.AZURE_API_MAX_REPLICAS }}
       AZURE_COLLAB_CONTAINERAPP_NAME: ${{ vars.AZURE_COLLAB_CONTAINERAPP_NAME }}
+      AZURE_COLLAB_MIN_REPLICAS: ${{ vars.AZURE_COLLAB_MIN_REPLICAS }}
+      AZURE_COLLAB_MAX_REPLICAS: ${{ vars.AZURE_COLLAB_MAX_REPLICAS }}
       AZURE_WORKER_CONTAINERAPP_NAME: ${{ vars.AZURE_WORKER_CONTAINERAPP_NAME }}
+      AZURE_WORKER_MIN_REPLICAS: ${{ vars.AZURE_WORKER_MIN_REPLICAS }}
+      AZURE_WORKER_MAX_REPLICAS: ${{ vars.AZURE_WORKER_MAX_REPLICAS }}
       AZURE_S3_AUTH_ID_REF: ${{ vars.AZURE_S3_AUTH_ID_REF }}
       AZURE_S3_AUTH_VALUE_REF: ${{ vars.AZURE_S3_AUTH_VALUE_REF }}
+      AZURE_S3_ENDPOINT_SECRET_REF: ${{ vars.AZURE_S3_ENDPOINT_SECRET_REF }}
+      S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
       VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
 
@@ -255,6 +227,7 @@ jobs:
           AZURE_WORKER_CONTAINERAPP_NAME: ${{ vars.AZURE_WORKER_CONTAINERAPP_NAME }}
           AZURE_S3_AUTH_ID_REF: ${{ vars.AZURE_S3_AUTH_ID_REF }}
           AZURE_S3_AUTH_VALUE_REF: ${{ vars.AZURE_S3_AUTH_VALUE_REF }}
+          AZURE_S3_ENDPOINT_SECRET_REF: ${{ vars.AZURE_S3_ENDPOINT_SECRET_REF }}
           VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
           AZURE_ACR_PASSWORD: ${{ secrets.AZURE_ACR_PASSWORD }}
@@ -376,11 +349,16 @@ jobs:
           const outputDir = path.join(runnerTemp, "containerapps");
           const registryServer = process.env.AZURE_CONTAINER_REGISTRY_LOGIN_SERVER;
           const imageTag = process.env.IMAGE_TAG;
+          const s3EndpointSecretRef = process.env.AZURE_S3_ENDPOINT_SECRET_REF || "s3-endpoint";
           const substitutions = new Map([
             ["__LOCATION__", process.env.AZURE_LOCATION],
             ["__ACR_USERNAME__", process.env.AZURE_ACR_USERNAME],
             ["__API_CONTAINERAPP_NAME__", process.env.AZURE_API_CONTAINERAPP_NAME || "collabsphere-api-stg"],
+            ["__API_MIN_REPLICAS__", process.env.AZURE_API_MIN_REPLICAS || "1"],
+            ["__API_MAX_REPLICAS__", process.env.AZURE_API_MAX_REPLICAS || "1"],
             ["__COLLAB_CONTAINERAPP_NAME__", process.env.AZURE_COLLAB_CONTAINERAPP_NAME || "collabsphere-collab-stg"],
+            ["__COLLAB_MIN_REPLICAS__", process.env.AZURE_COLLAB_MIN_REPLICAS || "1"],
+            ["__COLLAB_MAX_REPLICAS__", process.env.AZURE_COLLAB_MAX_REPLICAS || "1"],
             ["__MANAGED_ENVIRONMENT_ID__", process.env.AZURE_MANAGED_ENVIRONMENT_ID],
             ["__MIGRATIONS_JOB_NAME__", process.env.AZURE_MIGRATIONS_JOB_NAME],
             ["__MIGRATIONS_IMAGE__", "collabsphere-api"],
@@ -388,7 +366,15 @@ jobs:
             ["__IMAGE_TAG__", imageTag],
             ["__S3_AUTH_ID_REF__", process.env.AZURE_S3_AUTH_ID_REF],
             ["__S3_AUTH_VALUE_REF__", process.env.AZURE_S3_AUTH_VALUE_REF],
+          [
+            "__S3_ENDPOINT_ENV__",
+            process.env.S3_ENDPOINT
+              ? `          - name: S3_ENDPOINT\n            secretRef: ${s3EndpointSecretRef}`
+              : "",
+          ],
             ["__WORKER_CONTAINERAPP_NAME__", process.env.AZURE_WORKER_CONTAINERAPP_NAME || "collabsphere-worker-stg"],
+            ["__WORKER_MIN_REPLICAS__", process.env.AZURE_WORKER_MIN_REPLICAS || "1"],
+            ["__WORKER_MAX_REPLICAS__", process.env.AZURE_WORKER_MAX_REPLICAS || "1"],
           ]);
 
           for (const file of [
@@ -613,18 +599,18 @@ jobs:
         run: bash scripts/smoke-test.sh
 
   notify:
-    if: ${{ always() && needs.resolve-target.outputs.deploy_environment != '' }}
+    if: ${{ always() }}
     needs:
       - resolve-target
       - build
       - deploy
     runs-on: ubuntu-latest
-    environment: ${{ needs.resolve-target.outputs.deploy_environment }}
+    environment: staging
     permissions:
       actions: read
       contents: read
     env:
-      DEPLOY_ENVIRONMENT: ${{ needs.resolve-target.outputs.deploy_environment }}
+      DEPLOY_ENVIRONMENT: staging
       DEPLOY_TARGET_SUMMARY: Vercel web + Azure Container Apps backend
 
     steps:

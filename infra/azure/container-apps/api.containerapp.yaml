@@ -66,5 +66,5 @@ properties:
           cpu: 0.5
           memory: 1.0Gi
     scale:
-      minReplicas: 1
-      maxReplicas: 1
+      minReplicas: __API_MIN_REPLICAS__
+      maxReplicas: __API_MAX_REPLICAS__
