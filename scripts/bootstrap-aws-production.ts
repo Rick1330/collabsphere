@@ -28,7 +28,7 @@ const resolveEnvironment = () => {
   const environmentArgIndex = rawArgs.findIndex((arg) => arg === "--environment");
   const environmentArgValue =
     environmentArgIndex >= 0 ? rawArgs[environmentArgIndex + 1] : undefined;
-  const candidate = (process.env.DEPLOY_ENVIRONMENT ?? environmentArgValue ?? "production")
+  const candidate = (environmentArgValue ?? process.env.DEPLOY_ENVIRONMENT ?? "production")
     .trim()
     .toLowerCase();
 

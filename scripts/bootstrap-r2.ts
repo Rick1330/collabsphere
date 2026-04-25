@@ -59,7 +59,7 @@ const readArgValue = ({ name }: { name: string }) => {
 };
 
 const resolveEnvironment = (): DeployEnvironment => {
-  const candidate = (process.env.DEPLOY_ENVIRONMENT ?? readArgValue({ name: "--environment" }) ?? "staging")
+  const candidate = (readArgValue({ name: "--environment" }) ?? process.env.DEPLOY_ENVIRONMENT ?? "staging")
     .trim()
     .toLowerCase() as DeployEnvironment;
 

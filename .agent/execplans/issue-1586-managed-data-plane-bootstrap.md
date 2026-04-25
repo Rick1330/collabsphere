@@ -2,7 +2,7 @@
 
 ## Purpose / Big Picture
 - Execute issue `#1586` as the maintenance track for environment bootstrap, managed PostgreSQL/Redis, and staging cost reduction.
-- Keep production backend compute on Azure Container Apps and establish a real managed production data plane instead of the temporary in-ACA staging pattern.
+- Move production backend compute to AWS ECS/Fargate and establish a real managed production data plane instead of the temporary in-ACA staging pattern.
 - Decide whether staging PostgreSQL and Redis should remain near Azure compute or move to AWS-backed managed services based on real cost, latency, and operator complexity instead of credit availability alone.
 - Leave the repo with a repeatable bootstrap/deploy model that supports the upcoming authentication/session work in project `#4`.
 
@@ -58,9 +58,9 @@
   - Rationale: the work is cross-cloud, multi-session, and spans repo automation, runtime infrastructure, secrets, cost control, and production readiness.
   - Alternatives: open a pure investigation issue first; force the work into the delivery queue as a story/task chain.
   - Source (spec/domain/agent-ref): `docs/agent-ref/ops/github-issue-lifecycle.md`, `.agent/PLANS.md`
-- Decision: keep production compute on Azure Container Apps.
-  - Rationale: the current backend deployment system is already centered on ACA and the user explicitly wants production containers on Azure.
-  - Alternatives: move production compute to AWS with the data plane; keep production unplanned while only optimizing staging.
+- Decision: move production compute to AWS ECS/Fargate.
+  - Rationale: the user later clarified that staging must stay Azure-only while production should move to AWS, and the repo now carries first-class AWS production workflow/bootstrap surfaces.
+  - Alternatives: keep production compute on Azure Container Apps; keep production unplanned while only optimizing staging.
   - Source (spec/domain/agent-ref): issue `#1586`, `docs/spec/14-devops/14.6-deployment-strategy.md`
 - Decision: treat production PostgreSQL and Redis as managed services separate from compute.
   - Rationale: this matches the repo deployment strategy and fixes the current temporary/non-durable database shape.
@@ -111,7 +111,7 @@
   - `.agent/execplans/deployment-and-data-plane-recovery-2026-04-24.md`
 - Cloud state:
   - Azure staging exists and is healthy
-  - Azure production bootstrap does not exist
+  - AWS production bootstrap is partially in place, but the production runtime is not complete yet
   - AWS CLI is installed locally but not authenticated
 
 ## Plan of Work
@@ -128,7 +128,7 @@
 
 ## Concrete Steps
 1. Confirm the desired target split:
-   - production compute on Azure ACA
+   - production compute on AWS ECS/Fargate
    - production PostgreSQL/Redis as managed services
    - staging PostgreSQL/Redis either near Azure or on AWS only if justified
 2. Inspect Azure managed service options for production:

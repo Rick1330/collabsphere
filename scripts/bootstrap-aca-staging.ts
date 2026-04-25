@@ -19,7 +19,7 @@ const resolveDeployEnvironment = () => {
   const environmentArgIndex = rawArgs.findIndex((arg) => arg === "--environment");
   const environmentArgValue =
     environmentArgIndex >= 0 ? rawArgs[environmentArgIndex + 1] : undefined;
-  const candidate = (process.env.DEPLOY_ENVIRONMENT ?? environmentArgValue ?? "staging")
+  const candidate = (environmentArgValue ?? process.env.DEPLOY_ENVIRONMENT ?? "staging")
     .trim()
     .toLowerCase();
 
