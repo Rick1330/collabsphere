@@ -325,26 +325,38 @@ const resolveUnknownErrorCode = (error: unknown): CanonicalErrorCode => {
   return databaseErrorPattern.test(message) ? "DATABASE_ERROR" : "INTERNAL_ERROR";
 };
 
+const allowedResponseHeaderByLowercaseName: Readonly<Record<string, string>> = {
+  "retry-after": "Retry-After",
+  "www-authenticate": "WWW-Authenticate",
+};
+
 const sanitizeResponseHeaders = ({
-  code,
   headers,
 }: {
-  code: CanonicalErrorCode;
   headers?: Record<string, string>;
 }): Record<string, string> | undefined => {
-  if (!headers || code !== "RATE_LIMITED") {
+  if (!headers) {
     return undefined;
   }
 
-  const retryAfterValue = headers["Retry-After"] ?? headers["retry-after"];
+  const sanitized: Record<string, string> = {};
 
-  if (typeof retryAfterValue !== "string" || !retryAfterValue.trim()) {
-    return undefined;
+  for (const [headerName, headerValue] of Object.entries(headers)) {
+    if (typeof headerValue !== "string") {
+      continue;
+    }
+
+    const canonicalName = allowedResponseHeaderByLowercaseName[headerName.toLowerCase()];
+    const trimmedValue = headerValue.trim();
+
+    if (!canonicalName || !trimmedValue) {
+      continue;
+    }
+
+    sanitized[canonicalName] = trimmedValue;
   }
 
-  return {
-    "Retry-After": retryAfterValue.trim(),
-  };
+  return Object.keys(sanitized).length > 0 ? sanitized : undefined;
 };
 
 const normalizeAppError = (error: unknown): NormalizedAppError => {
@@ -354,7 +366,6 @@ const normalizeAppError = (error: unknown): NormalizedAppError => {
       message: error.message,
       details: error.details,
       headers: sanitizeResponseHeaders({
-        code: error.code,
         headers: error.headers,
       }),
       statusCode: error.statusCode,

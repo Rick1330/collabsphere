@@ -150,3 +150,24 @@ test("unknown unexpected errors fall back to INTERNAL_ERROR", () => {
     },
   });
 });
+
+test("error response headers are allowlisted to Retry-After and WWW-Authenticate", () => {
+  const { headers } = createErrorResponse({
+    error: new AppError({
+      code: "UNAUTHORIZED",
+      headers: {
+        "Retry-After": " 120 ",
+        "www-authenticate": "Bearer realm=\"collabsphere\"",
+        "Content-Type": "text/plain",
+        "X-Custom": "ignored",
+      },
+    }),
+    requestId: "req_headers",
+    timestamp: "2026-04-25T00:00:00.000Z",
+  });
+
+  assert.deepEqual(headers, {
+    "Retry-After": "120",
+    "WWW-Authenticate": "Bearer realm=\"collabsphere\"",
+  });
+});
