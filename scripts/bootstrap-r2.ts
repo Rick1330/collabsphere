@@ -53,13 +53,13 @@ const runnerDir = path.join(repoRoot, ".tmp", "r2-bootstrap");
 const pnpmCommand =
   process.platform === "win32" ? path.join(path.dirname(process.execPath), "pnpm.cmd") : "pnpm";
 
-const readArgValue = (name: string) => {
+const readArgValue = ({ name }: { name: string }) => {
   const index = rawArgs.findIndex((arg) => arg === name);
   return index >= 0 ? rawArgs[index + 1] : undefined;
 };
 
 const resolveEnvironment = (): DeployEnvironment => {
-  const candidate = (process.env.DEPLOY_ENVIRONMENT ?? readArgValue("--environment") ?? "staging")
+  const candidate = (process.env.DEPLOY_ENVIRONMENT ?? readArgValue({ name: "--environment" }) ?? "staging")
     .trim()
     .toLowerCase() as DeployEnvironment;
 
@@ -73,16 +73,16 @@ const resolveEnvironment = (): DeployEnvironment => {
 const deployEnvironment = resolveEnvironment();
 const envKey = deployEnvironment.toUpperCase();
 
-const readScopedEnv = (baseName: string) =>
+const readScopedEnv = ({ baseName }: { baseName: string }) =>
   process.env[`CLOUDFLARE_R2_${envKey}_${baseName}`] ?? process.env[`CLOUDFLARE_R2_${baseName}`];
 
-const normalizeList = (value: string | undefined) =>
+const normalizeList = ({ value }: { value: string | undefined }) =>
   (value ?? "")
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
 
-const required = (name: string, value: string | undefined) => {
+const required = ({ name, value }: { name: string; value: string | undefined }) => {
   if (!value || value.trim().length === 0) {
     throw new Error(`Missing required environment variable ${name}.`);
   }
@@ -91,18 +91,28 @@ const required = (name: string, value: string | undefined) => {
 };
 
 const quotePowerShellArg = (value: string) => `'${String(value).replaceAll("'", "''")}'`;
-const normalizeOutput = (value: string | Buffer | null | undefined) =>
+const normalizeOutput = ({ value }: { value: string | Buffer | null | undefined }) =>
   Buffer.isBuffer(value) ? value.toString("utf8").trim() : String(value ?? "").trim();
-const createCommandResult = (
-  status: number | null | undefined,
-  stdout: string | Buffer | null | undefined,
-  stderr: string | Buffer | null | undefined,
-): CommandResult => ({
+const createCommandResult = ({
+  status,
+  stdout,
+  stderr,
+}: {
+  status: number | null | undefined;
+  stdout: string | Buffer | null | undefined;
+  stderr: string | Buffer | null | undefined;
+}): CommandResult => ({
   status: typeof status === "number" ? status : 1,
-  stdout: normalizeOutput(stdout),
-  stderr: normalizeOutput(stderr),
+  stdout: normalizeOutput({ value: stdout }),
+  stderr: normalizeOutput({ value: stderr }),
 });
-const matchesWranglerListEntry = (output: string, expected: string) => {
+const matchesWranglerListEntry = ({
+  output,
+  expected,
+}: {
+  output: string;
+  expected: string;
+}) => {
   const normalizedExpected = expected.trim().toLowerCase();
   return output
     .split(/\r?\n/)
@@ -115,28 +125,28 @@ const matchesWranglerListEntry = (output: string, expected: string) => {
 const providedAccountId = process.env.CLOUDFLARE_ACCOUNT_ID?.trim() || "";
 const apiToken = process.env.CLOUDFLARE_API_TOKEN?.trim() || "";
 const authMode = apiToken ? "api-token" : "wrangler-oauth";
-const bucketName = required(
-  `CLOUDFLARE_R2_${envKey}_BUCKET_NAME or CLOUDFLARE_R2_BUCKET_NAME`,
-  readScopedEnv("BUCKET_NAME"),
-);
-const customDomain = readScopedEnv("CUSTOM_DOMAIN")?.trim() || "";
-const zoneId = readScopedEnv("ZONE_ID")?.trim() || "";
-const jurisdiction = (readScopedEnv("JURISDICTION")?.trim() || "default") as
+const bucketName = required({
+  name: `CLOUDFLARE_R2_${envKey}_BUCKET_NAME or CLOUDFLARE_R2_BUCKET_NAME`,
+  value: readScopedEnv({ baseName: "BUCKET_NAME" }),
+});
+const customDomain = readScopedEnv({ baseName: "CUSTOM_DOMAIN" })?.trim() || "";
+const zoneId = readScopedEnv({ baseName: "ZONE_ID" })?.trim() || "";
+const jurisdiction = (readScopedEnv({ baseName: "JURISDICTION" })?.trim() || "default") as
   | "default"
   | "eu"
   | "fedramp";
-const allowedOrigins = normalizeList(readScopedEnv("ALLOWED_ORIGINS"));
-const allowedMethods = (normalizeList(readScopedEnv("ALLOWED_METHODS")).length > 0
-  ? normalizeList(readScopedEnv("ALLOWED_METHODS"))
+const allowedOrigins = normalizeList({ value: readScopedEnv({ baseName: "ALLOWED_ORIGINS" }) });
+const allowedMethods = (normalizeList({ value: readScopedEnv({ baseName: "ALLOWED_METHODS" }) }).length > 0
+  ? normalizeList({ value: readScopedEnv({ baseName: "ALLOWED_METHODS" }) })
   : ["GET", "PUT", "HEAD", "DELETE"]) as Array<"GET" | "PUT" | "POST" | "DELETE" | "HEAD">;
-const allowedHeaders = normalizeList(readScopedEnv("ALLOWED_HEADERS"));
-const exposeHeaders = normalizeList(readScopedEnv("EXPOSE_HEADERS"));
-const maxAgeSecondsRaw = readScopedEnv("MAX_AGE_SECONDS");
+const allowedHeaders = normalizeList({ value: readScopedEnv({ baseName: "ALLOWED_HEADERS" }) });
+const exposeHeaders = normalizeList({ value: readScopedEnv({ baseName: "EXPOSE_HEADERS" }) });
+const maxAgeSecondsRaw = readScopedEnv({ baseName: "MAX_AGE_SECONDS" });
 const maxAgeSeconds =
   typeof maxAgeSecondsRaw === "string" && maxAgeSecondsRaw.trim().length > 0
     ? Number.parseInt(maxAgeSecondsRaw, 10)
     : 3600;
-const locationHint = readScopedEnv("LOCATION_HINT")?.trim() || "";
+const locationHint = readScopedEnv({ baseName: "LOCATION_HINT" })?.trim() || "";
 
 if (customDomain && !zoneId) {
   throw new Error(
@@ -150,7 +160,7 @@ if (!Number.isFinite(maxAgeSeconds) || maxAgeSeconds < 0) {
 
 let discoveredAccountId = providedAccountId;
 
-const runWranglerViaPowerShell = (commandArgs: string[]): CommandResult => {
+const runWranglerViaPowerShell = ({ commandArgs }: { commandArgs: string[] }): CommandResult => {
   const commandLine = `& ${quotePowerShellArg(pnpmCommand)} ${["dlx", "wrangler", ...commandArgs]
     .map(quotePowerShellArg)
     .join(" ")}`;
@@ -162,37 +172,45 @@ const runWranglerViaPowerShell = (commandArgs: string[]): CommandResult => {
       stdio: "pipe",
     });
 
-    return createCommandResult(0, stdout, "");
+    return createCommandResult({ status: 0, stdout, stderr: "" });
   } catch (error) {
     const failedCommand = error as {
       status?: number | null;
       stdout?: string | Buffer | null;
       stderr?: string | Buffer | null;
     };
-    return createCommandResult(failedCommand.status, failedCommand.stdout, failedCommand.stderr);
+    return createCommandResult({
+      status: failedCommand.status,
+      stdout: failedCommand.stdout,
+      stderr: failedCommand.stderr,
+    });
   }
 };
 
-const runWranglerViaSpawn = (commandArgs: string[]): CommandResult => {
+const runWranglerViaSpawn = ({ commandArgs }: { commandArgs: string[] }): CommandResult => {
   const result = spawnSync(pnpmCommand, ["dlx", "wrangler", ...commandArgs], {
     cwd: repoRoot,
     encoding: "utf8",
     stdio: "pipe",
   });
 
-  return createCommandResult(result.status, result.stdout, result.stderr);
+  return createCommandResult({
+    status: result.status,
+    stdout: result.stdout,
+    stderr: result.stderr,
+  });
 };
 
-const runWrangler = (commandArgs: string[]) => {
+const runWrangler = ({ commandArgs }: { commandArgs: string[] }) => {
   if (process.platform === "win32") {
-    return runWranglerViaPowerShell(commandArgs);
+    return runWranglerViaPowerShell({ commandArgs });
   }
 
-  return runWranglerViaSpawn(commandArgs);
+  return runWranglerViaSpawn({ commandArgs });
 };
 
-const runWranglerOrThrow = (commandArgs: string[]) => {
-  const result = runWrangler(commandArgs);
+const runWranglerOrThrow = ({ commandArgs }: { commandArgs: string[] }) => {
+  const result = runWrangler({ commandArgs });
   if (result.status !== 0) {
     throw new Error(result.stderr || result.stdout || `wrangler ${commandArgs.join(" ")} failed`);
   }
@@ -208,7 +226,7 @@ const resolveAccountId = () => {
     throw new Error("CLOUDFLARE_ACCOUNT_ID is required when using CLOUDFLARE_API_TOKEN.");
   }
 
-  const output = runWranglerOrThrow(["whoami"]);
+  const output = runWranglerOrThrow({ commandArgs: ["whoami"] });
   const match = output.match(/\b[0-9a-f]{32}\b/i);
   if (!match) {
     throw new Error("Could not determine Cloudflare account ID from `wrangler whoami`.");
@@ -262,7 +280,13 @@ const readJson = async <T>(response: Response): Promise<ApiEnvelope<T>> => {
   return payload;
 };
 
-const request = async <T>(path: string, options?: RequestInit) => {
+const request = async <T>({
+  path,
+  options,
+}: {
+  path: string;
+  options?: RequestInit;
+}) => {
   const response = await fetch(`${buildBaseUrl()}${path}`, {
     ...options,
     headers: createHeaders(),
@@ -286,8 +310,8 @@ const ensureBucketViaWrangler = async () => {
     return;
   }
 
-  const listOutput = runWranglerOrThrow(["r2", "bucket", "list"]);
-  if (matchesWranglerListEntry(listOutput, bucketName)) {
+  const listOutput = runWranglerOrThrow({ commandArgs: ["r2", "bucket", "list"] });
+  if (matchesWranglerListEntry({ output: listOutput, expected: bucketName })) {
     console.log(`R2 bucket already exists: ${bucketName}`);
     return;
   }
@@ -297,7 +321,7 @@ const ensureBucketViaWrangler = async () => {
     createArgs.push("--location", locationHint);
   }
 
-  runWranglerOrThrow(createArgs);
+  runWranglerOrThrow({ commandArgs: createArgs });
   console.log(`Created R2 bucket via Wrangler: ${bucketName}`);
 };
 
@@ -318,7 +342,8 @@ const ensureCorsViaWrangler = async () => {
     return;
   }
 
-  runWranglerOrThrow([
+  runWranglerOrThrow({
+    commandArgs: [
     "r2",
     "bucket",
     "cors",
@@ -329,7 +354,8 @@ const ensureCorsViaWrangler = async () => {
     "--jurisdiction",
     jurisdiction,
     "--force",
-  ]);
+    ],
+  });
   console.log(`Applied R2 CORS policy via Wrangler to bucket: ${bucketName}`);
 };
 
@@ -346,7 +372,8 @@ const ensureCustomDomainViaWrangler = async () => {
     return;
   }
 
-  const listOutput = runWranglerOrThrow([
+  const listOutput = runWranglerOrThrow({
+    commandArgs: [
     "r2",
     "bucket",
     "domain",
@@ -354,14 +381,16 @@ const ensureCustomDomainViaWrangler = async () => {
     bucketName,
     "--jurisdiction",
     jurisdiction,
-  ]);
+    ],
+  });
 
-  if (matchesWranglerListEntry(listOutput, customDomain)) {
+  if (matchesWranglerListEntry({ output: listOutput, expected: customDomain })) {
     console.log(`R2 custom domain already exists: ${customDomain}`);
     return;
   }
 
-  runWranglerOrThrow([
+  runWranglerOrThrow({
+    commandArgs: [
     "r2",
     "bucket",
     "domain",
@@ -374,7 +403,8 @@ const ensureCustomDomainViaWrangler = async () => {
     "--jurisdiction",
     jurisdiction,
     "--force",
-  ]);
+    ],
+  });
   console.log(`Attached R2 custom domain via Wrangler: ${customDomain}`);
 };
 
@@ -389,8 +419,11 @@ const ensureBucket = async () => {
     return;
   }
 
-  const existing = await request<{ buckets?: BucketRecord[] }>("", {
-    method: "GET",
+  const existing = await request<{ buckets?: BucketRecord[] }>({
+    path: "",
+    options: {
+      method: "GET",
+    },
   });
   const hasBucket =
     existing.result?.buckets?.some((bucket) => bucket.name?.toLowerCase() === bucketName.toLowerCase()) ??
@@ -401,12 +434,15 @@ const ensureBucket = async () => {
     return;
   }
 
-  await request<BucketRecord>("", {
-    method: "POST",
-    body: JSON.stringify({
-      name: bucketName,
-      jurisdiction,
-    }),
+  await request<BucketRecord>({
+    path: "",
+    options: {
+      method: "POST",
+      body: JSON.stringify({
+        name: bucketName,
+        jurisdiction,
+      }),
+    },
   });
   console.log(`Created R2 bucket: ${bucketName}`);
 };
@@ -431,9 +467,12 @@ const ensureCors = async () => {
     return;
   }
 
-  await request<object>(`/${bucketName}/cors`, {
-    method: "PUT",
-    body: JSON.stringify({ rules }),
+  await request<object>({
+    path: `/${bucketName}/cors`,
+    options: {
+      method: "PUT",
+      body: JSON.stringify({ rules }),
+    },
   });
   console.log(`Applied R2 CORS policy to bucket: ${bucketName}`);
 };
@@ -456,8 +495,11 @@ const ensureCustomDomain = async () => {
     return;
   }
 
-  const existing = await request<{ domains?: CustomDomainRecord[] }>(`/${bucketName}/domains/custom`, {
-    method: "GET",
+  const existing = await request<{ domains?: CustomDomainRecord[] }>({
+    path: `/${bucketName}/domains/custom`,
+    options: {
+      method: "GET",
+    },
   });
   const matched = existing.result?.domains?.find(
     (domain) => domain.domain?.toLowerCase() === customDomain.toLowerCase(),
@@ -470,13 +512,16 @@ const ensureCustomDomain = async () => {
     return;
   }
 
-  await request<object>(`/${bucketName}/domains/custom`, {
-    method: "POST",
-    body: JSON.stringify({
-      domain: customDomain,
-      enabled: true,
-      zoneId,
-    }),
+  await request<object>({
+    path: `/${bucketName}/domains/custom`,
+    options: {
+      method: "POST",
+      body: JSON.stringify({
+        domain: customDomain,
+        enabled: true,
+        zoneId,
+      }),
+    },
   });
   console.log(`Attached R2 custom domain: ${customDomain}`);
 };
