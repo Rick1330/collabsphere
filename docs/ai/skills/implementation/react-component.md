@@ -33,4 +33,4 @@ Build reusable components aligned with CollabSphere UI patterns and accessibilit
 
 ## Related Skills / References
 - `implementation/react-form.md`
-- `implementation/nextjs-page.md`
+- `implementation/web-page.md`

@@ -33,4 +33,4 @@ Implement forms with validation aligned to canonical rules and safe UX behavior.
 
 ## Related Skills / References
 - `implementation/react-component.md`
-- `implementation/nextjs-page.md`
+- `implementation/web-page.md`

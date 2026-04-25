@@ -104,10 +104,13 @@ Note: Do not use `type:story-validation` or `type:project-validation`. Use `type
 
 ## Frontend Spec Precision (Guidance)
 Avoid the generic `spec:ui` when a more specific specialization is known. Prefer:
-- `spec:nextjs-page` for page/route work.
+- `spec:web-page` for page/route work in the current Vite + React SPA.
 - `spec:react-component` for reusable components.
 - `spec:react-form` for form flows.
 - `spec:data-hooks` for TanStack Query hooks/state wiring.
+
+Compatibility note:
+- `spec:nextjs-page` is a legacy alias from an earlier frontend phase and should not be used for new work.
 
 ## Notes
 - Apply labels consistently across levels to reduce routing ambiguity.
