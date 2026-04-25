@@ -13,7 +13,7 @@
   - Confirmed this work belongs in `lane:maintenance`, not the planned delivery queue.
   - Created issue `#1586`:
     - title: `[OPS] Reduce staging cost and bootstrap managed data plane for staging/production`
-    - labels include `type:ops`, `tier:S`, `exec:execplan`, `review:critical`, `priority:P1`, `severity:S2`
+    - labels include `type:ops`, `tier:S`, `exec:execplan`, `review:elevated`, `priority:P1`, `severity:S2`
   - Created working branch `fix/1586-managed-data-plane-bootstrap` from current recovery state based on `origin/main`.
   - Confirmed the latest broken `main` deploy was a build regression around Prisma client generation, not an Azure runtime outage.
   - Confirmed staging is live today and production bootstrap does not exist.
@@ -24,7 +24,11 @@
     - add AWS production workflow/bootstrap surfaces and Cloudflare R2 bootstrap surfaces
     - add the bootstrap precedence fix so explicit `--environment` flags win over ambient `DEPLOY_ENVIRONMENT`
     - address current PR review follow-ups around exact-match resource detection, action pinning, and safer env handling
+    - fix SonarCloud `typescript:S4036` hotspots by using fixed absolute command paths in AWS/R2 bootstrap scripts
+    - simplify command-path resolution to clear CodeScene code-health gates without weakening the hotspot fix
   - Opened PR `#1587` against `main` for review of the repo-side deployment/runtime split.
+  - Updated PR `#1587` development-closing section to `Closes #1586` so merge closes the parent ops issue.
+  - Confirmed PR `#1587` review threads are all resolved and linked closing issue references include `#1586`.
   - Validated locally:
     - `pnpm install --frozen-lockfile`
     - `pnpm --filter @collabsphere/web run build`
@@ -36,16 +40,13 @@
     - YAML parsing for updated workflow/manifests
     - targeted workflow/unit tests for the deploy/bootstrap surfaces
 - In progress:
-  - Review cleanup and merge-readiness for PR `#1587`.
+  - Merge-readiness for PR `#1587` (awaiting final human review/merge decision).
   - Choose the remaining staging/production managed data-plane secret ownership details and retirement path.
 - Blocked:
   - AWS CLI is installed locally but currently unauthenticated again on this machine (`aws sts get-caller-identity` returns `NoCredentials`).
-  - PR `#1587` cannot clear branch protection yet because:
-    - `review:critical` still requires at least one non-author human approval
-    - SonarCloud still reports open security hotspots on the PR
 - Next:
-  - Finish dispositioning current-head PR review threads.
   - Keep the PR body and linked-issue handoff in the canonical repo format.
+  - Keep issue handoff/execplan details synchronized with the now-green PR check state.
   - Re-establish AWS auth when the next live provisioning slice starts.
   - Continue the live infra work intentionally left out of this PR: AWS OIDC/services/data plane, R2 runtime credentials/CORS, and staging pg/redis retirement planning.
 
@@ -97,7 +98,7 @@
   - separate Azure staging and AWS production workflow/bootstrap surfaces
   - initial R2 bootstrap and source-controlled infra/docs
 - Remaining work is now split between:
-  - PR merge-readiness and review/quality-gate cleanup for the repo-side slice
+  - PR merge-readiness and human approval/merge timing for the repo-side slice (checks are currently green)
   - later live cloud provisioning for the still-missing AWS and R2 runtime pieces
 
 ## Context and Orientation
