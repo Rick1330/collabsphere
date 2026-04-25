@@ -29,6 +29,16 @@
   - Opened PR `#1587` against `main` for review of the repo-side deployment/runtime split.
   - Updated PR `#1587` development-closing section to `Closes #1586` so merge closes the parent ops issue.
   - Confirmed PR `#1587` review threads are all resolved and linked closing issue references include `#1586`.
+  - Confirmed production deploy intent is implemented in workflow contracts:
+    - `.github/workflows/deploy-production-aws.yml` triggers on `push.tags: [\"v*\"]` and `workflow_dispatch`
+    - production deploys still require the target commit to already be on `main`
+  - Audited recent failed `main` deploy runs (`24887346156`, `24892370485`) and confirmed the failure was Prisma client export mismatch during build; this branch addresses it via pre-build `@collabsphere/database generate` in `apps/api`, `apps/collab`, and `apps/worker`.
+  - Updated canonical docs to match implemented frontend truth (Vite + React + Tailwind/shadcn + TypeScript) and marked the prior Next.js wording as superseded where relevant:
+    - `docs/spec/07-architecture/07.2-tech-stack.md`
+    - `docs/spec/07-architecture/07.4-repo-organization.md`
+    - `docs/spec/07-architecture/07.6-adrs.md`
+    - `docs/ai/LABEL_APPLICATION_GUIDE_V2.md`
+    - `docs/ai/skills/implementation/*`
   - Validated locally:
     - `pnpm install --frozen-lockfile`
     - `pnpm --filter @collabsphere/web run build`
