@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
+import type { IncomingMessage } from "node:http";
+import { Readable } from "node:stream";
 import test from "node:test";
 import { AppError, createErrorResponse } from "../../apps/api/src/common/filters/app-error.filter.js";
+import { createAuthController } from "../../apps/api/src/auth/auth.controller.js";
 import {
   createRegisterService,
   registerServiceConstants,
@@ -11,6 +14,30 @@ import type { RegisterRepository } from "../../apps/api/src/auth/auth.repository
 
 const fixedNowIso = "2026-04-25T12:00:00.000Z";
 const fixedNow = () => new Date(fixedNowIso);
+
+const createRegisterRequest = ({
+  body,
+  contentType = "application/json",
+  remoteAddress = "203.0.113.10",
+}: {
+  body: unknown;
+  contentType?: string;
+  remoteAddress?: string;
+}): IncomingMessage => {
+  const stream = Readable.from([JSON.stringify(body)]) as unknown as IncomingMessage & {
+    headers: Record<string, string>;
+    socket: { remoteAddress: string };
+  };
+
+  stream.headers = {
+    "content-type": contentType,
+  };
+  stream.socket = {
+    remoteAddress,
+  };
+
+  return stream;
+};
 
 const createRepositoryDouble = () => {
   const createdUsers: Array<{ email: string; fullName: string; passwordHash: string }> = [];
@@ -112,6 +139,31 @@ test("register service hashes passwords with bcrypt(12), stores token hashes, an
   assert.equal(enqueuedJobs[0]?.email, "jane+reg@example.com");
   assert.equal(enqueuedJobs[0]?.attempts, 0);
   assert.equal(enqueuedJobs[0]?.verificationTokenId, "token_1");
+});
+
+test("register controller maps unique persistence errors to EMAIL_ALREADY_EXISTS", async () => {
+  const controller = createAuthController({
+    registerService: {
+      register: async () => {
+        throw {
+          code: "P2002",
+        };
+      },
+    },
+  });
+
+  await assert.rejects(
+    controller.register({
+      request: createRegisterRequest({
+        body: {
+          fullName: "Jane Doe",
+          email: "jane@example.com",
+          password: "StrongPass@123",
+        },
+      }),
+    }),
+    (error: unknown) => error instanceof AppError && error.code === "EMAIL_ALREADY_EXISTS",
+  );
 });
 
 test("register service rejects duplicate local and oauth emails with canonical conflict codes", async () => {
