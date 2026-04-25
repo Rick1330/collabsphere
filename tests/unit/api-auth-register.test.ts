@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import type { IncomingMessage } from "node:http";
+import os from "node:os";
+import path from "node:path";
 import { Readable } from "node:stream";
 import test from "node:test";
 import { AppError, createErrorResponse } from "../../apps/api/src/common/filters/app-error.filter.js";
@@ -139,6 +142,50 @@ test("register service hashes passwords with bcrypt(12), stores token hashes, an
   assert.equal(enqueuedJobs[0]?.email, "jane+reg@example.com");
   assert.equal(enqueuedJobs[0]?.attempts, 0);
   assert.equal(enqueuedJobs[0]?.verificationTokenId, "token_1");
+});
+
+test("register service writes failed user.registered events to dead-letter storage", async () => {
+  const repo = createRepositoryDouble();
+  const temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "collabsphere-register-dlq-"));
+  const deadLetterFilePath = path.join(temporaryDirectory, ".tmp", "domain-events.dlq.ndjson");
+  const previousWorkingDirectory = process.cwd();
+
+  try {
+    process.chdir(temporaryDirectory);
+    const service = createRegisterService({
+      repository: repo.repository,
+      rateLimiter: new RegisterRateLimiter({
+        now: fixedNow,
+      }),
+      now: fixedNow,
+      jwtAccessSecret: "test-secret",
+      appendEvent: async () => {
+        throw new Error("event stream unavailable");
+      },
+      enqueueJob: async () => {},
+    });
+
+    await service.register({
+      payload: validateRegisterInput({
+        fullName: "Jane Doe",
+        email: "dlq@example.com",
+        password: "StrongPass@123",
+      }),
+      ipAddress: "203.0.113.11",
+    });
+
+    const deadLetterContent = await readFile(deadLetterFilePath, "utf8");
+    const deadLetterEvent = JSON.parse(deadLetterContent.trim()) as {
+      name: string;
+      data: { email?: string };
+    };
+
+    assert.equal(deadLetterEvent.name, "user.registered");
+    assert.equal(deadLetterEvent.data.email, "dlq@example.com");
+  } finally {
+    process.chdir(previousWorkingDirectory);
+    await rm(temporaryDirectory, { force: true, recursive: true });
+  }
 });
 
 test("register controller maps unique persistence errors to EMAIL_ALREADY_EXISTS", async () => {

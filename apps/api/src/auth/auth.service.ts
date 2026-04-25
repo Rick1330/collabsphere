@@ -5,7 +5,11 @@ import {
   encryptVerificationToken,
   enqueueVerificationEmailJob,
 } from "./verification-email-queue.js";
-import { appendAuthDomainEvent, type AuthDomainEvent } from "./auth-events.js";
+import {
+  appendAuthDomainEvent,
+  appendAuthDomainEventDeadLetter,
+  type AuthDomainEvent,
+} from "./auth-events.js";
 import { AppError } from "../common/filters/app-error.filter.js";
 import { type RegisterInput } from "./register.dto.js";
 import {
@@ -99,8 +103,15 @@ export const createRegisterService = ({
 
     await appendEvent({
       event: userRegisteredEvent,
-    }).catch((error) => {
+    }).catch(async (error) => {
       const message = error instanceof Error ? error.message : String(error);
+      await appendAuthDomainEventDeadLetter({
+        event: userRegisteredEvent,
+      }).catch((deadLetterError) => {
+        const deadLetterMessage =
+          deadLetterError instanceof Error ? deadLetterError.message : String(deadLetterError);
+        console.warn(`[api] failed to append user.registered dead-letter event: ${deadLetterMessage}`);
+      });
       console.warn(`[api] failed to append user.registered event: ${message}`);
     });
 
