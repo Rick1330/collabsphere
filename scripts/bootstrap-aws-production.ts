@@ -3,6 +3,25 @@ import { spawnSync } from "node:child_process";
 const args = new Set(process.argv.slice(2));
 const rawArgs = process.argv.slice(2);
 
+type AwsCommandResult = {
+  status: number;
+  stdout: string;
+  stderr: string;
+};
+
+type ClusterDescription = {
+  clusterName?: string;
+};
+
+type ClusterFailure = {
+  reason?: string;
+};
+
+type DescribeClustersResponse = {
+  clusters?: ClusterDescription[];
+  failures?: ClusterFailure[];
+};
+
 const supportedEnvironments = new Set(["production"]);
 
 const resolveEnvironment = () => {
@@ -43,6 +62,18 @@ const services = [
   },
 ] as const;
 
+const parseJson = <T>(value: string) => {
+  if (!value.trim()) {
+    return undefined;
+  }
+
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return undefined;
+  }
+};
+
 const runAws = (commandArgs: string[]) => {
   const profileArgs = profile ? ["--profile", profile] : [];
   const result = spawnSync("aws", [...commandArgs, "--region", region, ...profileArgs], {
@@ -54,7 +85,7 @@ const runAws = (commandArgs: string[]) => {
     status: result.status ?? 1,
     stdout: result.stdout.trim(),
     stderr: result.stderr.trim(),
-  };
+  } satisfies AwsCommandResult;
 };
 
 const runAwsOrThrow = (commandArgs: string[]) => {
@@ -74,13 +105,23 @@ const logPlannedAction = (message: string) => {
   console.log(message);
 };
 
-const ensureCluster = () => {
+const clusterExists = () => {
   const describe = runAws(["ecs", "describe-clusters", "--clusters", clusterName, "--output", "json"]);
-  if (
-    describe.status === 0 &&
-    describe.stdout.includes(`"clusterName": "${clusterName}"`) &&
-    !describe.stdout.includes('"reason": "MISSING"')
-  ) {
+  if (describe.status !== 0) {
+    return false;
+  }
+
+  const payload = parseJson<DescribeClustersResponse>(describe.stdout);
+  const hasCluster =
+    payload?.clusters?.some((cluster) => cluster.clusterName === clusterName) ?? false;
+  const isMissing =
+    payload?.failures?.some((failure) => failure.reason === "MISSING") ?? false;
+
+  return hasCluster && !isMissing;
+};
+
+const ensureCluster = () => {
+  if (clusterExists()) {
     console.log(`ECS cluster already exists: ${clusterName}`);
     return;
   }

@@ -36,6 +36,12 @@ type ApiEnvelope<T> = {
   result?: T;
 };
 
+type CommandResult = {
+  status: number;
+  stdout: string;
+  stderr: string;
+};
+
 const args = new Set(process.argv.slice(2));
 const rawArgs = process.argv.slice(2);
 const dryRun = args.has("--dry-run");
@@ -85,6 +91,26 @@ const required = (name: string, value: string | undefined) => {
 };
 
 const quotePowerShellArg = (value: string) => `'${String(value).replaceAll("'", "''")}'`;
+const normalizeOutput = (value: string | Buffer | null | undefined) =>
+  Buffer.isBuffer(value) ? value.toString("utf8").trim() : String(value ?? "").trim();
+const createCommandResult = (
+  status: number | null | undefined,
+  stdout: string | Buffer | null | undefined,
+  stderr: string | Buffer | null | undefined,
+): CommandResult => ({
+  status: typeof status === "number" ? status : 1,
+  stdout: normalizeOutput(stdout),
+  stderr: normalizeOutput(stderr),
+});
+const matchesWranglerListEntry = (output: string, expected: string) => {
+  const normalizedExpected = expected.trim().toLowerCase();
+  return output
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => line.split(/\s+/)[0]?.toLowerCase() ?? "")
+    .some((candidate) => candidate === normalizedExpected);
+};
 
 const providedAccountId = process.env.CLOUDFLARE_ACCOUNT_ID?.trim() || "";
 const apiToken = process.env.CLOUDFLARE_API_TOKEN?.trim() || "";
@@ -124,55 +150,45 @@ if (!Number.isFinite(maxAgeSeconds) || maxAgeSeconds < 0) {
 
 let discoveredAccountId = providedAccountId;
 
-const runWrangler = (commandArgs: string[]) => {
-  if (process.platform === "win32") {
-    const commandLine = `& ${quotePowerShellArg(pnpmCommand)} ${["dlx", "wrangler", ...commandArgs]
-      .map(quotePowerShellArg)
-      .join(" ")}`;
+const runWranglerViaPowerShell = (commandArgs: string[]): CommandResult => {
+  const commandLine = `& ${quotePowerShellArg(pnpmCommand)} ${["dlx", "wrangler", ...commandArgs]
+    .map(quotePowerShellArg)
+    .join(" ")}`;
 
-    try {
-      const stdout = execFileSync(
-        "powershell.exe",
-        ["-NoProfile", "-Command", commandLine],
-        {
-          cwd: repoRoot,
-          encoding: "utf8",
-          stdio: "pipe",
-        },
-      );
+  try {
+    const stdout = execFileSync("powershell.exe", ["-NoProfile", "-Command", commandLine], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      stdio: "pipe",
+    });
 
-      return {
-        status: 0,
-        stdout: String(stdout ?? "").trim(),
-        stderr: "",
-      };
-    } catch (error) {
-      const stdout = Buffer.isBuffer(error?.stdout)
-        ? error.stdout.toString("utf8")
-        : String(error?.stdout ?? "");
-      const stderr = Buffer.isBuffer(error?.stderr)
-        ? error.stderr.toString("utf8")
-        : String(error?.stderr ?? "");
-
-      return {
-        status: typeof error?.status === "number" ? error.status : 1,
-        stdout: stdout.trim(),
-        stderr: stderr.trim(),
-      };
-    }
+    return createCommandResult(0, stdout, "");
+  } catch (error) {
+    const failedCommand = error as {
+      status?: number | null;
+      stdout?: string | Buffer | null;
+      stderr?: string | Buffer | null;
+    };
+    return createCommandResult(failedCommand.status, failedCommand.stdout, failedCommand.stderr);
   }
+};
 
+const runWranglerViaSpawn = (commandArgs: string[]): CommandResult => {
   const result = spawnSync(pnpmCommand, ["dlx", "wrangler", ...commandArgs], {
     cwd: repoRoot,
     encoding: "utf8",
     stdio: "pipe",
   });
 
-  return {
-    status: result.status ?? 1,
-    stdout: String(result.stdout ?? "").trim(),
-    stderr: String(result.stderr ?? "").trim(),
-  };
+  return createCommandResult(result.status, result.stdout, result.stderr);
+};
+
+const runWrangler = (commandArgs: string[]) => {
+  if (process.platform === "win32") {
+    return runWranglerViaPowerShell(commandArgs);
+  }
+
+  return runWranglerViaSpawn(commandArgs);
 };
 
 const runWranglerOrThrow = (commandArgs: string[]) => {
@@ -271,7 +287,7 @@ const ensureBucketViaWrangler = async () => {
   }
 
   const listOutput = runWranglerOrThrow(["r2", "bucket", "list"]);
-  if (listOutput.toLowerCase().includes(bucketName.toLowerCase())) {
+  if (matchesWranglerListEntry(listOutput, bucketName)) {
     console.log(`R2 bucket already exists: ${bucketName}`);
     return;
   }
@@ -340,7 +356,7 @@ const ensureCustomDomainViaWrangler = async () => {
     jurisdiction,
   ]);
 
-  if (listOutput.toLowerCase().includes(customDomain.toLowerCase())) {
+  if (matchesWranglerListEntry(listOutput, customDomain)) {
     console.log(`R2 custom domain already exists: ${customDomain}`);
     return;
   }
