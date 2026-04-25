@@ -16,7 +16,7 @@ import {
 import { RegisterRateLimiter } from "./register-rate-limit.js";
 
 const registerSuccessMessage = "Registration successful. Please verify your email.";
-const bcryptCostFactor = 12;
+const defaultBcryptCostFactor = 12;
 const verificationTokenTtlMs = 24 * 60 * 60 * 1000;
 
 const hashSha256 = (value: string) => createHash("sha256").update(value, "utf8").digest("hex");
@@ -34,6 +34,7 @@ export const createRegisterService = ({
   repository,
   rateLimiter,
   now = () => new Date(),
+  bcryptCostFactor = defaultBcryptCostFactor,
   jwtAccessSecret,
   appendEvent = appendAuthDomainEvent,
   enqueueJob = enqueueVerificationEmailJob,
@@ -41,6 +42,7 @@ export const createRegisterService = ({
   repository: RegisterRepository;
   rateLimiter: RegisterRateLimiter;
   now?: () => Date;
+  bcryptCostFactor?: number;
   jwtAccessSecret: string;
   appendEvent?: typeof appendAuthDomainEvent;
   enqueueJob?: typeof enqueueVerificationEmailJob;
@@ -130,10 +132,12 @@ export const createRegisterService = ({
 
 export const createPrismaBackedRegisterService = ({
   prisma,
+  bcryptCostFactor,
   jwtAccessSecret,
   now,
 }: {
   prisma: Parameters<typeof createPrismaRegisterRepository>[0]["prisma"];
+  bcryptCostFactor?: number;
   jwtAccessSecret: string;
   now?: () => Date;
 }) =>
@@ -145,6 +149,7 @@ export const createPrismaBackedRegisterService = ({
       now,
     }),
     now,
+    bcryptCostFactor,
     jwtAccessSecret,
   });
 
@@ -161,7 +166,7 @@ export const mapRegisterPersistenceError = (error: unknown) => {
 };
 
 export const registerServiceConstants = {
-  bcryptCostFactor,
+  bcryptCostFactor: defaultBcryptCostFactor,
   registerSuccessMessage,
   verificationTokenTtlMs,
 } as const;

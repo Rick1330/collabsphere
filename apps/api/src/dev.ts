@@ -50,6 +50,7 @@ const createRuntimeRegisterService = async (): Promise<RegisterService> => {
     const prisma = new PrismaClient();
     return createPrismaBackedRegisterService({
       prisma,
+      bcryptCostFactor: apiEnv.BCRYPT_COST,
       jwtAccessSecret: apiEnv.JWT_ACCESS_SECRET,
     });
   } catch (error) {
