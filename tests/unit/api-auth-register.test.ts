@@ -265,6 +265,15 @@ test("weak passwords fail with PASSWORD_TOO_WEAK and 429 headers are preserved i
       }),
     (error: unknown) => error instanceof AppError && error.code === "PASSWORD_TOO_WEAK",
   );
+  assert.throws(
+    () =>
+      validateRegisterInput({
+        fullName: "Jane Doe",
+        email: "jane@example.com",
+        password: `${"A".repeat(97)}a1!`,
+      }),
+    (error: unknown) => error instanceof AppError && error.code === "PASSWORD_TOO_WEAK",
+  );
 
   const rateLimitError = new AppError({
     code: "RATE_LIMITED",

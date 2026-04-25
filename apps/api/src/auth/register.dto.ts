@@ -8,10 +8,12 @@ export type RegisterInput = {
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const minPasswordLength = 8;
+const maxPasswordLength = 72;
 
 export const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
 const assertPasswordStrength = (password: string) => {
+  const passwordByteLength = Buffer.byteLength(password, "utf8");
   const hasUpper = /[A-Z]/.test(password);
   const hasLower = /[a-z]/.test(password);
   const hasDigit = /[0-9]/.test(password);
@@ -19,6 +21,7 @@ const assertPasswordStrength = (password: string) => {
 
   if (
     password.length < minPasswordLength ||
+    passwordByteLength > maxPasswordLength ||
     !hasUpper ||
     !hasLower ||
     !hasDigit ||
