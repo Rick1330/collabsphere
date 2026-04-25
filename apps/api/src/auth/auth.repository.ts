@@ -1,9 +1,8 @@
-import { PrismaClient } from "@prisma/client";
-import type { AuthProvider } from "@prisma/client";
+import type { PrismaClient } from "@prisma/client";
 
 export type ExistingAuthUser = {
   id: string;
-  authProvider: AuthProvider;
+  authProvider: "local" | "google";
 };
 
 export type CreatedAuthUser = {

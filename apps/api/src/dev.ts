@@ -1,9 +1,11 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { PrismaClient } from "@prisma/client";
 import { EnvValidationError, parseApiRuntimeEnv } from "../../../packages/shared/src/api-env.js";
 import { resolveEmailConfig } from "./config/email.js";
 import { createAuthController } from "./auth/auth.controller.js";
-import { createPrismaBackedRegisterService } from "./auth/auth.service.js";
+import {
+  createPrismaBackedRegisterService,
+  type RegisterService,
+} from "./auth/auth.service.js";
 import {
   AppError,
   createErrorResponse,
@@ -40,12 +42,37 @@ try {
 }
 
 const { logger } = createLoggerModule();
-const prisma = new PrismaClient();
+let registerServicePromise: Promise<RegisterService> | null = null;
+
+const createRuntimeRegisterService = async (): Promise<RegisterService> => {
+  try {
+    const { PrismaClient } = await import("@prisma/client");
+    const prisma = new PrismaClient();
+    return createPrismaBackedRegisterService({
+      prisma,
+      jwtAccessSecret: apiEnv.JWT_ACCESS_SECRET,
+    });
+  } catch (error) {
+    throw new AppError({
+      code: "SERVICE_UNAVAILABLE",
+      message: "Registration service unavailable",
+      cause: error,
+    });
+  }
+};
+
+const getRegisterService = () => {
+  if (!registerServicePromise) {
+    registerServicePromise = createRuntimeRegisterService();
+  }
+
+  return registerServicePromise;
+};
+
 const authController = createAuthController({
-  registerService: createPrismaBackedRegisterService({
-    prisma,
-    jwtAccessSecret: apiEnv.JWT_ACCESS_SECRET,
-  }),
+  registerService: {
+    register: async (input) => (await getRegisterService()).register(input),
+  },
 });
 
 const paginationFixtureItems = Array.from({ length: 53 }, (_, index) => ({
