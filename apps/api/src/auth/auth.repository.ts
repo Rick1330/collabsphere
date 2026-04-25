@@ -1,4 +1,4 @@
-import { Prisma, PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import type { AuthProvider } from "@prisma/client";
 
 export type ExistingAuthUser = {
@@ -30,8 +30,14 @@ export type RegisterRepository = {
   }) => Promise<CreatedVerificationToken>;
 };
 
-export const isUniqueConstraintError = (error: unknown) =>
-  error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+export const isUniqueConstraintError = (error: unknown) => {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const candidate = error as Partial<{ code: unknown }>;
+  return candidate.code === "P2002";
+};
 
 export const createPrismaRegisterRepository = ({
   prisma,
