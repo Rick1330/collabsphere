@@ -72,4 +72,5 @@ test("production deploy workflow is AWS-backed and tag/manual driven", async () 
   assert.match(text, /AWS_DEPLOY_ROLE_ARN/);
   assert.match(text, /DATABASE_URL/);
   assert.match(text, /Vercel web \+ AWS ECS backend/);
+  assert.match(text, /Unexpected Vercel deployment URL/);
 });

@@ -479,6 +479,22 @@ jobs:
             exit 1
           fi
 
+          if ! node -e '
+            const candidate = process.argv[1];
+            let parsed;
+            try {
+              parsed = new URL(candidate);
+            } catch {
+              process.exit(1);
+            }
+            if (!parsed.hostname.endsWith(".vercel.app")) {
+              process.exit(1);
+            }
+          ' "$deployment_url"; then
+            echo "::error::Unexpected Vercel deployment URL: $deployment_url"
+            exit 1
+          fi
+
           echo "deployment_url=$deployment_url" >> "$GITHUB_OUTPUT"
 
       - name: Install Vercel CLI for smoke tests
