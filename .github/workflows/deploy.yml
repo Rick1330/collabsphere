@@ -349,6 +349,7 @@ jobs:
           const outputDir = path.join(runnerTemp, "containerapps");
           const registryServer = process.env.AZURE_CONTAINER_REGISTRY_LOGIN_SERVER;
           const imageTag = process.env.IMAGE_TAG;
+          const s3EndpointSecretRef = process.env.AZURE_S3_ENDPOINT_SECRET_REF || "s3-endpoint";
           const substitutions = new Map([
             ["__LOCATION__", process.env.AZURE_LOCATION],
             ["__ACR_USERNAME__", process.env.AZURE_ACR_USERNAME],
@@ -368,7 +369,7 @@ jobs:
           [
             "__S3_ENDPOINT_ENV__",
             process.env.S3_ENDPOINT
-              ? `          - name: S3_ENDPOINT\n            secretRef: ${process.env.AZURE_S3_ENDPOINT_SECRET_REF}`
+              ? `          - name: S3_ENDPOINT\n            secretRef: ${s3EndpointSecretRef}`
               : "",
           ],
             ["__WORKER_CONTAINERAPP_NAME__", process.env.AZURE_WORKER_CONTAINERAPP_NAME || "collabsphere-worker-stg"],
