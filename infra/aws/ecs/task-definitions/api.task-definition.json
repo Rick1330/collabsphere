@@ -1,0 +1,50 @@
+{
+  "family": "collabsphere-api",
+  "executionRoleArn": "__ECS_EXECUTION_ROLE_ARN__",
+  "taskRoleArn": "__ECS_TASK_ROLE_ARN__",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "runtimePlatform": {
+    "cpuArchitecture": "X86_64",
+    "operatingSystemFamily": "LINUX"
+  },
+  "containerDefinitions": [
+    {
+      "name": "api",
+      "image": "__API_IMAGE__",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 3001,
+          "hostPort": 3001,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        { "name": "PORT", "value": "3001" },
+        { "name": "HOST", "value": "0.0.0.0" },
+        { "name": "JWT_ACCESS_TTL_MINUTES", "value": "15" },
+        { "name": "REFRESH_TOKEN_TTL_DAYS", "value": "7" }
+      ],
+      "secrets": [
+        { "name": "DATABASE_URL", "valueFrom": "__DATABASE_URL_SECRET_ARN__" },
+        { "name": "REDIS_URL", "valueFrom": "__REDIS_URL_SECRET_ARN__" },
+        { "name": "JWT_ACCESS_SECRET", "valueFrom": "__JWT_ACCESS_SECRET_ARN__" },
+        { "name": "CORS_ORIGINS", "valueFrom": "__CORS_ORIGINS_SECRET_ARN__" },
+        { "name": "EMAIL_PROVIDER_API_KEY", "valueFrom": "__EMAIL_PROVIDER_API_KEY_SECRET_ARN__" },
+        { "name": "API_BASE_URL", "valueFrom": "__API_BASE_URL_SECRET_ARN__" },
+        { "name": "BASE_URL", "valueFrom": "__BASE_URL_SECRET_ARN__" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/collabsphere-production/api",
+          "awslogs-region": "__AWS_REGION__",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}

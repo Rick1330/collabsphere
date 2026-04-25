@@ -58,6 +58,7 @@ properties:
             secretRef: __S3_AUTH_VALUE_REF__
           - name: S3_REGION
             secretRef: s3-region
+__S3_ENDPOINT_ENV__
         probes:
           - type: Startup
             httpGet:
@@ -81,5 +82,5 @@ properties:
           cpu: 0.5
           memory: 1.0Gi
     scale:
-      minReplicas: 1
-      maxReplicas: 1
+      minReplicas: __COLLAB_MIN_REPLICAS__
+      maxReplicas: __COLLAB_MAX_REPLICAS__

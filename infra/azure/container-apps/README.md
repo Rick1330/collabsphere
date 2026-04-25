@@ -49,6 +49,7 @@
 - Secret values are not committed here; the manifests reference secret names that must exist in the target Container App or deployment pipeline context.
 - The S3 credential references intentionally stay as deployment-time placeholders (`__S3_AUTH_ID_REF__`, `__S3_AUTH_VALUE_REF__`) so source control does not hard-code environment-specific credential identifiers.
 - The deploy workflow supplies those S3 secret-name placeholders through GitHub environment variables `AZURE_S3_AUTH_ID_REF` and `AZURE_S3_AUTH_VALUE_REF`.
+- When object storage uses an S3-compatible non-AWS endpoint such as Cloudflare R2, the manifests can also render an optional `S3_ENDPOINT` secret reference through `AZURE_S3_ENDPOINT_SECRET_REF`.
 - The deploy workflow/bootstrap path must also ensure the `acr-password` secret exists before a manifest update so Container Apps can keep pulling private images from ACR.
 
 ## Migration and revision-hook strategy
@@ -61,7 +62,9 @@
 - Service manifests use `activeRevisionsMode: Single` so the latest ready revision becomes active after the migration hook succeeds.
 
 ## Bootstrap helper
-- Use `pnpm bootstrap:aca:staging` for first-run ACA creation and secret provisioning.
+- Use `pnpm bootstrap:aca:staging` for first-run staging ACA creation and secret provisioning.
+- Use `pnpm bootstrap:aca:production` for first-run production ACA creation and secret provisioning.
+- Use `pnpm bootstrap:aca -- --environment staging|production` when you want to drive the target environment explicitly.
 - The helper expects:
   - Azure foundation resources to already exist
   - runtime values to be supplied as environment variables
@@ -69,9 +72,19 @@
   - an image tag that already exists in ACR, or `--build-and-push` to seed the images first
 - Use `--dry-run` to validate manifest rendering and placeholder replacement without mutating Azure.
 - The helper provisions secrets on the apps/jobs and creates missing resources before normal `deploy.yml` runs are used.
+- The helper does not provision Postgres or Redis. `DATABASE_URL`, `COLLAB_DATABASE_URL`, and `REDIS_URL` should point at managed data services provisioned separately, such as AWS Aurora/RDS and ElastiCache if that is the chosen environment design.
+- The helper also does not provision object storage. For Cloudflare R2, provide `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_REGION=auto`, and `S3_ENDPOINT=https://<account_id>.r2.cloudflarestorage.com`.
 - Internal service connection strings should use ACA app names inside the environment, not the public-style internal FQDNs:
   - Postgres: `collabsphere-pg-stg:5432`
   - Redis: `collabsphere-redis-stg:6379`
+
+## Scale tuning
+- Backend replica counts are environment-configurable through GitHub environment vars or bootstrap env vars:
+  - `AZURE_API_MIN_REPLICAS`, `AZURE_API_MAX_REPLICAS`
+  - `AZURE_COLLAB_MIN_REPLICAS`, `AZURE_COLLAB_MAX_REPLICAS`
+  - `AZURE_WORKER_MIN_REPLICAS`, `AZURE_WORKER_MAX_REPLICAS`
+- Default values remain `1`/`1` for each service.
+- Keep staging values intentionally low to avoid idle spend; production values should be chosen from actual traffic and worker requirements.
 
 ## Manual validation
 - Parse each YAML file before use.
