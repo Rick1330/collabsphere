@@ -60,13 +60,6 @@ export const createRegisterService = ({
     const existingUser = await repository.findActiveUserByEmail(payload.email);
 
     if (existingUser) {
-      if (existingUser.authProvider === "google") {
-        throw new AppError({
-          code: "ACCOUNT_EXISTS_OAUTH",
-          message: "Account exists with OAuth provider",
-        });
-      }
-
       throw new AppError({
         code: "EMAIL_ALREADY_EXISTS",
         message: "Email already exists",

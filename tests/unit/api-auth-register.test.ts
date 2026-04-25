@@ -258,7 +258,7 @@ test("register service rejects duplicate local and oauth emails with canonical c
       payload: oauthPayload,
       ipAddress: "203.0.113.10",
     }),
-    (error: unknown) => error instanceof AppError && error.code === "ACCOUNT_EXISTS_OAUTH",
+    (error: unknown) => error instanceof AppError && error.code === "EMAIL_ALREADY_EXISTS",
   );
 });
 
