@@ -1,5 +1,4 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -51,51 +50,22 @@ const supportedEnvironments = new Set<DeployEnvironment>(["staging", "production
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..");
 const runnerDir = path.join(repoRoot, ".tmp", "r2-bootstrap");
-const resolveExecutablePath = ({
-  envVarName,
-  commandName,
-  candidates,
-}: {
-  envVarName: string;
-  commandName: string;
-  candidates: string[];
-}) => {
-  const configuredPath = process.env[envVarName]?.trim();
-  if (configuredPath) {
-    if (!path.isAbsolute(configuredPath)) {
-      throw new Error(`${envVarName} must be an absolute path to ${commandName}.`);
-    }
-    return configuredPath;
-  }
-
-  for (const candidate of candidates) {
-    if (existsSync(candidate)) {
-      return candidate;
-    }
-  }
-
-  throw new Error(
-    `Could not resolve ${commandName} executable path. Set ${envVarName} to an absolute path for ${commandName}.`,
-  );
-};
-const pnpmExecutable = resolveExecutablePath({
-  envVarName: "PNPM_EXECUTABLE_PATH",
-  commandName: "pnpm",
-  candidates:
-    process.platform === "win32"
-      ? [path.join(path.dirname(process.execPath), "pnpm.cmd")]
-      : ["/usr/bin/pnpm", "/usr/local/bin/pnpm"],
-});
+const pnpmExecutable =
+  process.env.PNPM_EXECUTABLE_PATH?.trim() ||
+  (process.platform === "win32"
+    ? path.join(path.dirname(process.execPath), "pnpm.cmd")
+    : path.join(path.dirname(process.execPath), "pnpm"));
+if (!path.isAbsolute(pnpmExecutable)) {
+  throw new Error("PNPM_EXECUTABLE_PATH must be an absolute path when provided.");
+}
 const powerShellExecutable =
   process.platform === "win32"
-    ? resolveExecutablePath({
-        envVarName: "POWERSHELL_EXECUTABLE_PATH",
-        commandName: "powershell.exe",
-        candidates: [
-          path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
-        ],
-      })
+    ? process.env.POWERSHELL_EXECUTABLE_PATH?.trim() ||
+      path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
     : "";
+if (process.platform === "win32" && !path.isAbsolute(powerShellExecutable)) {
+  throw new Error("POWERSHELL_EXECUTABLE_PATH must be an absolute path when provided.");
+}
 
 const readArgValue = ({ name }: { name: string }) => {
   const index = rawArgs.findIndex((arg) => arg === name);
