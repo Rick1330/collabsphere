@@ -68,19 +68,18 @@ export const createRegisterService = ({
     }
 
     const passwordHash = await bcrypt.hash(payload.password, bcryptCostFactor);
-    const registeredUser = await repository.createLocalUser({
-      email: payload.email,
-      fullName: payload.fullName,
-      passwordHash,
-    });
     const verificationToken = createOpaqueToken();
     const verificationTokenHash = hashSha256(verificationToken);
     const expiresAt = new Date(now().getTime() + verificationTokenTtlMs);
-    const storedToken = await repository.createEmailVerificationToken({
-      userId: registeredUser.id,
+    const registrationResult = await repository.createLocalUserWithVerificationToken({
+      email: payload.email,
+      fullName: payload.fullName,
+      passwordHash,
       tokenHash: verificationTokenHash,
       expiresAt,
     });
+    const registeredUser = registrationResult.user;
+    const storedToken = registrationResult.verificationToken;
 
     const userRegisteredEvent: AuthDomainEvent = {
       eventId: randomUUID(),

@@ -63,7 +63,10 @@ const createRuntimeRegisterService = async (): Promise<RegisterService> => {
 
 const getRegisterService = () => {
   if (!registerServicePromise) {
-    registerServicePromise = createRuntimeRegisterService();
+    registerServicePromise = createRuntimeRegisterService().catch((error) => {
+      registerServicePromise = null;
+      throw error;
+    });
   }
 
   return registerServicePromise;

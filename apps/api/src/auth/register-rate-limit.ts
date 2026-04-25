@@ -8,7 +8,7 @@ type RateLimitBucket = {
 
 const registerLimitPerHour = 5;
 const oneHourMs = 60 * 60 * 1000;
-const secondsPerMillisecond = 1000;
+const millisecondsPerSecond = 1000;
 
 const trimExpiredTimestamps = ({
   nowMs,
@@ -35,7 +35,7 @@ const getRetryAfterSeconds = ({
 
   const oldestTimestamp = Math.min(...timestamps);
   const waitMs = Math.max(0, oldestTimestamp + windowMs - nowMs);
-  return Math.max(1, Math.ceil(waitMs / secondsPerMillisecond));
+  return Math.max(1, Math.ceil(waitMs / millisecondsPerSecond));
 };
 
 const createBucket = (): RateLimitBucket => ({

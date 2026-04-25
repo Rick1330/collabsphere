@@ -21,28 +21,35 @@ const createRepositoryDouble = () => {
 
   const repository: RegisterRepository = {
     findActiveUserByEmail: async (email) => existingUsersByEmail.get(email) ?? null,
-    createLocalUser: async ({ email, fullName, passwordHash }) => {
+    createLocalUserWithVerificationToken: async ({
+      email,
+      fullName,
+      passwordHash,
+      tokenHash,
+      expiresAt,
+    }) => {
       userCounter += 1;
+      tokenCounter += 1;
+      const userId = `user_${userCounter}`;
       createdUsers.push({
         email,
         fullName,
         passwordHash,
       });
-      return {
-        id: `user_${userCounter}`,
-        email,
-        fullName,
-      };
-    },
-    createEmailVerificationToken: async ({ userId, tokenHash, expiresAt }) => {
-      tokenCounter += 1;
       createdTokens.push({
         userId,
         tokenHash,
         expiresAt,
       });
       return {
-        id: `token_${tokenCounter}`,
+        user: {
+          id: userId,
+          email,
+          fullName,
+        },
+        verificationToken: {
+          id: `token_${tokenCounter}`,
+        },
       };
     },
   };

@@ -17,16 +17,16 @@ export type CreatedVerificationToken = {
 
 export type RegisterRepository = {
   findActiveUserByEmail: (email: string) => Promise<ExistingAuthUser | null>;
-  createLocalUser: (input: {
+  createLocalUserWithVerificationToken: (input: {
     email: string;
     fullName: string;
     passwordHash: string;
-  }) => Promise<CreatedAuthUser>;
-  createEmailVerificationToken: (input: {
-    userId: string;
     tokenHash: string;
     expiresAt: Date;
-  }) => Promise<CreatedVerificationToken>;
+  }) => Promise<{
+    user: CreatedAuthUser;
+    verificationToken: CreatedVerificationToken;
+  }>;
 };
 
 export const isUniqueConstraintError = (error: unknown) => {
@@ -54,31 +54,43 @@ export const createPrismaRegisterRepository = ({
         authProvider: true,
       },
     }),
-  createLocalUser: async ({ email, fullName, passwordHash }) =>
-    prisma.user.create({
-      data: {
-        email,
-        fullName,
-        authProvider: "local",
-        passwordHash,
-        isVerified: false,
-        isActive: true,
-      },
-      select: {
-        id: true,
-        email: true,
-        fullName: true,
-      },
-    }),
-  createEmailVerificationToken: async ({ userId, tokenHash, expiresAt }) =>
-    prisma.emailVerificationToken.create({
-      data: {
-        userId,
-        tokenHash,
-        expiresAt,
-      },
-      select: {
-        id: true,
-      },
+  createLocalUserWithVerificationToken: async ({
+    email,
+    fullName,
+    passwordHash,
+    tokenHash,
+    expiresAt,
+  }) =>
+    prisma.$transaction(async (transaction) => {
+      const user = await transaction.user.create({
+        data: {
+          email,
+          fullName,
+          authProvider: "local",
+          passwordHash,
+          isVerified: false,
+          isActive: true,
+        },
+        select: {
+          id: true,
+          email: true,
+          fullName: true,
+        },
+      });
+      const verificationToken = await transaction.emailVerificationToken.create({
+        data: {
+          userId: user.id,
+          tokenHash,
+          expiresAt,
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      return {
+        user,
+        verificationToken,
+      };
     }),
 });

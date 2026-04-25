@@ -38,14 +38,14 @@ const parseHeartbeatMs = (value: string | undefined) => {
   return parsed;
 };
 
-validateServiceEnv({
+const workerEnv = validateServiceEnv({
   service: "worker",
   parser: parseRuntimeEnv,
   validationErrorClass: EnvValidationError,
 });
 const stopVerificationEmailProcessor = startVerificationEmailProcessor({
-  jwtAccessSecret: process.env.JWT_ACCESS_SECRET ?? "",
-  baseUrl: process.env.BASE_URL ?? "http://localhost:3000",
+  jwtAccessSecret: workerEnv.JWT_ACCESS_SECRET,
+  baseUrl: workerEnv.BASE_URL,
 });
 
 const heartbeatMs = parseHeartbeatMs(process.env.WORKER_HEARTBEAT_MS);

@@ -325,26 +325,51 @@ const resolveUnknownErrorCode = (error: unknown): CanonicalErrorCode => {
   return databaseErrorPattern.test(message) ? "DATABASE_ERROR" : "INTERNAL_ERROR";
 };
 
+const sanitizeResponseHeaders = ({
+  code,
+  headers,
+}: {
+  code: CanonicalErrorCode;
+  headers?: Record<string, string>;
+}): Record<string, string> | undefined => {
+  if (!headers || code !== "RATE_LIMITED") {
+    return undefined;
+  }
+
+  const retryAfterValue = headers["Retry-After"] ?? headers["retry-after"];
+
+  if (typeof retryAfterValue !== "string" || !retryAfterValue.trim()) {
+    return undefined;
+  }
+
+  return {
+    "Retry-After": retryAfterValue.trim(),
+  };
+};
+
 const normalizeAppError = (error: unknown): NormalizedAppError => {
   if (error instanceof AppError) {
     return {
       code: error.code,
       message: error.message,
       details: error.details,
-      headers: error.headers,
+      headers: sanitizeResponseHeaders({
+        code: error.code,
+        headers: error.headers,
+      }),
       statusCode: error.statusCode,
       originalError: error.cause ?? error,
     };
   }
 
   const code = resolveUnknownErrorCode(error);
-    return {
-      code,
-      message: getDefaultErrorMessage(code),
-      statusCode: errorStatusByCode[code],
-      headers: undefined,
-      originalError: error,
-    };
+  return {
+    code,
+    message: getDefaultErrorMessage(code),
+    statusCode: errorStatusByCode[code],
+    headers: undefined,
+    originalError: error,
+  };
 };
 
 const formatLogPayload = (error: unknown) => {

@@ -75,7 +75,7 @@ export const createAuthController = ({ registerService }: { registerService: Reg
     const payload = validateRegisterInput(rawPayload);
 
     try {
-      return registerService.register({
+      return await registerService.register({
         payload,
         ipAddress: getRequestContext()?.ip ?? request.socket.remoteAddress ?? "unknown",
       });
