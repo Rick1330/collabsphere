@@ -1,4 +1,6 @@
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import path from "node:path";
 
 const args = new Set(process.argv.slice(2));
 const rawArgs = process.argv.slice(2);
@@ -31,6 +33,34 @@ type DescribeLogGroupsResponse = {
 
 const supportedEnvironments = new Set(["production"]);
 
+const resolveExecutablePath = ({
+  envVarName,
+  commandName,
+  candidates,
+}: {
+  envVarName: string;
+  commandName: string;
+  candidates: string[];
+}) => {
+  const configuredPath = process.env[envVarName]?.trim();
+  if (configuredPath) {
+    if (!path.isAbsolute(configuredPath)) {
+      throw new Error(`${envVarName} must be an absolute path to ${commandName}.`);
+    }
+    return configuredPath;
+  }
+
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  throw new Error(
+    `Could not resolve ${commandName} executable path. Set ${envVarName} to an absolute path for ${commandName}.`,
+  );
+};
+
 const resolveEnvironment = () => {
   const environmentArgIndex = rawArgs.findIndex((arg) => arg === "--environment");
   const environmentArgValue =
@@ -50,6 +80,17 @@ const deployEnvironment = resolveEnvironment();
 const dryRun = args.has("--dry-run");
 const region = process.env.AWS_REGION ?? "eu-central-1";
 const profile = process.env.AWS_PROFILE ?? "";
+const awsExecutable = resolveExecutablePath({
+  envVarName: "AWS_CLI_PATH",
+  commandName: "aws",
+  candidates:
+    process.platform === "win32"
+      ? [
+          path.join(process.env.ProgramFiles ?? "C:\\Program Files", "Amazon", "AWSCLIV2", "aws.exe"),
+          path.join(process.env["ProgramFiles(x86)"] ?? "C:\\Program Files (x86)", "Amazon", "AWSCLIV2", "aws.exe"),
+        ]
+      : ["/usr/bin/aws", "/usr/local/bin/aws"],
+});
 const clusterName = process.env.AWS_ECS_CLUSTER_NAME ?? "collabsphere-production";
 const services = [
   {
@@ -83,7 +124,7 @@ const parseJson = <T>(value: string) => {
 
 const runAws = (commandArgs: string[]) => {
   const profileArgs = profile ? ["--profile", profile] : [];
-  const result = spawnSync("aws", [...commandArgs, "--region", region, ...profileArgs], {
+  const result = spawnSync(awsExecutable, [...commandArgs, "--region", region, ...profileArgs], {
     stdio: "pipe",
     encoding: "utf8",
   });

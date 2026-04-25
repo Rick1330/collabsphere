@@ -1,4 +1,5 @@
 import { execFileSync, spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -50,8 +51,51 @@ const supportedEnvironments = new Set<DeployEnvironment>(["staging", "production
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..");
 const runnerDir = path.join(repoRoot, ".tmp", "r2-bootstrap");
-const pnpmCommand =
-  process.platform === "win32" ? path.join(path.dirname(process.execPath), "pnpm.cmd") : "pnpm";
+const resolveExecutablePath = ({
+  envVarName,
+  commandName,
+  candidates,
+}: {
+  envVarName: string;
+  commandName: string;
+  candidates: string[];
+}) => {
+  const configuredPath = process.env[envVarName]?.trim();
+  if (configuredPath) {
+    if (!path.isAbsolute(configuredPath)) {
+      throw new Error(`${envVarName} must be an absolute path to ${commandName}.`);
+    }
+    return configuredPath;
+  }
+
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  throw new Error(
+    `Could not resolve ${commandName} executable path. Set ${envVarName} to an absolute path for ${commandName}.`,
+  );
+};
+const pnpmExecutable = resolveExecutablePath({
+  envVarName: "PNPM_EXECUTABLE_PATH",
+  commandName: "pnpm",
+  candidates:
+    process.platform === "win32"
+      ? [path.join(path.dirname(process.execPath), "pnpm.cmd")]
+      : ["/usr/bin/pnpm", "/usr/local/bin/pnpm"],
+});
+const powerShellExecutable =
+  process.platform === "win32"
+    ? resolveExecutablePath({
+        envVarName: "POWERSHELL_EXECUTABLE_PATH",
+        commandName: "powershell.exe",
+        candidates: [
+          path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
+        ],
+      })
+    : "";
 
 const readArgValue = ({ name }: { name: string }) => {
   const index = rawArgs.findIndex((arg) => arg === name);
@@ -161,12 +205,12 @@ if (!Number.isFinite(maxAgeSeconds) || maxAgeSeconds < 0) {
 let discoveredAccountId = providedAccountId;
 
 const runWranglerViaPowerShell = ({ commandArgs }: { commandArgs: string[] }): CommandResult => {
-  const commandLine = `& ${quotePowerShellArg(pnpmCommand)} ${["dlx", "wrangler", ...commandArgs]
+  const commandLine = `& ${quotePowerShellArg(pnpmExecutable)} ${["dlx", "wrangler", ...commandArgs]
     .map(quotePowerShellArg)
     .join(" ")}`;
 
   try {
-    const stdout = execFileSync("powershell.exe", ["-NoProfile", "-Command", commandLine], {
+    const stdout = execFileSync(powerShellExecutable, ["-NoProfile", "-Command", commandLine], {
       cwd: repoRoot,
       encoding: "utf8",
       stdio: "pipe",
@@ -188,7 +232,7 @@ const runWranglerViaPowerShell = ({ commandArgs }: { commandArgs: string[] }): C
 };
 
 const runWranglerViaSpawn = ({ commandArgs }: { commandArgs: string[] }): CommandResult => {
-  const result = spawnSync(pnpmCommand, ["dlx", "wrangler", ...commandArgs], {
+  const result = spawnSync(pnpmExecutable, ["dlx", "wrangler", ...commandArgs], {
     cwd: repoRoot,
     encoding: "utf8",
     stdio: "pipe",
