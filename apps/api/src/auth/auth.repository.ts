@@ -1,4 +1,5 @@
-import { AuthProvider, Prisma, PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
+import type { AuthProvider } from "@prisma/client";
 
 export type ExistingAuthUser = {
   id: string;
@@ -53,7 +54,7 @@ export const createPrismaRegisterRepository = ({
       data: {
         email,
         fullName,
-        authProvider: AuthProvider.local,
+        authProvider: "local",
         passwordHash,
         isVerified: false,
         isActive: true,

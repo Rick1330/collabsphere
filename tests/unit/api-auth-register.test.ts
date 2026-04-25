@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { AuthProvider } from "@prisma/client";
 import { AppError, createErrorResponse } from "../../apps/api/src/common/filters/app-error.filter.js";
 import {
   createRegisterService,
@@ -16,7 +15,7 @@ const fixedNow = () => new Date(fixedNowIso);
 const createRepositoryDouble = () => {
   const createdUsers: Array<{ email: string; fullName: string; passwordHash: string }> = [];
   const createdTokens: Array<{ userId: string; tokenHash: string; expiresAt: Date }> = [];
-  const existingUsersByEmail = new Map<string, { id: string; authProvider: AuthProvider }>();
+  const existingUsersByEmail = new Map<string, { id: string; authProvider: "local" | "google" }>();
   let userCounter = 0;
   let tokenCounter = 0;
 
@@ -112,12 +111,12 @@ test("register service rejects duplicate local and oauth emails with canonical c
   const localRepo = createRepositoryDouble();
   localRepo.existingUsersByEmail.set("existing@example.com", {
     id: "user_existing_local",
-    authProvider: AuthProvider.local,
+    authProvider: "local",
   });
   const oauthRepo = createRepositoryDouble();
   oauthRepo.existingUsersByEmail.set("oauth@example.com", {
     id: "user_existing_google",
-    authProvider: AuthProvider.google,
+    authProvider: "google",
   });
   const createService = (repository: RegisterRepository) =>
     createRegisterService({

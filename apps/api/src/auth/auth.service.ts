@@ -1,6 +1,5 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import bcrypt from "bcryptjs";
-import { AuthProvider } from "@prisma/client";
 import {
   createVerificationEmailJob,
   encryptVerificationToken,
@@ -55,7 +54,7 @@ export const createRegisterService = ({
     const existingUser = await repository.findActiveUserByEmail(payload.email);
 
     if (existingUser) {
-      if (existingUser.authProvider === AuthProvider.google) {
+      if (existingUser.authProvider === "google") {
         throw new AppError({
           code: "ACCOUNT_EXISTS_OAUTH",
           message: "Account exists with OAuth provider",
