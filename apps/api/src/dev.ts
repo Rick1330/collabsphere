@@ -1,12 +1,16 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { PrismaClient } from "@prisma/client";
 import { EnvValidationError, parseApiRuntimeEnv } from "../../../packages/shared/src/api-env.js";
 import { resolveEmailConfig } from "./config/email.js";
+import { createAuthController } from "./auth/auth.controller.js";
+import { createPrismaBackedRegisterService } from "./auth/auth.service.js";
 import {
   AppError,
   createErrorResponse,
   ValidationAppError,
 } from "./common/filters/app-error.filter.js";
 import {
+  createActionResponsePayload,
   type SuccessResponsePayload,
   wrapSuccessResponse,
 } from "./common/interceptors/response-envelope.interceptor.js";
@@ -36,6 +40,13 @@ try {
 }
 
 const { logger } = createLoggerModule();
+const prisma = new PrismaClient();
+const authController = createAuthController({
+  registerService: createPrismaBackedRegisterService({
+    prisma,
+    jwtAccessSecret: apiEnv.JWT_ACCESS_SECRET,
+  }),
+});
 
 const paginationFixtureItems = Array.from({ length: 53 }, (_, index) => ({
   id: `fixture_${String(index + 1).padStart(3, "0")}`,
@@ -47,9 +58,11 @@ const writeJson = (
   statusCode: number,
   payload: unknown,
   requestId?: string,
+  extraHeaders?: Record<string, string>,
 ) => {
-  const headers = {
+  const headers: Record<string, string> = {
     "content-type": "application/json; charset=utf-8",
+    ...(extraHeaders ?? {}),
   } as Record<string, string>;
 
   if (requestId) {
@@ -73,8 +86,8 @@ const writeSuccessJson = (
       payload,
       requestId,
     }),
-    requestId,
-  );
+  requestId,
+);
 
 const writeErrorJson = ({
   response,
@@ -87,7 +100,7 @@ const writeErrorJson = ({
   requestId: string;
   durationMs: number;
 }) => {
-  const { statusCode, payload, normalizedError } = createErrorResponse({
+  const { statusCode, payload, normalizedError, headers } = createErrorResponse({
     error,
     requestId,
   });
@@ -96,7 +109,7 @@ const writeErrorJson = ({
     durationMs,
     errorCode: normalizedError.code,
   });
-  return writeJson(response, statusCode, payload, requestId);
+  return writeJson(response, statusCode, payload, requestId, headers);
 };
 const { healthController } = createHealthModule({
   databaseUrl: apiEnv.DATABASE_URL,
@@ -176,6 +189,36 @@ const handlePaginationFixturesRequest = ({
   );
 };
 
+const handleRegisterRequest = async ({
+  request,
+  response,
+  requestId,
+  getDurationMs,
+}: {
+  request: IncomingMessage;
+  response: ServerResponse;
+  requestId: string;
+  getDurationMs: () => number;
+}) => {
+  const registerResult = await authController.register({
+    request,
+  });
+
+  logger.logRequestLifecycle({
+    statusCode: 201,
+    durationMs: getDurationMs(),
+  });
+
+  return writeSuccessJson(
+    response,
+    201,
+    createActionResponsePayload({
+      message: registerResult.message,
+    }),
+    requestId,
+  );
+};
+
 const handleRequest = async ({
   request,
   response,
@@ -202,6 +245,15 @@ const handleRequest = async ({
       response,
       requestId,
       url,
+      getDurationMs,
+    });
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/v1/auth/register") {
+    return handleRegisterRequest({
+      request,
+      response,
+      requestId,
       getDurationMs,
     });
   }

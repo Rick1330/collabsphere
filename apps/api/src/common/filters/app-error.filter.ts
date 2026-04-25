@@ -249,6 +249,7 @@ type AppErrorOptions = {
   message?: string;
   statusCode?: number;
   details?: ValidationErrorDetail[];
+  headers?: Record<string, string>;
   cause?: unknown;
 };
 
@@ -262,6 +263,7 @@ type NormalizedAppError = {
   code: CanonicalErrorCode;
   message: string;
   details?: ValidationErrorDetail[];
+  headers?: Record<string, string>;
   statusCode: number;
   originalError: unknown;
 };
@@ -275,6 +277,7 @@ type CreateErrorResponseOptions = {
 type CreateErrorResponseResult = {
   statusCode: number;
   payload: ErrorEnvelope;
+  headers?: Record<string, string>;
   normalizedError: NormalizedAppError;
 };
 
@@ -284,13 +287,15 @@ const databaseErrorPattern =
 export class AppError extends Error {
   readonly code: CanonicalErrorCode;
   readonly details?: ValidationErrorDetail[];
+  readonly headers?: Record<string, string>;
   readonly statusCode: number;
 
-  constructor({ code, message, statusCode, details, cause }: AppErrorOptions) {
+  constructor({ code, message, statusCode, details, headers, cause }: AppErrorOptions) {
     super(message ?? getDefaultErrorMessage(code), cause ? { cause } : undefined);
     this.name = "AppError";
     this.code = code;
     this.details = details;
+    this.headers = headers;
     this.statusCode = statusCode ?? errorStatusByCode[code];
   }
 }
@@ -326,18 +331,20 @@ const normalizeAppError = (error: unknown): NormalizedAppError => {
       code: error.code,
       message: error.message,
       details: error.details,
+      headers: error.headers,
       statusCode: error.statusCode,
       originalError: error.cause ?? error,
     };
   }
 
   const code = resolveUnknownErrorCode(error);
-  return {
-    code,
-    message: getDefaultErrorMessage(code),
-    statusCode: errorStatusByCode[code],
-    originalError: error,
-  };
+    return {
+      code,
+      message: getDefaultErrorMessage(code),
+      statusCode: errorStatusByCode[code],
+      headers: undefined,
+      originalError: error,
+    };
 };
 
 const formatLogPayload = (error: unknown) => {
@@ -362,6 +369,7 @@ export const createErrorResponse = ({
 
   return {
     statusCode: normalizedError.statusCode,
+    headers: normalizedError.headers,
     normalizedError,
     payload: {
       error: {

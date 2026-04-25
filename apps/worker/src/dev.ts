@@ -1,5 +1,6 @@
 import { EnvValidationError, parseRuntimeEnv } from "../../../packages/shared/src/runtime-env.js";
 import { validateServiceEnv } from "../../../packages/shared/src/bootstrap-runtime.js";
+import { startVerificationEmailProcessor } from "./jobs/email/verification-email-processor.js";
 
 const defaultHeartbeatMs = 5000;
 const minHeartbeatMs = 1000;
@@ -42,6 +43,10 @@ validateServiceEnv({
   parser: parseRuntimeEnv,
   validationErrorClass: EnvValidationError,
 });
+const stopVerificationEmailProcessor = startVerificationEmailProcessor({
+  jwtAccessSecret: process.env.JWT_ACCESS_SECRET ?? "",
+  baseUrl: process.env.BASE_URL ?? "http://localhost:3000",
+});
 
 const heartbeatMs = parseHeartbeatMs(process.env.WORKER_HEARTBEAT_MS);
 
@@ -54,6 +59,7 @@ const timer = setInterval(() => {
 
 const shutdown = (signal: string) => {
   console.log(`[worker] received ${signal}, shutting down`);
+  stopVerificationEmailProcessor();
   clearInterval(timer);
   process.exit(0);
 };
