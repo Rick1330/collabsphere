@@ -2,10 +2,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
-
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+import { repoRoot } from "./bootstrap-test-helpers.ts";
 const stagingWorkflowPath = path.join(repoRoot, ".github", "workflows", "deploy.yml");
 const productionWorkflowPath = path.join(
   repoRoot,
@@ -70,7 +68,7 @@ test("production deploy workflow is AWS-backed and tag/manual driven", async () 
   assert.equal(workflow.jobs?.deploy?.environment, "production");
   assertHasJobs(workflow);
 
-  assert.match(text, /aws-actions\/configure-aws-credentials@v4/);
+  assert.match(text, /aws-actions\/configure-aws-credentials@/);
   assert.match(text, /AWS_DEPLOY_ROLE_ARN/);
   assert.match(text, /DATABASE_URL/);
   assert.match(text, /Vercel web \+ AWS ECS backend/);

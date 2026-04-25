@@ -15,6 +15,11 @@ const windowsCmdPath = String.raw`C:\Windows\System32\cmd.exe`;
 const azureCliWindowsPath = String.raw`C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin\az.cmd`;
 const supportedDeployEnvironments = new Set(["staging", "production"]);
 
+const readEnvOrDefault = (envName: string, fallback: string) => {
+  const value = process.env[envName];
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : fallback;
+};
+
 const resolveDeployEnvironment = () => {
   const environmentArgIndex = rawArgs.findIndex((arg) => arg === "--environment");
   const environmentArgValue =
@@ -79,21 +84,21 @@ const platformEnv = {
   registryPassword: process.env.AZURE_ACR_PASSWORD,
   imageTag: process.env.IMAGE_TAG,
   migrationsJobName:
-    process.env.AZURE_MIGRATIONS_JOB_NAME ?? `collabsphere-migrations-${defaultNameSuffix}`,
-  apiName: process.env.AZURE_API_CONTAINERAPP_NAME ?? `collabsphere-api-${defaultNameSuffix}`,
+    readEnvOrDefault("AZURE_MIGRATIONS_JOB_NAME", `collabsphere-migrations-${defaultNameSuffix}`),
+  apiName: readEnvOrDefault("AZURE_API_CONTAINERAPP_NAME", `collabsphere-api-${defaultNameSuffix}`),
   collabName:
-    process.env.AZURE_COLLAB_CONTAINERAPP_NAME ?? `collabsphere-collab-${defaultNameSuffix}`,
+    readEnvOrDefault("AZURE_COLLAB_CONTAINERAPP_NAME", `collabsphere-collab-${defaultNameSuffix}`),
   workerName:
-    process.env.AZURE_WORKER_CONTAINERAPP_NAME ?? `collabsphere-worker-${defaultNameSuffix}`,
-  apiMinReplicas: process.env.AZURE_API_MIN_REPLICAS ?? "1",
-  apiMaxReplicas: process.env.AZURE_API_MAX_REPLICAS ?? "1",
-  collabMinReplicas: process.env.AZURE_COLLAB_MIN_REPLICAS ?? "1",
-  collabMaxReplicas: process.env.AZURE_COLLAB_MAX_REPLICAS ?? "1",
-  workerMinReplicas: process.env.AZURE_WORKER_MIN_REPLICAS ?? "1",
-  workerMaxReplicas: process.env.AZURE_WORKER_MAX_REPLICAS ?? "1",
-  s3AuthIdRef: process.env.AZURE_S3_AUTH_ID_REF ?? "s3-access-key-id",
-  s3AuthValueRef: process.env.AZURE_S3_AUTH_VALUE_REF ?? "s3-secret-access-key",
-  s3EndpointSecretRef: process.env.AZURE_S3_ENDPOINT_SECRET_REF ?? "s3-endpoint",
+    readEnvOrDefault("AZURE_WORKER_CONTAINERAPP_NAME", `collabsphere-worker-${defaultNameSuffix}`),
+  apiMinReplicas: readEnvOrDefault("AZURE_API_MIN_REPLICAS", "1"),
+  apiMaxReplicas: readEnvOrDefault("AZURE_API_MAX_REPLICAS", "1"),
+  collabMinReplicas: readEnvOrDefault("AZURE_COLLAB_MIN_REPLICAS", "1"),
+  collabMaxReplicas: readEnvOrDefault("AZURE_COLLAB_MAX_REPLICAS", "1"),
+  workerMinReplicas: readEnvOrDefault("AZURE_WORKER_MIN_REPLICAS", "1"),
+  workerMaxReplicas: readEnvOrDefault("AZURE_WORKER_MAX_REPLICAS", "1"),
+  s3AuthIdRef: readEnvOrDefault("AZURE_S3_AUTH_ID_REF", "s3-access-key-id"),
+  s3AuthValueRef: readEnvOrDefault("AZURE_S3_AUTH_VALUE_REF", "s3-secret-access-key"),
+  s3EndpointSecretRef: readEnvOrDefault("AZURE_S3_ENDPOINT_SECRET_REF", "s3-endpoint"),
 };
 
 const secretSpecs = [

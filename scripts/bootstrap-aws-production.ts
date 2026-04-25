@@ -7,6 +7,7 @@ type AwsCommandResult = {
   status: number;
   stdout: string;
   stderr: string;
+  error: string;
 };
 
 type ClusterDescription = {
@@ -20,6 +21,12 @@ type ClusterFailure = {
 type DescribeClustersResponse = {
   clusters?: ClusterDescription[];
   failures?: ClusterFailure[];
+};
+
+type DescribeLogGroupsResponse = {
+  logGroups?: Array<{
+    logGroupName?: string;
+  }>;
 };
 
 const supportedEnvironments = new Set(["production"]);
@@ -83,13 +90,17 @@ const runAws = (commandArgs: string[]) => {
 
   return {
     status: result.status ?? 1,
-    stdout: result.stdout.trim(),
-    stderr: result.stderr.trim(),
+    stdout: String(result.stdout ?? "").trim(),
+    stderr: String(result.stderr ?? "").trim(),
+    error: result.error?.message ?? "",
   } satisfies AwsCommandResult;
 };
 
 const runAwsOrThrow = (commandArgs: string[]) => {
   const result = runAws(commandArgs);
+  if (result.error) {
+    throw new Error(`Failed to run aws ${commandArgs.join(" ")}: ${result.error}`);
+  }
   if (result.status !== 0) {
     throw new Error(result.stderr || `aws ${commandArgs.join(" ")} failed`);
   }
@@ -172,7 +183,12 @@ const ensureLogGroup = (logGroupName: string) => {
     "--output",
     "json",
   ]);
-  if (existing.status === 0 && existing.stdout.includes(logGroupName)) {
+  const payload = parseJson<DescribeLogGroupsResponse>(existing.stdout);
+  const hasExactLogGroup =
+    existing.status === 0 &&
+    (payload?.logGroups?.some((logGroup) => logGroup.logGroupName === logGroupName) ?? false);
+
+  if (hasExactLogGroup) {
     console.log(`CloudWatch log group already exists: ${logGroupName}`);
     return;
   }

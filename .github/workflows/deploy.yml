@@ -152,6 +152,7 @@ jobs:
       AZURE_S3_AUTH_ID_REF: ${{ vars.AZURE_S3_AUTH_ID_REF }}
       AZURE_S3_AUTH_VALUE_REF: ${{ vars.AZURE_S3_AUTH_VALUE_REF }}
       AZURE_S3_ENDPOINT_SECRET_REF: ${{ vars.AZURE_S3_ENDPOINT_SECRET_REF }}
+      S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
       VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
 
@@ -364,12 +365,12 @@ jobs:
             ["__IMAGE_TAG__", imageTag],
             ["__S3_AUTH_ID_REF__", process.env.AZURE_S3_AUTH_ID_REF],
             ["__S3_AUTH_VALUE_REF__", process.env.AZURE_S3_AUTH_VALUE_REF],
-            [
-              "__S3_ENDPOINT_ENV__",
-              process.env.AZURE_S3_ENDPOINT_SECRET_REF
-                ? `          - name: S3_ENDPOINT\n            secretRef: ${process.env.AZURE_S3_ENDPOINT_SECRET_REF}`
-                : "",
-            ],
+          [
+            "__S3_ENDPOINT_ENV__",
+            process.env.S3_ENDPOINT
+              ? `          - name: S3_ENDPOINT\n            secretRef: ${process.env.AZURE_S3_ENDPOINT_SECRET_REF}`
+              : "",
+          ],
             ["__WORKER_CONTAINERAPP_NAME__", process.env.AZURE_WORKER_CONTAINERAPP_NAME || "collabsphere-worker-stg"],
             ["__WORKER_MIN_REPLICAS__", process.env.AZURE_WORKER_MIN_REPLICAS || "1"],
             ["__WORKER_MAX_REPLICAS__", process.env.AZURE_WORKER_MAX_REPLICAS || "1"],

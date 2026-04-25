@@ -21,6 +21,10 @@
     - restore backend build reliability by generating Prisma client before app builds
     - generalize ACA bootstrap for staging and production
     - make backend replica counts configurable through environment variables
+    - add AWS production workflow/bootstrap surfaces and Cloudflare R2 bootstrap surfaces
+    - add the bootstrap precedence fix so explicit `--environment` flags win over ambient `DEPLOY_ENVIRONMENT`
+    - address current PR review follow-ups around exact-match resource detection, action pinning, and safer env handling
+  - Opened PR `#1587` against `main` for review of the repo-side deployment/runtime split.
   - Validated locally:
     - `pnpm install --frozen-lockfile`
     - `pnpm --filter @collabsphere/web run build`
@@ -30,15 +34,20 @@
     - staging ACA bootstrap dry-run
     - production ACA bootstrap dry-run
     - YAML parsing for updated workflow/manifests
+    - targeted workflow/unit tests for the deploy/bootstrap surfaces
 - In progress:
-  - Choose the target staging/production managed data-plane topology and secret ownership model.
-  - Decide whether AWS is justified for staging PostgreSQL/Redis or whether the cross-cloud split is more costly operationally than it saves.
+  - Review cleanup and merge-readiness for PR `#1587`.
+  - Choose the remaining staging/production managed data-plane secret ownership details and retirement path.
 - Blocked:
-  - AWS CLI is installed locally but not authenticated, so AWS service discovery and provisioning cannot start yet.
+  - AWS CLI is installed locally but currently unauthenticated again on this machine (`aws sts get-caller-identity` returns `NoCredentials`).
+  - PR `#1587` cannot clear branch protection yet because:
+    - `review:critical` still requires at least one non-author human approval
+    - SonarCloud still reports open security hotspots on the PR
 - Next:
-  - Inspect Azure managed PostgreSQL/Redis options for production.
-  - Establish the preferred AWS authentication path if AWS remains a serious staging candidate.
-  - Convert the chosen topology into repo-managed bootstrap/configuration changes and environment contracts.
+  - Finish dispositioning current-head PR review threads.
+  - Keep the PR body and linked-issue handoff in the canonical repo format.
+  - Re-establish AWS auth when the next live provisioning slice starts.
+  - Continue the live infra work intentionally left out of this PR: AWS OIDC/services/data plane, R2 runtime credentials/CORS, and staging pg/redis retirement planning.
 
 ## Surprises & Discoveries
 - The user concern about the latest failed deployment and the cloud topology were two different problems:
@@ -85,7 +94,11 @@
   - main deploy build repair
   - environment-aware ACA bootstrap
   - configurable replica counts for cost tuning
-- Remaining work is now centered on live cloud decisions and provisioning, especially around managed PostgreSQL/Redis and production bootstrap.
+  - separate Azure staging and AWS production workflow/bootstrap surfaces
+  - initial R2 bootstrap and source-controlled infra/docs
+- Remaining work is now split between:
+  - PR merge-readiness and review/quality-gate cleanup for the repo-side slice
+  - later live cloud provisioning for the still-missing AWS and R2 runtime pieces
 
 ## Context and Orientation
 - Issue:
@@ -96,12 +109,17 @@
   - `#4` `[PRJ-04] User Authentication & Session Management`
 - Current repo/runtime files:
   - `.github/workflows/deploy.yml`
+  - `.github/workflows/deploy-production-aws.yml`
   - `package.json`
   - `scripts/bootstrap-aca-staging.ts`
+  - `scripts/bootstrap-aws-production.ts`
+  - `scripts/bootstrap-r2.ts`
   - `infra/azure/container-apps/README.md`
   - `infra/azure/container-apps/api.containerapp.yaml`
   - `infra/azure/container-apps/collab.containerapp.yaml`
   - `infra/azure/container-apps/worker.containerapp.yaml`
+  - `infra/aws/ecs/README.md`
+  - `infra/cloudflare/r2/README.md`
   - `apps/api/package.json`
   - `apps/collab/package.json`
   - `apps/worker/package.json`
@@ -112,7 +130,9 @@
 - Cloud state:
   - Azure staging exists and is healthy
   - AWS production bootstrap is partially in place, but the production runtime is not complete yet
-  - AWS CLI is installed locally but not authenticated
+  - Cloudflare R2 staging/production buckets were created previously
+  - Azure CLI is currently authenticated on this machine
+  - AWS CLI is installed locally but not authenticated currently
 
 ## Plan of Work
 - Milestone 1: lock the target topology and operator model.
@@ -149,8 +169,9 @@
    - provider connection strings
    - staging vs production differences
 6. Implement the repo bootstrap/configuration changes required by the chosen topology.
-7. Validate builds, bootstrap dry-runs, and cloud health.
-8. Update issue `#1586` with progress and any required follow-up issues if the work must be split further.
+7. Validate builds, workflow tests, bootstrap dry-runs, and cloud health.
+8. Keep PR `#1587`, issue `#1586`, and the durable dossier synchronized as review/provisioning work continues.
+9. Update issue `#1586` with progress and any required follow-up issues if the work must be split further.
 
 ## Validation and Acceptance
 - Commands:
@@ -162,6 +183,11 @@
   - `pnpm --filter @collabsphere/worker run build`
   - `pnpm exec tsx scripts/bootstrap-aca-staging.ts --environment staging --dry-run`
   - `pnpm exec tsx scripts/bootstrap-aca-staging.ts --environment production --dry-run`
+  - `pnpm exec tsx scripts/bootstrap-r2.ts --environment staging --dry-run`
+  - `pnpm exec tsx scripts/bootstrap-r2.ts --environment production --dry-run`
+  - `pnpm exec tsx scripts/bootstrap-aws-production.ts --environment production --dry-run`
+  - `pnpm exec tsx --test --test-concurrency=1 tests/unit/deploy-bootstrap-scripts.test.ts tests/unit/deploy-workflows.test.ts tests/unit/ci-workflow.test.ts`
+  - `gh pr view 1587 --json body,reviews,comments,statusCheckRollup,url`
   - `gh issue view 1586 -R Rick1330/collabsphere --json title,labels,url`
   - `gh issue view 4 -R Rick1330/collabsphere --json title,url`
   - `az group list --query "[?contains(name, 'collabsphere')].[name,location]" -o table`
