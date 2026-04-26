@@ -264,3 +264,15 @@ test("verify email controller validates application/json and trims the token pay
     (error: unknown) => error instanceof AppError && error.code === "VALIDATION_ERROR",
   );
 });
+
+test("verify email DTO rejects tokens exceeding the maximum allowed length", () => {
+  const oversizedToken = "a".repeat(513);
+
+  assert.throws(
+    () =>
+      validateVerifyEmailInput({
+        token: oversizedToken,
+      }),
+    (error: unknown) => error instanceof AppError && error.code === "VALIDATION_ERROR",
+  );
+});
