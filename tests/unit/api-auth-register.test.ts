@@ -220,6 +220,9 @@ test("register controller maps unique persistence errors to EMAIL_ALREADY_EXISTS
         };
       },
     },
+    verifyEmailService: {
+      verifyEmail: async () => ({ message: "unused" }),
+    },
   });
 
   await assert.rejects(
@@ -240,6 +243,9 @@ test("register controller requires application/json media type", async () => {
   const controller = createAuthController({
     registerService: {
       register: async () => ({ message: "ok" }),
+    },
+    verifyEmailService: {
+      verifyEmail: async () => ({ message: "unused" }),
     },
   });
 

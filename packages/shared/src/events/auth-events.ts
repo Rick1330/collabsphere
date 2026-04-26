@@ -1,7 +1,10 @@
 import { appendFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 
-export type AuthDomainEventName = "user.registered" | "user.verification_sent";
+export type AuthDomainEventName =
+  | "user.registered"
+  | "user.verification_sent"
+  | "user.email_verified";
 
 export type AuthDomainEvent = {
   eventId: string;

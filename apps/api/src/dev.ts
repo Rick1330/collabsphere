@@ -1,10 +1,13 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import type { PrismaClient } from "@prisma/client";
 import { EnvValidationError, parseApiRuntimeEnv } from "../../../packages/shared/src/api-env.js";
 import { resolveEmailConfig } from "./config/email.js";
 import { createAuthController } from "./auth/auth.controller.js";
 import {
   createPrismaBackedRegisterService,
   type RegisterService,
+  createPrismaBackedVerifyEmailService,
+  type VerifyEmailService,
 } from "./auth/auth.service.js";
 import {
   AppError,
@@ -43,13 +46,30 @@ try {
 
 const { logger } = createLoggerModule();
 let registerServicePromise: Promise<RegisterService> | null = null;
+let verifyEmailServicePromise: Promise<VerifyEmailService> | null = null;
 let prismaClientForShutdown: { $disconnect: () => Promise<void> } | null = null;
+let prismaClientPromise: Promise<PrismaClient> | null = null;
+
+const getPrismaClient = async () => {
+  if (!prismaClientPromise) {
+    prismaClientPromise = import("@prisma/client")
+      .then(({ PrismaClient }) => {
+        const prisma = new PrismaClient();
+        prismaClientForShutdown = prisma;
+        return prisma;
+      })
+      .catch((error) => {
+        prismaClientPromise = null;
+        throw error;
+      });
+  }
+
+  return prismaClientPromise;
+};
 
 const createRuntimeRegisterService = async (): Promise<RegisterService> => {
   try {
-    const { PrismaClient } = await import("@prisma/client");
-    const prisma = new PrismaClient();
-    prismaClientForShutdown = prisma;
+    const prisma = await getPrismaClient();
     return createPrismaBackedRegisterService({
       prisma,
       bcryptCostFactor: apiEnv.BCRYPT_COST,
@@ -59,6 +79,21 @@ const createRuntimeRegisterService = async (): Promise<RegisterService> => {
     throw new AppError({
       code: "SERVICE_UNAVAILABLE",
       message: "Registration service unavailable",
+      cause: error,
+    });
+  }
+};
+
+const createRuntimeVerifyEmailService = async (): Promise<VerifyEmailService> => {
+  try {
+    const prisma = await getPrismaClient();
+    return createPrismaBackedVerifyEmailService({
+      prisma,
+    });
+  } catch (error) {
+    throw new AppError({
+      code: "SERVICE_UNAVAILABLE",
+      message: "Email verification service unavailable",
       cause: error,
     });
   }
@@ -75,9 +110,23 @@ const getRegisterService = () => {
   return registerServicePromise;
 };
 
+const getVerifyEmailService = () => {
+  if (!verifyEmailServicePromise) {
+    verifyEmailServicePromise = createRuntimeVerifyEmailService().catch((error) => {
+      verifyEmailServicePromise = null;
+      throw error;
+    });
+  }
+
+  return verifyEmailServicePromise;
+};
+
 const authController = createAuthController({
   registerService: {
     register: async (input) => (await getRegisterService()).register(input),
+  },
+  verifyEmailService: {
+    verifyEmail: async (input) => (await getVerifyEmailService()).verifyEmail(input),
   },
 });
 
@@ -258,6 +307,36 @@ const handleRegisterRequest = async ({
   );
 };
 
+const handleVerifyEmailRequest = async ({
+  request,
+  response,
+  requestId,
+  getDurationMs,
+}: {
+  request: IncomingMessage;
+  response: ServerResponse;
+  requestId: string;
+  getDurationMs: () => number;
+}) => {
+  const verifyEmailResult = await authController.verifyEmail({
+    request,
+  });
+
+  logger.logRequestLifecycle({
+    statusCode: 200,
+    durationMs: getDurationMs(),
+  });
+
+  return writeSuccessJson(
+    response,
+    200,
+    createActionResponsePayload({
+      message: verifyEmailResult.message,
+    }),
+    requestId,
+  );
+};
+
 const handleRequest = async ({
   request,
   response,
@@ -290,6 +369,15 @@ const handleRequest = async ({
 
   if (request.method === "POST" && url.pathname === "/api/v1/auth/register") {
     return handleRegisterRequest({
+      request,
+      response,
+      requestId,
+      getDurationMs,
+    });
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/v1/auth/verify-email") {
+    return handleVerifyEmailRequest({
       request,
       response,
       requestId,
@@ -346,5 +434,6 @@ startHttpBootstrapServer({
 
     await prismaClientForShutdown.$disconnect();
     prismaClientForShutdown = null;
+    prismaClientPromise = null;
   },
 });

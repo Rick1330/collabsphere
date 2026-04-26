@@ -1,11 +1,12 @@
 import type { IncomingMessage } from "node:http";
 import { AppError, ValidationAppError } from "../common/filters/app-error.filter.js";
 import { getRequestContext } from "../common/request-context.js";
-import type { RegisterService } from "./auth.service.js";
+import type { RegisterService, VerifyEmailService } from "./auth.service.js";
 import { mapRegisterPersistenceError } from "./auth.service.js";
 import { validateRegisterInput } from "./register.dto.js";
+import { validateVerifyEmailInput } from "./verify-email.dto.js";
 
-const maxRegisterBodyBytes = 32 * 1024;
+const maxAuthBodyBytes = 32 * 1024;
 
 const readJsonBody = async (request: IncomingMessage) => {
   const chunks: Buffer[] = [];
@@ -15,7 +16,7 @@ const readJsonBody = async (request: IncomingMessage) => {
     const bufferChunk = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
     totalBytes += bufferChunk.byteLength;
 
-    if (totalBytes > maxRegisterBodyBytes) {
+    if (totalBytes > maxAuthBodyBytes) {
       throw new ValidationAppError({
         issues: [
           {
@@ -79,7 +80,13 @@ const resolveUserAgent = (request: IncomingMessage) => {
   return getRequestContext()?.userAgent ?? (typeof headerUa === "string" ? headerUa : "unknown");
 };
 
-export const createAuthController = ({ registerService }: { registerService: RegisterService }) => ({
+export const createAuthController = ({
+  registerService,
+  verifyEmailService,
+}: {
+  registerService: RegisterService;
+  verifyEmailService: VerifyEmailService;
+}) => ({
   register: async ({ request }: { request: IncomingMessage }) => {
     assertJsonContentType(request);
     const rawPayload = await readJsonBody(request);
@@ -94,5 +101,14 @@ export const createAuthController = ({ registerService }: { registerService: Reg
     } catch (error) {
       throw mapRegisterPersistenceError(error);
     }
+  },
+  verifyEmail: async ({ request }: { request: IncomingMessage }) => {
+    assertJsonContentType(request);
+    const rawPayload = await readJsonBody(request);
+    const payload = validateVerifyEmailInput(rawPayload);
+
+    return verifyEmailService.verifyEmail({
+      payload,
+    });
   },
 });

@@ -15,6 +15,19 @@ export type CreatedVerificationToken = {
   id: string;
 };
 
+export type EmailVerificationRecord = {
+  id: string;
+  userId: string;
+  email: string;
+  expiresAt: Date;
+  usedAt: Date | null;
+};
+
+export type VerifiedAuthUser = {
+  id: string;
+  email: string;
+};
+
 export type RegisterRepository = {
   findActiveUserByEmail: (email: string) => Promise<ExistingAuthUser | null>;
   createLocalUserWithVerificationToken: (input: {
@@ -27,6 +40,15 @@ export type RegisterRepository = {
     user: CreatedAuthUser;
     verificationToken: CreatedVerificationToken;
   }>;
+};
+
+export type VerifyEmailRepository = {
+  findEmailVerificationByHash: (tokenHash: string) => Promise<EmailVerificationRecord | null>;
+  consumeEmailVerificationToken: (input: {
+    tokenId: string;
+    userId: string;
+    verifiedAt: Date;
+  }) => Promise<VerifiedAuthUser | null>;
 };
 
 export const isUniqueConstraintError = (error: unknown) => {
@@ -92,5 +114,69 @@ export const createPrismaRegisterRepository = ({
         user,
         verificationToken,
       };
+    }),
+});
+
+export const createPrismaVerifyEmailRepository = ({
+  prisma,
+}: {
+  prisma: PrismaClient;
+}): VerifyEmailRepository => ({
+  findEmailVerificationByHash: async (tokenHash) =>
+    prisma.emailVerificationToken.findUnique({
+      where: {
+        tokenHash,
+      },
+      select: {
+        id: true,
+        userId: true,
+        expiresAt: true,
+        usedAt: true,
+        user: {
+          select: {
+            email: true,
+          },
+        },
+      },
+    }).then((record) =>
+      record
+        ? {
+            id: record.id,
+            userId: record.userId,
+            email: record.user.email,
+            expiresAt: record.expiresAt,
+            usedAt: record.usedAt,
+          }
+        : null,
+    ),
+  consumeEmailVerificationToken: async ({ tokenId, userId, verifiedAt }) =>
+    prisma.$transaction(async (transaction) => {
+      const consumeResult = await transaction.emailVerificationToken.updateMany({
+        where: {
+          id: tokenId,
+          userId,
+          usedAt: null,
+        },
+        data: {
+          usedAt: verifiedAt,
+        },
+      });
+
+      if (consumeResult.count === 0) {
+        return null;
+      }
+
+      return transaction.user.update({
+        where: {
+          id: userId,
+        },
+        data: {
+          isVerified: true,
+        },
+        select: {
+          id: true,
+          email: true,
+        },
+      });
     }),
 });
