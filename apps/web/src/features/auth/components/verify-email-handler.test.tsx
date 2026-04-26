@@ -146,4 +146,33 @@ describe("VerifyEmailHandler", () => {
     expect(await screen.findByText(expectedHeading)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: expectedActionLabel })).toHaveAttribute("href", "/login");
   });
+
+  it("renders the invalid-link fallback for unexpected API error codes", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            error: {
+              code: "SERVICE_UNAVAILABLE",
+              message: "Database connection failed",
+            },
+          }),
+          {
+            status: 503,
+            headers: { "Content-Type": "application/json" },
+          },
+        ),
+      ),
+    );
+
+    renderVerifyEmailHandler("some-token");
+
+    expect(await screen.findByText("Invalid link")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", {
+        name: "Go to sign in to request a new verification email",
+      }),
+    ).toHaveAttribute("href", "/login");
+  });
 });
