@@ -3,11 +3,6 @@ import { useMutation } from "@tanstack/react-query";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { AuthStatusCard } from "./auth-status-card";
 
-type VerifyEmailApiErrorCode =
-  | "TOKEN_INVALID"
-  | "TOKEN_EXPIRED"
-  | "TOKEN_ALREADY_USED"
-  | "VALIDATION_ERROR";
 type ViewState = "missing" | "loading" | "success" | "expired" | "already-used" | "invalid" | "transient-error";
 
 class VerifyEmailApiError extends Error {
@@ -34,7 +29,6 @@ const invalidCardConfig = {
     label: "Back to sign in",
     href: "/login",
   },
-  secondaryAction: { label: "Back to sign in", href: "/login" },
 };
 
 const viewStateCardConfig: Record<
@@ -47,7 +41,15 @@ const viewStateCardConfig: Record<
     secondaryAction?: { label: string; href: string };
   }
 > = {
-  missing: invalidCardConfig,
+  missing: {
+    variant: "error",
+    heading: "No verification token",
+    description: "This page expects a verification link. Open the link from your email, or sign in to request a new one.",
+    action: {
+      label: "Back to sign in",
+      href: "/login",
+    },
+  },
   loading: {
     variant: "loading",
     heading: "Verifying your email",
@@ -67,7 +69,6 @@ const viewStateCardConfig: Record<
       label: "Back to sign in",
       href: "/login",
     },
-    secondaryAction: { label: "Back to sign in", href: "/login" },
   },
   "already-used": {
     variant: "success",
@@ -150,7 +151,7 @@ const verifyEmailToken = async (token: string) => {
     throw new VerifyEmailApiError(code, response.status, message);
   }
 
-  return response.json().catch(() => null);
+  return null;
 };
 
 export const VerifyEmailHandler = ({ token }: VerifyEmailHandlerProps) => {
@@ -210,6 +211,7 @@ export const VerifyEmailHandler = ({ token }: VerifyEmailHandlerProps) => {
           description={cardConfig.description}
           action={activeAction}
           secondaryAction={cardConfig.secondaryAction}
+          disableAnimations={true}
         />
       </motion.div>
     </AnimatePresence>
