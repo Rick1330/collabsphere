@@ -58,8 +58,9 @@ const readJsonBody = async (request: IncomingMessage) => {
 export const createAuthController = ({ registerService }: { registerService: RegisterService }) => ({
   register: async ({ request }: { request: IncomingMessage }) => {
     const contentType = request.headers["content-type"];
+    const mediaType = typeof contentType === "string" ? contentType.split(";")[0]?.trim().toLowerCase() : null;
 
-    if (typeof contentType !== "string" || !contentType.toLowerCase().includes("application/json")) {
+    if (mediaType !== "application/json") {
       throw new ValidationAppError({
         issues: [
           {
@@ -78,6 +79,9 @@ export const createAuthController = ({ registerService }: { registerService: Reg
       return await registerService.register({
         payload,
         ipAddress: getRequestContext()?.ip ?? request.socket.remoteAddress ?? "unknown",
+        userAgent:
+          getRequestContext()?.userAgent ??
+          (typeof request.headers["user-agent"] === "string" ? request.headers["user-agent"] : "unknown"),
       });
     } catch (error) {
       throw mapRegisterPersistenceError(error);

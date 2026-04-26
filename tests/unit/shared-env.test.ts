@@ -186,25 +186,27 @@ test("API runtime parser accepts BCRYPT_COST overrides in the supported range", 
   assert.equal(parsed.BCRYPT_COST, 15);
 });
 
-test("API runtime parser rejects BCRYPT_COST values outside 10..15", () => {
-  assert.throws(
-    () =>
-      parseApiRuntimeEnv(
-        createApiEnvInput({
-          BCRYPT_COST: "16",
-        }),
-      ),
-    (error) => {
-      assert.ok(error instanceof EnvValidationError);
-      assert.deepEqual(error.issues, [
-        {
-          key: "BCRYPT_COST",
-          message: "BCRYPT_COST must be between 10 and 15.",
-        },
-      ]);
-      return true;
-    },
-  );
+test("API runtime parser rejects BCRYPT_COST values outside 12..15", () => {
+  for (const cost of ["10", "11", "16"]) {
+    assert.throws(
+      () =>
+        parseApiRuntimeEnv(
+          createApiEnvInput({
+            BCRYPT_COST: cost,
+          }),
+        ),
+      (error) => {
+        assert.ok(error instanceof EnvValidationError);
+        assert.deepEqual(error.issues, [
+          {
+            key: "BCRYPT_COST",
+            message: "BCRYPT_COST must be between 12 and 15.",
+          },
+        ]);
+        return true;
+      },
+    );
+  }
 });
 
 test("API runtime parser normalizes CORS origins to bare origins", () => {

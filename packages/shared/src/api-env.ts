@@ -42,8 +42,8 @@ const apiBaseShape = {
 const baseApiEnvSchema = sharedEnvSchema
   .pick(apiBaseShape)
   .extend({
-    BCRYPT_COST: createPositiveInteger("BCRYPT_COST").refine((value) => value >= 10 && value <= 15, {
-      message: "BCRYPT_COST must be between 10 and 15.",
+    BCRYPT_COST: createPositiveInteger("BCRYPT_COST").refine((value) => value >= 12 && value <= 15, {
+      message: "BCRYPT_COST must be between 12 and 15.",
     }),
     EMAIL_PROVIDER_API_KEY: createRequiredString("EMAIL_PROVIDER_API_KEY").optional(),
     EMAIL_SMTP_HOST: createRequiredString("EMAIL_SMTP_HOST").optional(),
@@ -81,7 +81,7 @@ const selectApiEnv = (input: Record<string, string | undefined>) =>
     string | undefined
   >;
 
-const normalizeOptionalEmailValue = (value: string | undefined) => {
+const normalizeOptionalEnvValue = (value: string | undefined) => {
   if (typeof value !== "string") {
     return value;
   }
@@ -91,10 +91,10 @@ const normalizeOptionalEmailValue = (value: string | undefined) => {
 
 const normalizeOptionalEmailFields = (selected: Record<ApiEnvKey, string | undefined>) => ({
   ...selected,
-  BCRYPT_COST: normalizeOptionalEmailValue(selected.BCRYPT_COST) ?? "12",
-  EMAIL_PROVIDER_API_KEY: normalizeOptionalEmailValue(selected.EMAIL_PROVIDER_API_KEY),
-  EMAIL_SMTP_HOST: normalizeOptionalEmailValue(selected.EMAIL_SMTP_HOST),
-  EMAIL_SMTP_PORT: normalizeOptionalEmailValue(selected.EMAIL_SMTP_PORT),
+  BCRYPT_COST: normalizeOptionalEnvValue(selected.BCRYPT_COST) ?? "12",
+  EMAIL_PROVIDER_API_KEY: normalizeOptionalEnvValue(selected.EMAIL_PROVIDER_API_KEY),
+  EMAIL_SMTP_HOST: normalizeOptionalEnvValue(selected.EMAIL_SMTP_HOST),
+  EMAIL_SMTP_PORT: normalizeOptionalEnvValue(selected.EMAIL_SMTP_PORT),
 });
 
 export const parseApiRuntimeEnv = (input: Record<string, string | undefined>): ApiRuntimeEnv => {

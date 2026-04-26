@@ -82,13 +82,27 @@ export class RegisterRateLimiter {
     return created;
   }
 
-  private assertAllowed(bucket: RateLimitBucket, nowMs: number) {
+  private assertAllowed({
+    source,
+    key,
+    bucket,
+    nowMs,
+  }: {
+    source: Map<string, RateLimitBucket>;
+    key: string;
+    bucket: RateLimitBucket;
+    nowMs: number;
+  }) {
     const trimmed = trimExpiredTimestamps({
       nowMs,
       windowMs: bucket.windowMs,
       timestamps: bucket.timestamps,
     });
     bucket.timestamps = trimmed;
+    if (trimmed.length === 0) {
+      source.delete(key);
+      return;
+    }
 
     if (trimmed.length >= bucket.limit) {
       throw buildRateLimitError(
@@ -101,8 +115,23 @@ export class RegisterRateLimiter {
     }
   }
 
+  private pruneSource(source: Map<string, RateLimitBucket>, nowMs: number) {
+    for (const [key, bucket] of source.entries()) {
+      bucket.timestamps = trimExpiredTimestamps({
+        nowMs,
+        windowMs: bucket.windowMs,
+        timestamps: bucket.timestamps,
+      });
+      if (bucket.timestamps.length === 0) {
+        source.delete(key);
+      }
+    }
+  }
+
   consume({ ipAddress, normalizedEmail }: { ipAddress: string; normalizedEmail: string }) {
     const nowMs = this.now().getTime();
+    this.pruneSource(this.ipBuckets, nowMs);
+    this.pruneSource(this.emailBuckets, nowMs);
     const ipKey = ipAddress.trim() || "unknown";
     const emailKey = normalizedEmail.trim().toLowerCase();
     const ipBucket = this.getBucket({
@@ -115,8 +144,18 @@ export class RegisterRateLimiter {
     });
 
     try {
-      this.assertAllowed(ipBucket, nowMs);
-      this.assertAllowed(emailBucket, nowMs);
+      this.assertAllowed({
+        source: this.ipBuckets,
+        key: ipKey,
+        bucket: ipBucket,
+        nowMs,
+      });
+      this.assertAllowed({
+        source: this.emailBuckets,
+        key: emailKey,
+        bucket: emailBucket,
+        nowMs,
+      });
     } catch (error) {
       if (error instanceof AppError && error.code === "RATE_LIMITED") {
         throw error;
@@ -125,7 +164,20 @@ export class RegisterRateLimiter {
       throw buildRateLimitError(1);
     }
 
-    ipBucket.timestamps.push(nowMs);
-    emailBucket.timestamps.push(nowMs);
+    const activeIpBucket =
+      this.ipBuckets.get(ipKey) ??
+      this.getBucket({
+        source: this.ipBuckets,
+        key: ipKey,
+      });
+    const activeEmailBucket =
+      this.emailBuckets.get(emailKey) ??
+      this.getBucket({
+        source: this.emailBuckets,
+        key: emailKey,
+      });
+
+    activeIpBucket.timestamps.push(nowMs);
+    activeEmailBucket.timestamps.push(nowMs);
   }
 }

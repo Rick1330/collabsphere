@@ -11,6 +11,8 @@ export type VerificationEmailJob = {
   userId: string;
   email: string;
   fullName: string;
+  ipAddress: string;
+  userAgent: string;
   verificationTokenId: string;
   encryptedVerificationToken: string;
 };
@@ -21,12 +23,16 @@ const queueLockPollIntervalMs = 25;
 export const defaultVerificationEmailQueueFilePath = () =>
   path.resolve(process.cwd(), ".tmp", "queues", "verification-email-jobs.json");
 
+const trimTrailingEquals = (value: string) => {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 61) {
+    end -= 1;
+  }
+  return value.slice(0, end);
+};
+
 export const toBase64Url = (value: Buffer) =>
-  value
-    .toString("base64")
-    .replaceAll("+", "-")
-    .replaceAll("/", "_")
-    .replace(/=+$/g, "");
+  trimTrailingEquals(value.toString("base64").replaceAll("+", "-").replaceAll("/", "_"));
 
 export const fromBase64Url = (value: string) => {
   const normalized = value.replaceAll("-", "+").replaceAll("_", "/");
@@ -39,19 +45,22 @@ export const isVerificationEmailJob = (value: unknown): value is VerificationEma
     return false;
   }
 
-  const candidate = value as Partial<VerificationEmailJob>;
-  const hasStringFields = [
-    candidate.jobId,
-    candidate.createdAt,
-    candidate.nextAttemptAt,
-    candidate.userId,
-    candidate.email,
-    candidate.fullName,
-    candidate.verificationTokenId,
-    candidate.encryptedVerificationToken,
-  ].every((field) => typeof field === "string");
-  const hasNumberFields =
-    typeof candidate.attempts === "number" && typeof candidate.maxAttempts === "number";
+  const candidate = value as Record<string, unknown>;
+  const stringFields = [
+    "jobId",
+    "createdAt",
+    "nextAttemptAt",
+    "userId",
+    "email",
+    "fullName",
+    "ipAddress",
+    "userAgent",
+    "verificationTokenId",
+    "encryptedVerificationToken",
+  ] as const;
+  const numberFields = ["attempts", "maxAttempts"] as const;
+  const hasStringFields = stringFields.every((field) => typeof candidate[field] === "string");
+  const hasNumberFields = numberFields.every((field) => typeof candidate[field] === "number");
 
   return hasStringFields && hasNumberFields;
 };
@@ -158,6 +167,8 @@ export const createVerificationEmailJob = ({
   userId,
   email,
   fullName,
+  ipAddress,
+  userAgent,
   verificationTokenId,
   encryptedVerificationToken,
   now = new Date(),
@@ -165,6 +176,8 @@ export const createVerificationEmailJob = ({
   userId: string;
   email: string;
   fullName: string;
+  ipAddress: string;
+  userAgent: string;
   verificationTokenId: string;
   encryptedVerificationToken: string;
   now?: Date;
@@ -173,10 +186,12 @@ export const createVerificationEmailJob = ({
   createdAt: now.toISOString(),
   nextAttemptAt: now.toISOString(),
   attempts: 0,
-  maxAttempts: 3,
+  maxAttempts: 4,
   userId,
   email,
   fullName,
+  ipAddress,
+  userAgent,
   verificationTokenId,
   encryptedVerificationToken,
 });

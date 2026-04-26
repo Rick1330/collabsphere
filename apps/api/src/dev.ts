@@ -43,11 +43,13 @@ try {
 
 const { logger } = createLoggerModule();
 let registerServicePromise: Promise<RegisterService> | null = null;
+let prismaClientForShutdown: { $disconnect: () => Promise<void> } | null = null;
 
 const createRuntimeRegisterService = async (): Promise<RegisterService> => {
   try {
     const { PrismaClient } = await import("@prisma/client");
     const prisma = new PrismaClient();
+    prismaClientForShutdown = prisma;
     return createPrismaBackedRegisterService({
       prisma,
       bcryptCostFactor: apiEnv.BCRYPT_COST,
@@ -88,17 +90,20 @@ const writeJson = (
   response: ServerResponse,
   statusCode: number,
   payload: unknown,
-  requestId?: string,
-  extraHeaders?: Record<string, string>,
+  {
+    requestId,
+    extraHeaders,
+  }: {
+    requestId: string;
+    extraHeaders?: Record<string, string>;
+  },
 ) => {
   const headers: Record<string, string> = {
     "content-type": "application/json; charset=utf-8",
     ...(extraHeaders ?? {}),
   } as Record<string, string>;
 
-  if (requestId) {
-    headers["x-request-id"] = requestId;
-  }
+  headers["x-request-id"] = requestId;
 
   response.writeHead(statusCode, headers);
   response.end(JSON.stringify(payload, null, 2));
@@ -117,8 +122,8 @@ const writeSuccessJson = (
       payload,
       requestId,
     }),
-  requestId,
-);
+    { requestId },
+  );
 
 const writeErrorJson = ({
   response,
@@ -140,7 +145,10 @@ const writeErrorJson = ({
     durationMs,
     errorCode: normalizedError.code,
   });
-  return writeJson(response, statusCode, payload, requestId, headers);
+  return writeJson(response, statusCode, payload, {
+    requestId,
+    extraHeaders: headers,
+  });
 };
 const { healthController } = createHealthModule({
   databaseUrl: apiEnv.DATABASE_URL,
@@ -331,4 +339,12 @@ startHttpBootstrapServer({
   service: "api",
   defaultPort: 3001,
   readyPath: "/api/v1/health",
+  onShutdown: async () => {
+    if (!prismaClientForShutdown) {
+      return;
+    }
+
+    await prismaClientForShutdown.$disconnect();
+    prismaClientForShutdown = null;
+  },
 });

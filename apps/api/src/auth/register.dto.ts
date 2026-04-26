@@ -12,7 +12,6 @@ type ValidationIssue = {
   rule: string;
 };
 
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const minPasswordLength = 8;
 const maxPasswordLength = 72;
 
@@ -23,6 +22,34 @@ const createIssue = (field: string, message: string, rule: string): ValidationIs
   message,
   rule,
 });
+
+const isValidEmailShape = (email: string) => {
+  if (email.length === 0 || email.length > 254) {
+    return false;
+  }
+
+  const atIndex = email.indexOf("@");
+  if (atIndex <= 0 || atIndex !== email.lastIndexOf("@")) {
+    return false;
+  }
+
+  const local = email.slice(0, atIndex);
+  const domain = email.slice(atIndex + 1);
+  if (local.length === 0 || domain.length === 0) {
+    return false;
+  }
+
+  if (/\s/.test(email)) {
+    return false;
+  }
+
+  const dotIndex = domain.indexOf(".");
+  if (dotIndex <= 0 || dotIndex === domain.length - 1) {
+    return false;
+  }
+
+  return true;
+};
 
 const assertPasswordStrength = (password: string) => {
   const passwordByteLength = Buffer.byteLength(password, "utf8");
@@ -54,12 +81,12 @@ const validateFullName = (fullName: string): ValidationIssue | null => {
   return null;
 };
 
-const validateEmail = (email: string): ValidationIssue | null => {
+const validateEmailField = (email: string): ValidationIssue | null => {
   if (!email) {
     return createIssue("email", "Email is required", "isNotEmpty");
   }
 
-  if (!emailPattern.test(email)) {
+  if (!isValidEmailShape(email)) {
     return createIssue("email", "Invalid email address", "isEmail");
   }
 
@@ -88,7 +115,7 @@ export const validateRegisterInput = (payload: unknown): RegisterInput => {
   const password = typeof candidate.password === "string" ? candidate.password : "";
   const issues = [
     validateFullName(fullName),
-    validateEmail(email),
+    validateEmailField(email),
     validatePasswordPresence(password),
   ].filter((issue): issue is ValidationIssue => issue !== null);
 

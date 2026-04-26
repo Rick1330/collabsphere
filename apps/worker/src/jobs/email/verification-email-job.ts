@@ -22,6 +22,14 @@ const dispatchVerificationEmail = async ({
   void verificationUrl;
 };
 
+const trimTrailingSlashes = (value: string) => {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47) {
+    end -= 1;
+  }
+  return value.slice(0, end);
+};
+
 export const sendVerificationEmailJob = async ({
   job,
   jwtAccessSecret,
@@ -39,7 +47,7 @@ export const sendVerificationEmailJob = async ({
     encryptedToken: job.encryptedVerificationToken,
     secret: jwtAccessSecret,
   });
-  const verificationUrl = `${baseUrl.replace(/\/+$/g, "")}/verify-email/${encodeURIComponent(verificationToken)}`;
+  const verificationUrl = `${trimTrailingSlashes(baseUrl)}/verify-email/${encodeURIComponent(verificationToken)}`;
   await dispatchVerificationEmail({
     email: job.email,
     fullName: job.fullName,
@@ -61,6 +69,8 @@ export const sendVerificationEmailJob = async ({
       data: {
         userId: job.userId,
         email: job.email,
+        ipAddress: job.ipAddress,
+        userAgent: job.userAgent,
         tokenId: job.verificationTokenId,
         jobId: job.jobId,
       },

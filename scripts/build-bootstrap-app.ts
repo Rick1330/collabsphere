@@ -36,6 +36,14 @@ const sharedVerificationEmailQueuePath = path.join(
   "queues",
   "verification-email.ts",
 );
+const sharedVerificationEmailCryptoPath = path.join(
+  repoRoot,
+  "packages",
+  "shared",
+  "src",
+  "queues",
+  "verification-email-crypto.ts",
+);
 const sharedZodPackagePath = path.join(repoRoot, "packages", "shared", "node_modules", "zod");
 const sharedPackageJsonPath = path.join(repoRoot, "packages", "shared", "package.json");
 const typescriptCliPath = path.join(repoRoot, "node_modules", "typescript", "bin", "tsc");
@@ -78,6 +86,7 @@ const knownSharedEntryPoints = [
   sharedBootstrapRuntimePath,
   sharedAuthEventsPath,
   sharedVerificationEmailQueuePath,
+  sharedVerificationEmailCryptoPath,
 ];
 
 const sleep = (delayMs: number) => new Promise<void>((resolve) => setTimeout(resolve, delayMs));

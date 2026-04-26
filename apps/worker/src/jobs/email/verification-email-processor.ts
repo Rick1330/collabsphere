@@ -7,6 +7,7 @@ import {
 import { sendVerificationEmailJob } from "./verification-email-job.js";
 
 const defaultPollIntervalMs = 2000;
+// Retry policy: initial attempt + 3 retries (30s, 120s, 300s).
 const retryBackoffMs = [30_000, 120_000, 300_000] as const;
 const maxJobsPerTick = 5;
 
@@ -28,6 +29,8 @@ const createRetryJob = ({
     userId: job.userId,
     email: job.email,
     fullName: job.fullName,
+    ipAddress: job.ipAddress,
+    userAgent: job.userAgent,
     verificationTokenId: job.verificationTokenId,
     encryptedVerificationToken: job.encryptedVerificationToken,
     now: attemptedAt,

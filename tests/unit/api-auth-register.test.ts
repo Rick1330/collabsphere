@@ -1,8 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
 import type { IncomingMessage } from "node:http";
-import os from "node:os";
-import path from "node:path";
 import { Readable } from "node:stream";
 import test from "node:test";
 import { AppError, createErrorResponse } from "../../apps/api/src/common/filters/app-error.filter.js";
@@ -22,10 +19,12 @@ const createRegisterRequest = ({
   body,
   contentType = "application/json",
   remoteAddress = "203.0.113.10",
+  userAgent = "test-agent",
 }: {
   body: unknown;
   contentType?: string;
   remoteAddress?: string;
+  userAgent?: string;
 }): IncomingMessage => {
   const stream = Readable.from([JSON.stringify(body)]) as unknown as IncomingMessage & {
     headers: Record<string, string>;
@@ -34,6 +33,7 @@ const createRegisterRequest = ({
 
   stream.headers = {
     "content-type": contentType,
+    "user-agent": userAgent,
   };
   stream.socket = {
     remoteAddress,
@@ -95,7 +95,15 @@ const createRepositoryDouble = () => {
 test("register service hashes passwords with bcrypt(12), stores token hashes, and emits side effects", async () => {
   const repo = createRepositoryDouble();
   const emittedEvents: Array<{ name: string; data: Record<string, unknown> }> = [];
-  const enqueuedJobs: Array<{ email: string; verificationTokenId: string; attempts: number }> = [];
+  const enqueuedJobs: Array<{
+    email: string;
+    verificationTokenId: string;
+    attempts: number;
+    ipAddress: string;
+    userAgent: string;
+  }> = [];
+  const ipAddress = "203.0.113.10";
+  const userAgent = "Mozilla/5.0 (X11; Linux x86_64)";
   const service = createRegisterService({
     repository: repo.repository,
     rateLimiter: new RegisterRateLimiter({
@@ -114,6 +122,8 @@ test("register service hashes passwords with bcrypt(12), stores token hashes, an
         email: job.email,
         verificationTokenId: job.verificationTokenId,
         attempts: job.attempts,
+        ipAddress: job.ipAddress,
+        userAgent: job.userAgent,
       });
     },
   });
@@ -124,7 +134,8 @@ test("register service hashes passwords with bcrypt(12), stores token hashes, an
   });
   const result = await service.register({
     payload,
-    ipAddress: "203.0.113.10",
+    ipAddress,
+    userAgent,
   });
 
   assert.equal(result.message, registerServiceConstants.registerSuccessMessage);
@@ -142,50 +153,47 @@ test("register service hashes passwords with bcrypt(12), stores token hashes, an
   assert.equal(enqueuedJobs[0]?.email, "jane+reg@example.com");
   assert.equal(enqueuedJobs[0]?.attempts, 0);
   assert.equal(enqueuedJobs[0]?.verificationTokenId, "token_1");
+  assert.equal(enqueuedJobs[0]?.ipAddress, ipAddress);
+  assert.equal(enqueuedJobs[0]?.userAgent, userAgent);
+  assert.equal(emittedEvents[0]?.data.ipAddress, ipAddress);
+  assert.equal(emittedEvents[0]?.data.userAgent, userAgent);
 });
 
 test("register service writes failed user.registered events to dead-letter storage", async () => {
   const repo = createRepositoryDouble();
-  const temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "collabsphere-register-dlq-"));
-  const deadLetterFilePath = path.join(temporaryDirectory, ".tmp", "domain-events.dlq.ndjson");
-  const previousWorkingDirectory = process.cwd();
+  const deadLetterEvents: Array<{ name: string; data: Record<string, unknown> }> = [];
 
-  try {
-    process.chdir(temporaryDirectory);
-    const service = createRegisterService({
-      repository: repo.repository,
-      rateLimiter: new RegisterRateLimiter({
-        now: fixedNow,
-      }),
+  const service = createRegisterService({
+    repository: repo.repository,
+    rateLimiter: new RegisterRateLimiter({
       now: fixedNow,
-      jwtAccessSecret: "test-secret",
-      appendEvent: async () => {
-        throw new Error("event stream unavailable");
-      },
-      enqueueJob: async () => {},
-    });
+    }),
+    now: fixedNow,
+    jwtAccessSecret: "test-secret",
+    appendEvent: async () => {
+      throw new Error("event stream unavailable");
+    },
+    appendDeadLetter: async ({ event }) => {
+      deadLetterEvents.push({
+        name: event.name,
+        data: event.data,
+      });
+    },
+    enqueueJob: async () => {},
+  });
 
-    await service.register({
-      payload: validateRegisterInput({
-        fullName: "Jane Doe",
-        email: "dlq@example.com",
-        password: "StrongPass@123",
-      }),
-      ipAddress: "203.0.113.11",
-    });
+  await service.register({
+    payload: validateRegisterInput({
+      fullName: "Jane Doe",
+      email: "dlq@example.com",
+      password: "StrongPass@123",
+    }),
+    ipAddress: "203.0.113.11",
+    userAgent: "test-agent",
+  });
 
-    const deadLetterContent = await readFile(deadLetterFilePath, "utf8");
-    const deadLetterEvent = JSON.parse(deadLetterContent.trim()) as {
-      name: string;
-      data: { email?: string };
-    };
-
-    assert.equal(deadLetterEvent.name, "user.registered");
-    assert.equal(deadLetterEvent.data.email, "dlq@example.com");
-  } finally {
-    process.chdir(previousWorkingDirectory);
-    await rm(temporaryDirectory, { force: true, recursive: true });
-  }
+  assert.equal(deadLetterEvents[0]?.name, "user.registered");
+  assert.equal(deadLetterEvents[0]?.data.email, "dlq@example.com");
 });
 
 test("register controller maps unique persistence errors to EMAIL_ALREADY_EXISTS", async () => {
@@ -210,6 +218,28 @@ test("register controller maps unique persistence errors to EMAIL_ALREADY_EXISTS
       }),
     }),
     (error: unknown) => error instanceof AppError && error.code === "EMAIL_ALREADY_EXISTS",
+  );
+});
+
+test("register controller requires application/json media type", async () => {
+  const controller = createAuthController({
+    registerService: {
+      register: async () => ({ message: "ok" }),
+    },
+  });
+
+  await assert.rejects(
+    controller.register({
+      request: createRegisterRequest({
+        contentType: "text/application/json-patch",
+        body: {
+          fullName: "Jane Doe",
+          email: "jane@example.com",
+          password: "StrongPass@123",
+        },
+      }),
+    }),
+    (error: unknown) => error instanceof AppError && error.code === "VALIDATION_ERROR",
   );
 });
 
@@ -250,6 +280,7 @@ test("register service rejects duplicate local and oauth emails with canonical c
     createService(localRepo.repository).register({
       payload: duplicatePayload,
       ipAddress: "203.0.113.10",
+      userAgent: "test-agent",
     }),
     (error: unknown) => error instanceof AppError && error.code === "EMAIL_ALREADY_EXISTS",
   );
@@ -257,6 +288,7 @@ test("register service rejects duplicate local and oauth emails with canonical c
     createService(oauthRepo.repository).register({
       payload: oauthPayload,
       ipAddress: "203.0.113.10",
+      userAgent: "test-agent",
     }),
     (error: unknown) => error instanceof AppError && error.code === "EMAIL_ALREADY_EXISTS",
   );
@@ -286,6 +318,7 @@ test("register rate limiting enforces 5/hour per ip and per email and exposes Re
     await service.register({
       payload,
       ipAddress: "198.51.100.10",
+      userAgent: "test-agent",
     });
     nowMs += 1_000;
   }
@@ -294,6 +327,7 @@ test("register rate limiting enforces 5/hour per ip and per email and exposes Re
     service.register({
       payload,
       ipAddress: "198.51.100.10",
+      userAgent: "test-agent",
     }),
     (error: unknown) =>
       error instanceof AppError &&
@@ -337,4 +371,30 @@ test("weak passwords fail with PASSWORD_TOO_WEAK and 429 headers are preserved i
   assert.equal(response.statusCode, 429);
   assert.equal(response.headers?.["Retry-After"], "3600");
   assert.equal(response.payload.error.code, "RATE_LIMITED");
+});
+
+test("register rate limiter prunes expired buckets to prevent unbounded growth", async () => {
+  let nowMs = new Date(fixedNowIso).getTime();
+  const now = () => new Date(nowMs);
+  const limiter = new RegisterRateLimiter({ now });
+
+  for (let index = 0; index < 20; index += 1) {
+    limiter.consume({
+      ipAddress: "198.51.100.55",
+      normalizedEmail: `user-${index}@example.com`,
+    });
+    nowMs += 61 * 60 * 1000;
+  }
+
+  limiter.consume({
+    ipAddress: "198.51.100.55",
+    normalizedEmail: "fresh@example.com",
+  });
+
+  const limiterState = limiter as unknown as {
+    ipBuckets: Map<string, { timestamps: number[] }>;
+    emailBuckets: Map<string, { timestamps: number[] }>;
+  };
+  assert.ok((limiterState.ipBuckets.get("198.51.100.55")?.timestamps.length ?? 0) <= 1);
+  assert.ok(limiterState.emailBuckets.size <= 2);
 });
