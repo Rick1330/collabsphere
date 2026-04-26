@@ -18,15 +18,11 @@ const assertPasswordStrength = (password: string) => {
   const hasLower = /[a-z]/.test(password);
   const hasDigit = /[0-9]/.test(password);
   const hasSpecial = /[^A-Za-z0-9]/.test(password);
+  const isPasswordLengthValid =
+    password.length >= minPasswordLength && passwordByteLength <= maxPasswordLength;
+  const hasRequiredCharacterSets = hasUpper && hasLower && hasDigit && hasSpecial;
 
-  if (
-    password.length < minPasswordLength ||
-    passwordByteLength > maxPasswordLength ||
-    !hasUpper ||
-    !hasLower ||
-    !hasDigit ||
-    !hasSpecial
-  ) {
+  if (!isPasswordLengthValid || !hasRequiredCharacterSets) {
     throw new AppError({
       code: "PASSWORD_TOO_WEAK",
       message: "Password does not meet complexity requirements",
@@ -52,41 +48,24 @@ export const validateRegisterInput = (payload: unknown): RegisterInput => {
   const email = typeof candidate.email === "string" ? candidate.email.trim() : "";
   const password = typeof candidate.password === "string" ? candidate.password : "";
   const issues: Array<{ field: string; message: string; rule: string }> = [];
+  const pushIssue = (field: string, message: string, rule: string) => {
+    issues.push({ field, message, rule });
+  };
 
   if (!fullName) {
-    issues.push({
-      field: "fullName",
-      message: "Full name is required",
-      rule: "isNotEmpty",
-    });
+    pushIssue("fullName", "Full name is required", "isNotEmpty");
   } else if (fullName.length > 200) {
-    issues.push({
-      field: "fullName",
-      message: "Full name must be at most 200 characters",
-      rule: "maxLength",
-    });
+    pushIssue("fullName", "Full name must be at most 200 characters", "maxLength");
   }
 
   if (!email) {
-    issues.push({
-      field: "email",
-      message: "Email is required",
-      rule: "isNotEmpty",
-    });
+    pushIssue("email", "Email is required", "isNotEmpty");
   } else if (!emailPattern.test(email)) {
-    issues.push({
-      field: "email",
-      message: "Invalid email address",
-      rule: "isEmail",
-    });
+    pushIssue("email", "Invalid email address", "isEmail");
   }
 
   if (!password) {
-    issues.push({
-      field: "password",
-      message: "Password is required",
-      rule: "isNotEmpty",
-    });
+    pushIssue("password", "Password is required", "isNotEmpty");
   }
 
   if (issues.length > 0) {

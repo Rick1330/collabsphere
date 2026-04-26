@@ -1,8 +1,8 @@
 import { createDecipheriv, createHash } from "node:crypto";
 import {
   createVerificationEmailJob,
-  dequeueDueVerificationEmailJobs as dequeueSharedVerificationEmailJobs,
-  enqueueVerificationEmailJob as enqueueSharedVerificationEmailJob,
+  dequeueDueVerificationEmailJobs,
+  enqueueVerificationEmailJob,
   fromBase64Url,
   type VerificationEmailJob,
 } from "../../../../../packages/shared/src/queues/verification-email.js";
@@ -10,6 +10,7 @@ import {
 const deriveEncryptionKey = (secret: string) => createHash("sha256").update(secret, "utf8").digest();
 
 export { createVerificationEmailJob, type VerificationEmailJob };
+export { enqueueVerificationEmailJob, dequeueDueVerificationEmailJobs };
 
 export const decryptVerificationToken = ({
   encryptedToken,
@@ -30,30 +31,3 @@ export const decryptVerificationToken = ({
 
   return decrypted.toString("utf8");
 };
-
-export const enqueueVerificationEmailJob = async ({
-  job,
-  queueFilePath,
-}: {
-  job: VerificationEmailJob;
-  queueFilePath?: string;
-}) =>
-  enqueueSharedVerificationEmailJob({
-    job,
-    queueFilePath,
-  });
-
-export const dequeueDueVerificationEmailJobs = async ({
-  now,
-  limit,
-  queueFilePath,
-}: {
-  now?: Date;
-  limit?: number;
-  queueFilePath?: string;
-}) =>
-  dequeueSharedVerificationEmailJobs({
-    now,
-    limit,
-    queueFilePath,
-  });

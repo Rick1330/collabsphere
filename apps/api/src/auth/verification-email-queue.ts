@@ -1,7 +1,7 @@
 import { createCipheriv, createHash, randomBytes } from "node:crypto";
 import {
   createVerificationEmailJob,
-  enqueueVerificationEmailJob as enqueueSharedVerificationEmailJob,
+  enqueueVerificationEmailJob,
   toBase64Url,
   type VerificationEmailJob,
 } from "../../../../packages/shared/src/queues/verification-email.js";
@@ -9,6 +9,7 @@ import {
 const deriveEncryptionKey = (secret: string) => createHash("sha256").update(secret, "utf8").digest();
 
 export { createVerificationEmailJob, type VerificationEmailJob };
+export { enqueueVerificationEmailJob };
 
 export const encryptVerificationToken = ({ token, secret }: { token: string; secret: string }) => {
   const iv = randomBytes(12);
@@ -18,15 +19,3 @@ export const encryptVerificationToken = ({ token, secret }: { token: string; sec
 
   return `${toBase64Url(iv)}.${toBase64Url(tag)}.${toBase64Url(encrypted)}`;
 };
-
-export const enqueueVerificationEmailJob = async ({
-  job,
-  queueFilePath,
-}: {
-  job: VerificationEmailJob;
-  queueFilePath?: string;
-}) =>
-  enqueueSharedVerificationEmailJob({
-    job,
-    queueFilePath,
-  });
