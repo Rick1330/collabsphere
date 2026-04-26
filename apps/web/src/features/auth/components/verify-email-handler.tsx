@@ -8,7 +8,7 @@ type VerifyEmailApiErrorCode =
   | "TOKEN_EXPIRED"
   | "TOKEN_ALREADY_USED"
   | "VALIDATION_ERROR";
-type ViewState = "missing" | "loading" | "success" | "expired" | "already-used" | "invalid";
+type ViewState = "missing" | "loading" | "success" | "expired" | "already-used" | "invalid" | "transient-error";
 
 class VerifyEmailApiError extends Error {
   constructor(
@@ -25,16 +25,14 @@ interface VerifyEmailHandlerProps {
   token: string;
 }
 
-const requestNewVerificationHref = "/login";
-
 const invalidCardConfig = {
   variant: "error" as const,
   heading: "Invalid link",
   description:
     "This verification link is not valid. It may have been copied incorrectly. Go to sign in to request a new verification email.",
   action: {
-    label: "Go to sign in to request a new verification email",
-    href: requestNewVerificationHref,
+    label: "Back to sign in",
+    href: "/login",
   },
   secondaryAction: { label: "Back to sign in", href: "/login" },
 };
@@ -66,8 +64,8 @@ const viewStateCardConfig: Record<
     heading: "Verification link expired",
     description: "Verification links are valid for 24 hours. Go to sign in to request a new verification email.",
     action: {
-      label: "Go to sign in to request a new verification email",
-      href: requestNewVerificationHref,
+      label: "Back to sign in",
+      href: "/login",
     },
     secondaryAction: { label: "Back to sign in", href: "/login" },
   },
@@ -79,6 +77,11 @@ const viewStateCardConfig: Record<
     action: { label: "Continue to sign in", href: "/login" },
   },
   invalid: invalidCardConfig,
+  "transient-error": {
+    variant: "error",
+    heading: "We couldn't reach the verification service",
+    description: "Something went wrong on our end. Try again in a moment.",
+  },
 };
 
 const resolveViewState = ({
@@ -120,7 +123,11 @@ const resolveViewState = ({
     return "expired";
   }
 
-  return "invalid";
+  if (errorCode === "TOKEN_INVALID" || errorCode === "VALIDATION_ERROR") {
+    return "invalid";
+  }
+
+  return "transient-error";
 };
 
 const verifyEmailToken = async (token: string) => {
@@ -157,6 +164,7 @@ export const VerifyEmailHandler = ({ token }: VerifyEmailHandlerProps) => {
     isPending,
     isSuccess,
     mutate,
+    reset,
   } = useMutation({
     mutationFn: verifyEmailToken,
     retry: false,
@@ -189,6 +197,9 @@ export const VerifyEmailHandler = ({ token }: VerifyEmailHandlerProps) => {
     errorCode,
   });
   const cardConfig = viewStateCardConfig[viewState];
+  const activeAction = viewState === "transient-error"
+    ? { label: "Try again", onClick: () => { reset(); mutate(normalizedToken); } }
+    : cardConfig.action;
 
   return (
     <AnimatePresence mode="wait">
@@ -197,7 +208,7 @@ export const VerifyEmailHandler = ({ token }: VerifyEmailHandlerProps) => {
           variant={cardConfig.variant}
           heading={cardConfig.heading}
           description={cardConfig.description}
-          action={cardConfig.action}
+          action={activeAction}
           secondaryAction={cardConfig.secondaryAction}
         />
       </motion.div>

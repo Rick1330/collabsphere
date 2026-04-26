@@ -9,8 +9,8 @@ interface AuthStatusCardProps {
   variant: "loading" | "success" | "error" | "expired";
   heading: string;
   description: string | React.ReactNode;
-  action?: { label: string; href: string };
-  secondaryAction?: { label: string; href: string };
+  action?: { label: string; href?: string; onClick?: () => void };
+  secondaryAction?: { label: string; href?: string; onClick?: () => void };
 }
 
 const iconConfig = {
@@ -96,19 +96,34 @@ export const AuthStatusCard = ({ variant, heading, description, action, secondar
       )}
 
       {action && (
-        isInternalHref(action.href) ? (
+        action.onClick ? (
+          <button type="button" onClick={action.onClick} className="cs-focus cs-btn-primary shine-effect w-full h-11 rounded-lg text-sm font-semibold mt-6 flex items-center justify-center">
+            {action.label}
+          </button>
+        ) : action.href && isInternalHref(action.href) ? (
           <Link to={action.href} className="cs-focus cs-btn-primary shine-effect w-full h-11 rounded-lg text-sm font-semibold mt-6 flex items-center justify-center">
             {action.label}
           </Link>
-        ) : (
+        ) : action.href ? (
           <a href={action.href} className="cs-focus cs-btn-primary shine-effect w-full h-11 rounded-lg text-sm font-semibold mt-6 flex items-center justify-center">
             {action.label}
           </a>
-        )
+        ) : null
       )}
 
       {secondaryAction && (
-        isInternalHref(secondaryAction.href) ? (
+        secondaryAction.onClick ? (
+          <button
+            type="button"
+            onClick={secondaryAction.onClick}
+            className="block mt-3 text-sm font-medium transition-colors duration-150 mx-auto"
+            style={{ color: "rgba(45,212,191,0.7)" }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "#2DD4BF"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(45,212,191,0.7)"; }}
+          >
+            {secondaryAction.label}
+          </button>
+        ) : secondaryAction.href && isInternalHref(secondaryAction.href) ? (
           <Link
             to={secondaryAction.href}
             className="block mt-3 text-sm font-medium transition-colors duration-150"
@@ -118,7 +133,7 @@ export const AuthStatusCard = ({ variant, heading, description, action, secondar
           >
             {secondaryAction.label}
           </Link>
-        ) : (
+        ) : secondaryAction.href ? (
           <a
             href={secondaryAction.href}
             className="block mt-3 text-sm font-medium transition-colors duration-150"
@@ -128,7 +143,7 @@ export const AuthStatusCard = ({ variant, heading, description, action, secondar
           >
             {secondaryAction.label}
           </a>
-        )
+        ) : null
       )}
     </div>
   );
