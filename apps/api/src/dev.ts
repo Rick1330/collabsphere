@@ -277,6 +277,38 @@ const handlePaginationFixturesRequest = ({
   );
 };
 
+const handleAuthJsonAction = async ({
+  request,
+  response,
+  requestId,
+  getDurationMs,
+  statusCode,
+  execute,
+}: {
+  request: IncomingMessage;
+  response: ServerResponse;
+  requestId: string;
+  getDurationMs: () => number;
+  statusCode: number;
+  execute: () => Promise<{ message: string }>;
+}) => {
+  const actionResult = await execute();
+
+  logger.logRequestLifecycle({
+    statusCode,
+    durationMs: getDurationMs(),
+  });
+
+  return writeSuccessJson(
+    response,
+    statusCode,
+    createActionResponsePayload({
+      message: actionResult.message,
+    }),
+    requestId,
+  );
+};
+
 const handleRegisterRequest = async ({
   request,
   response,
@@ -288,23 +320,17 @@ const handleRegisterRequest = async ({
   requestId: string;
   getDurationMs: () => number;
 }) => {
-  const registerResult = await authController.register({
+  return handleAuthJsonAction({
     request,
-  });
-
-  logger.logRequestLifecycle({
-    statusCode: 201,
-    durationMs: getDurationMs(),
-  });
-
-  return writeSuccessJson(
     response,
-    201,
-    createActionResponsePayload({
-      message: registerResult.message,
-    }),
     requestId,
-  );
+    getDurationMs,
+    statusCode: 201,
+    execute: () =>
+      authController.register({
+        request,
+      }),
+  });
 };
 
 const handleVerifyEmailRequest = async ({
@@ -318,23 +344,55 @@ const handleVerifyEmailRequest = async ({
   requestId: string;
   getDurationMs: () => number;
 }) => {
-  const verifyEmailResult = await authController.verifyEmail({
+  return handleAuthJsonAction({
     request,
-  });
-
-  logger.logRequestLifecycle({
-    statusCode: 200,
-    durationMs: getDurationMs(),
-  });
-
-  return writeSuccessJson(
     response,
-    200,
-    createActionResponsePayload({
-      message: verifyEmailResult.message,
-    }),
     requestId,
-  );
+    getDurationMs,
+    statusCode: 200,
+    execute: () =>
+      authController.verifyEmail({
+        request,
+      }),
+  });
+};
+
+type RequestHandler = (input: {
+  request: IncomingMessage;
+  response: ServerResponse;
+  requestId: string;
+  url: URL;
+  getDurationMs: () => number;
+}) => Promise<void> | void;
+
+const routeHandlers: Readonly<Record<string, RequestHandler>> = {
+  "GET /api/v1/health": ({ response, requestId, getDurationMs }) =>
+    handleHealthRequest({
+      response,
+      requestId,
+      getDurationMs,
+    }),
+  "GET /api/v1/pagination/fixtures": ({ response, requestId, url, getDurationMs }) =>
+    handlePaginationFixturesRequest({
+      response,
+      requestId,
+      url,
+      getDurationMs,
+    }),
+  "POST /api/v1/auth/register": ({ request, response, requestId, getDurationMs }) =>
+    handleRegisterRequest({
+      request,
+      response,
+      requestId,
+      getDurationMs,
+    }),
+  "POST /api/v1/auth/verify-email": ({ request, response, requestId, getDurationMs }) =>
+    handleVerifyEmailRequest({
+      request,
+      response,
+      requestId,
+      getDurationMs,
+    }),
 };
 
 const handleRequest = async ({
@@ -349,38 +407,15 @@ const handleRequest = async ({
   getDurationMs: () => number;
 }) => {
   const url = parseRequestUrl(request);
+  const routeKey = `${request.method ?? "GET"} ${url.pathname}`;
+  const routeHandler = routeHandlers[routeKey];
 
-  if (request.method === "GET" && url.pathname === "/api/v1/health") {
-    return handleHealthRequest({
-      response,
-      requestId,
-      getDurationMs,
-    });
-  }
-
-  if (request.method === "GET" && url.pathname === "/api/v1/pagination/fixtures") {
-    return handlePaginationFixturesRequest({
+  if (routeHandler) {
+    return routeHandler({
+      request,
       response,
       requestId,
       url,
-      getDurationMs,
-    });
-  }
-
-  if (request.method === "POST" && url.pathname === "/api/v1/auth/register") {
-    return handleRegisterRequest({
-      request,
-      response,
-      requestId,
-      getDurationMs,
-    });
-  }
-
-  if (request.method === "POST" && url.pathname === "/api/v1/auth/verify-email") {
-    return handleVerifyEmailRequest({
-      request,
-      response,
-      requestId,
       getDurationMs,
     });
   }

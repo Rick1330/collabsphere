@@ -107,6 +107,8 @@ export const createAuthController = ({
     const rawPayload = await readJsonBody(request);
     const payload = validateVerifyEmailInput(rawPayload);
 
+    // verify-email currently has no unique-constraint path, so persistence-error remapping
+    // like register() is unnecessary until this flow gains new write paths with DB conflict handling.
     return verifyEmailService.verifyEmail({
       payload,
     });

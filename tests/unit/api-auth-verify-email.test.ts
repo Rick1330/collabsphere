@@ -80,6 +80,27 @@ const createVerifyEmailRepositoryDouble = () => {
   };
 };
 
+const createVerifyEmailServiceUnderTest = (repository: VerifyEmailRepository) =>
+  createVerifyEmailService({
+    repository,
+    now: fixedNow,
+  });
+
+const addVerificationRecord = ({
+  repo,
+  rawToken,
+  record,
+}: {
+  repo: ReturnType<typeof createVerifyEmailRepositoryDouble>;
+  rawToken: string;
+  record: Omit<EmailVerificationRecord, "email"> & { email?: string };
+}) => {
+  repo.recordsByHash.set(hashSha256(rawToken), {
+    ...record,
+    email: record.email ?? "verify@example.com",
+  });
+};
+
 test("verify email service marks the token used and emits user.email_verified", async () => {
   const repo = createVerifyEmailRepositoryDouble();
   const emittedEvents: Array<{ name: string; data: Record<string, unknown> }> = [];
@@ -130,10 +151,7 @@ test("verify email service marks the token used and emits user.email_verified", 
 
 test("verify email service returns TOKEN_INVALID for an unknown token", async () => {
   const repo = createVerifyEmailRepositoryDouble();
-  const service = createVerifyEmailService({
-    repository: repo.repository,
-    now: fixedNow,
-  });
+  const service = createVerifyEmailServiceUnderTest(repo.repository);
 
   await assert.rejects(
     service.verifyEmail({
@@ -145,84 +163,68 @@ test("verify email service returns TOKEN_INVALID for an unknown token", async ()
   );
 });
 
-test("verify email service returns TOKEN_EXPIRED with HTTP 410 for expired tokens", async () => {
-  const repo = createVerifyEmailRepositoryDouble();
-  const rawToken = "expired-token";
-  repo.recordsByHash.set(hashSha256(rawToken), {
-    id: "token_2",
-    userId: "user_2",
-    email: "expired@example.com",
-    expiresAt: new Date("2026-04-26T11:59:59.000Z"),
-    usedAt: null,
-  });
+test("verify email service maps token failure paths to canonical errors", async () => {
+  const scenarios = [
+    {
+      rawToken: "expired-token",
+      record: {
+        id: "token_2",
+        userId: "user_2",
+        email: "expired@example.com",
+        expiresAt: new Date("2026-04-26T11:59:59.000Z"),
+        usedAt: null,
+      },
+      expectedError: (error: unknown) =>
+        error instanceof AppError && error.code === "TOKEN_EXPIRED" && error.statusCode === 410,
+    },
+    {
+      rawToken: "used-token",
+      record: {
+        id: "token_3",
+        userId: "user_3",
+        email: "used@example.com",
+        expiresAt: new Date("2026-04-27T12:00:00.000Z"),
+        usedAt: new Date("2026-04-26T10:00:00.000Z"),
+      },
+      expectedError: (error: unknown) => error instanceof AppError && error.code === "TOKEN_ALREADY_USED",
+    },
+    {
+      rawToken: "raced-token",
+      record: {
+        id: "token_4",
+        userId: "user_4",
+        email: "race@example.com",
+        expiresAt: new Date("2026-04-27T12:00:00.000Z"),
+        usedAt: null,
+      },
+      consumeFailureTokenId: "token_4",
+      expectedError: (error: unknown) => error instanceof AppError && error.code === "TOKEN_ALREADY_USED",
+    },
+  ] as const;
 
-  const service = createVerifyEmailService({
-    repository: repo.repository,
-    now: fixedNow,
-  });
+  for (const scenario of scenarios) {
+    const repo = createVerifyEmailRepositoryDouble();
+    addVerificationRecord({
+      repo,
+      rawToken: scenario.rawToken,
+      record: scenario.record,
+    });
 
-  await assert.rejects(
-    service.verifyEmail({
-      payload: validateVerifyEmailInput({
-        token: rawToken,
+    if (scenario.consumeFailureTokenId) {
+      repo.consumeFailures.add(scenario.consumeFailureTokenId);
+    }
+
+    const service = createVerifyEmailServiceUnderTest(repo.repository);
+
+    await assert.rejects(
+      service.verifyEmail({
+        payload: validateVerifyEmailInput({
+          token: scenario.rawToken,
+        }),
       }),
-    }),
-    (error: unknown) =>
-      error instanceof AppError && error.code === "TOKEN_EXPIRED" && error.statusCode === 410,
-  );
-});
-
-test("verify email service returns TOKEN_ALREADY_USED for previously consumed tokens", async () => {
-  const repo = createVerifyEmailRepositoryDouble();
-  const rawToken = "used-token";
-  repo.recordsByHash.set(hashSha256(rawToken), {
-    id: "token_3",
-    userId: "user_3",
-    email: "used@example.com",
-    expiresAt: new Date("2026-04-27T12:00:00.000Z"),
-    usedAt: new Date("2026-04-26T10:00:00.000Z"),
-  });
-
-  const service = createVerifyEmailService({
-    repository: repo.repository,
-    now: fixedNow,
-  });
-
-  await assert.rejects(
-    service.verifyEmail({
-      payload: validateVerifyEmailInput({
-        token: rawToken,
-      }),
-    }),
-    (error: unknown) => error instanceof AppError && error.code === "TOKEN_ALREADY_USED",
-  );
-});
-
-test("verify email service treats a concurrent consume miss as TOKEN_ALREADY_USED", async () => {
-  const repo = createVerifyEmailRepositoryDouble();
-  const rawToken = "raced-token";
-  repo.recordsByHash.set(hashSha256(rawToken), {
-    id: "token_4",
-    userId: "user_4",
-    email: "race@example.com",
-    expiresAt: new Date("2026-04-27T12:00:00.000Z"),
-    usedAt: null,
-  });
-  repo.consumeFailures.add("token_4");
-
-  const service = createVerifyEmailService({
-    repository: repo.repository,
-    now: fixedNow,
-  });
-
-  await assert.rejects(
-    service.verifyEmail({
-      payload: validateVerifyEmailInput({
-        token: rawToken,
-      }),
-    }),
-    (error: unknown) => error instanceof AppError && error.code === "TOKEN_ALREADY_USED",
-  );
+      scenario.expectedError,
+    );
+  }
 });
 
 test("verify email controller validates application/json and trims the token payload", async () => {

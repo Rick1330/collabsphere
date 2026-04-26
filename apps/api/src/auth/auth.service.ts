@@ -184,6 +184,8 @@ const createTokenExpiredError = () =>
   new AppError({
     code: "TOKEN_EXPIRED",
     message: "Verification token has expired",
+    // Verification links are one-time resources that are gone after TTL, so this endpoint
+    // intentionally overrides the catalog default for TOKEN_EXPIRED and responds with 410.
     statusCode: 410,
   });
 

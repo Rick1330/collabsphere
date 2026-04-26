@@ -42,6 +42,22 @@ const createRegisterRequest = ({
   return stream;
 };
 
+const createAuthControllerForRegisterTests = ({
+  registerImpl = async () => ({ message: "unused" }),
+  verifyEmailImpl = async () => ({ message: "unused" }),
+}: {
+  registerImpl?: NonNullable<Parameters<typeof createAuthController>[0]["registerService"]["register"]>;
+  verifyEmailImpl?: NonNullable<Parameters<typeof createAuthController>[0]["verifyEmailService"]["verifyEmail"]>;
+}) =>
+  createAuthController({
+    registerService: {
+      register: registerImpl,
+    },
+    verifyEmailService: {
+      verifyEmail: verifyEmailImpl,
+    },
+  });
+
 const createRepositoryDouble = () => {
   const createdUsers: Array<{ email: string; fullName: string; passwordHash: string }> = [];
   const createdTokens: Array<{ userId: string; tokenHash: string; expiresAt: Date }> = [];
@@ -212,16 +228,11 @@ test("register service writes failed user.registered events to dead-letter stora
 });
 
 test("register controller maps unique persistence errors to EMAIL_ALREADY_EXISTS", async () => {
-  const controller = createAuthController({
-    registerService: {
-      register: async () => {
-        throw {
-          code: "P2002",
-        };
-      },
-    },
-    verifyEmailService: {
-      verifyEmail: async () => ({ message: "unused" }),
+  const controller = createAuthControllerForRegisterTests({
+    registerImpl: async () => {
+      throw {
+        code: "P2002",
+      };
     },
   });
 
@@ -240,13 +251,8 @@ test("register controller maps unique persistence errors to EMAIL_ALREADY_EXISTS
 });
 
 test("register controller requires application/json media type", async () => {
-  const controller = createAuthController({
-    registerService: {
-      register: async () => ({ message: "ok" }),
-    },
-    verifyEmailService: {
-      verifyEmail: async () => ({ message: "unused" }),
-    },
+  const controller = createAuthControllerForRegisterTests({
+    registerImpl: async () => ({ message: "ok" }),
   });
 
   await assert.rejects(

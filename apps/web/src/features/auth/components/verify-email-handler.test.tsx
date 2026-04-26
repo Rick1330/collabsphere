@@ -21,6 +21,24 @@ const renderVerifyEmailHandler = (token: string) => {
   );
 };
 
+const arrangeVerifyEmail = ({
+  status,
+  body,
+}: {
+  status: number;
+  body: Record<string, unknown>;
+}) => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(body), {
+        status,
+        headers: { "Content-Type": "application/json" },
+      }),
+    ),
+  );
+};
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -52,110 +70,80 @@ describe("VerifyEmailHandler", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it("renders the success state for a valid token", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            data: {
-              message: "Email verified successfully.",
-            },
-          }),
-          {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          },
-        ),
-      ),
-    );
+  it.each([
+    {
+      name: "renders the success state for a valid token",
+      token: "valid-token",
+      status: 200,
+      body: {
+        data: {
+          message: "Email verified successfully.",
+        },
+      },
+      expectedHeading: "Email verified",
+      expectedActionLabel: "Continue to sign in",
+    },
+    {
+      name: "renders an expired-link state with resend guidance",
+      token: "expired-token",
+      status: 410,
+      body: {
+        error: {
+          code: "TOKEN_EXPIRED",
+          message: "Verification token has expired",
+        },
+      },
+      expectedHeading: "Verification link expired",
+      expectedActionLabel: "Go to sign in to request a new verification email",
+    },
+    {
+      name: "renders an already-verified state for used tokens",
+      token: "used-token",
+      status: 400,
+      body: {
+        error: {
+          code: "TOKEN_ALREADY_USED",
+          message: "Verification token has already been used",
+        },
+      },
+      expectedHeading: "Already verified",
+      expectedActionLabel: "Continue to sign in",
+    },
+    {
+      name: "renders the invalid-link state for missing or invalid tokens",
+      token: "bad-token",
+      status: 400,
+      body: {
+        error: {
+          code: "TOKEN_INVALID",
+          message: "Verification token is invalid",
+        },
+      },
+      expectedHeading: "Invalid link",
+      expectedActionLabel: "Go to sign in to request a new verification email",
+    },
+    {
+      name: "renders invalid-link state for unexpected API error codes",
+      token: "service-down-token",
+      status: 503,
+      body: {
+        error: {
+          code: "SERVICE_UNAVAILABLE",
+          message: "Email verification service unavailable",
+        },
+      },
+      expectedHeading: "Invalid link",
+      expectedActionLabel: "Go to sign in to request a new verification email",
+    },
+  ])("$name", async ({ token, status, body, expectedHeading, expectedActionLabel }) => {
+    arrangeVerifyEmail({
+      status,
+      body,
+    });
 
-    renderVerifyEmailHandler("valid-token");
+    renderVerifyEmailHandler(token);
 
-    expect(await screen.findByText("Email verified")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Continue to sign in" })).toHaveAttribute("href", "/login");
-  });
-
-  it("renders an expired-link state with resend guidance", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            error: {
-              code: "TOKEN_EXPIRED",
-              message: "Verification token has expired",
-            },
-          }),
-          {
-            status: 410,
-            headers: { "Content-Type": "application/json" },
-          },
-        ),
-      ),
-    );
-
-    renderVerifyEmailHandler("expired-token");
-
-    expect(await screen.findByText("Verification link expired")).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", {
-        name: "Go to sign in to request a new verification email",
-      }),
-    ).toHaveAttribute("href", "/login");
-  });
-
-  it("renders an already-verified state for used tokens", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            error: {
-              code: "TOKEN_ALREADY_USED",
-              message: "Verification token has already been used",
-            },
-          }),
-          {
-            status: 400,
-            headers: { "Content-Type": "application/json" },
-          },
-        ),
-      ),
-    );
-
-    renderVerifyEmailHandler("used-token");
-
-    expect(await screen.findByText("Already verified")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Continue to sign in" })).toHaveAttribute("href", "/login");
-  });
-
-  it("renders the invalid-link state for missing or invalid tokens", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            error: {
-              code: "TOKEN_INVALID",
-              message: "Verification token is invalid",
-            },
-          }),
-          {
-            status: 400,
-            headers: { "Content-Type": "application/json" },
-          },
-        ),
-      ),
-    );
-
-    renderVerifyEmailHandler("bad-token");
-
-    expect(await screen.findByText("Invalid link")).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", {
-        name: "Go to sign in to request a new verification email",
-      }),
-    ).toHaveAttribute("href", "/login");
+    expect(await screen.findByText(expectedHeading)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: expectedActionLabel })).toHaveAttribute("href", "/login");
   });
 });
