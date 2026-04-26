@@ -86,17 +86,25 @@ export const startVerificationEmailProcessor = ({
           const message = error instanceof Error ? error.message : String(error);
 
           if (isRetryable) {
-            const retryJob = createRetryJob({
-              job,
-              attemptedAt: now,
-              attempts,
-            });
-            await enqueueVerificationEmailJob({
-              job: retryJob,
-            });
-            console.warn(
-              `[worker] verification job retry scheduled (job=${job.jobId}, attempts=${attempts}/${job.maxAttempts}, reason=${message})`,
-            );
+            try {
+              const retryJob = createRetryJob({
+                job,
+                attemptedAt: now,
+                attempts,
+              });
+              await enqueueVerificationEmailJob({
+                job: retryJob,
+              });
+              console.warn(
+                `[worker] verification job retry scheduled (job=${job.jobId}, attempts=${attempts}/${job.maxAttempts}, reason=${message})`,
+              );
+            } catch (enqueueError) {
+              const enqueueMessage =
+                enqueueError instanceof Error ? enqueueError.message : String(enqueueError);
+              console.error(
+                `[worker] failed to re-enqueue retry job (job=${job.jobId}, reason=${enqueueMessage})`,
+              );
+            }
             continue;
           }
 
