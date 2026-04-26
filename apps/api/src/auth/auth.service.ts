@@ -186,6 +186,7 @@ const createTokenExpiredError = () =>
     message: "Verification token has expired",
     // Verification links are one-time resources that are gone after TTL, so this endpoint
     // intentionally overrides the catalog default for TOKEN_EXPIRED and responds with 410.
+    // See also TOKEN_INVALID override below and docs/agent-ref/api/auth-endpoints.md:49.
     statusCode: 410,
   });
 
@@ -200,6 +201,10 @@ const resolveUsableEmailVerificationRecord = ({
     throw new AppError({
       code: "TOKEN_INVALID",
       message: "Verification token is invalid",
+      // Verify-email tokens are standalone resources, not session credentials, so this
+      // endpoint intentionally overrides the catalog default for TOKEN_INVALID (401 -> 400).
+      // See also TOKEN_EXPIRED override above and docs/agent-ref/api/auth-endpoints.md:49.
+      statusCode: 400,
     });
   }
 
@@ -390,7 +395,7 @@ export const mapRegisterPersistenceError = (error: unknown) => {
   return error;
 };
 
-export const registerServiceConstants = {
+export const authServiceConstants = {
   bcryptCostFactor: defaultBcryptCostFactor,
   registerSuccessMessage,
   verifyEmailSuccessMessage,
