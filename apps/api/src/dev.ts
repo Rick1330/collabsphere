@@ -286,14 +286,12 @@ const handlePaginationFixturesRequest = ({
 };
 
 const handleAuthJsonAction = async ({
-  request,
   response,
   requestId,
   getDurationMs,
   statusCode,
   execute,
 }: {
-  request: IncomingMessage;
   response: ServerResponse;
   requestId: string;
   getDurationMs: () => number;
@@ -341,7 +339,6 @@ const routeHandlers: Readonly<Record<string, RequestHandler>> = {
     }),
   "POST /api/v1/auth/register": ({ request, response, requestId, getDurationMs }) =>
     handleAuthJsonAction({
-      request,
       response,
       requestId,
       getDurationMs,
@@ -353,7 +350,6 @@ const routeHandlers: Readonly<Record<string, RequestHandler>> = {
     }),
   "POST /api/v1/auth/verify-email": ({ request, response, requestId, getDurationMs }) =>
     handleAuthJsonAction({
-      request,
       response,
       requestId,
       getDurationMs,
