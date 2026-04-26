@@ -55,33 +55,41 @@ const readJsonBody = async (request: IncomingMessage) => {
   }
 };
 
+const assertJsonContentType = (request: IncomingMessage) => {
+  const contentType = request.headers["content-type"];
+  const mediaType = typeof contentType === "string" ? contentType.split(";")[0]?.trim().toLowerCase() : null;
+
+  if (mediaType !== "application/json") {
+    throw new ValidationAppError({
+      issues: [
+        {
+          field: "content-type",
+          message: "Content-Type must be application/json",
+          rule: "isMimeType",
+        },
+      ],
+    });
+  }
+};
+
+const resolveClientIp = (request: IncomingMessage) => getRequestContext()?.ip ?? request.socket.remoteAddress ?? "unknown";
+
+const resolveUserAgent = (request: IncomingMessage) => {
+  const headerUa = request.headers["user-agent"];
+  return getRequestContext()?.userAgent ?? (typeof headerUa === "string" ? headerUa : "unknown");
+};
+
 export const createAuthController = ({ registerService }: { registerService: RegisterService }) => ({
   register: async ({ request }: { request: IncomingMessage }) => {
-    const contentType = request.headers["content-type"];
-    const mediaType = typeof contentType === "string" ? contentType.split(";")[0]?.trim().toLowerCase() : null;
-
-    if (mediaType !== "application/json") {
-      throw new ValidationAppError({
-        issues: [
-          {
-            field: "content-type",
-            message: "Content-Type must be application/json",
-            rule: "isMimeType",
-          },
-        ],
-      });
-    }
-
+    assertJsonContentType(request);
     const rawPayload = await readJsonBody(request);
     const payload = validateRegisterInput(rawPayload);
 
     try {
       return await registerService.register({
         payload,
-        ipAddress: getRequestContext()?.ip ?? request.socket.remoteAddress ?? "unknown",
-        userAgent:
-          getRequestContext()?.userAgent ??
-          (typeof request.headers["user-agent"] === "string" ? request.headers["user-agent"] : "unknown"),
+        ipAddress: resolveClientIp(request),
+        userAgent: resolveUserAgent(request),
       });
     } catch (error) {
       throw mapRegisterPersistenceError(error);

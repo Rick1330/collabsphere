@@ -92,8 +92,13 @@ const createRepositoryDouble = () => {
   };
 };
 
-test("register service hashes passwords with bcrypt(12), stores token hashes, and emits side effects", async () => {
-  const repo = createRepositoryDouble();
+const buildRegisterServiceUnderTest = ({
+  repository,
+  now = fixedNow,
+}: {
+  repository: RegisterRepository;
+  now?: () => Date;
+}) => {
   const emittedEvents: Array<{ name: string; data: Record<string, unknown> }> = [];
   const enqueuedJobs: Array<{
     email: string;
@@ -102,20 +107,13 @@ test("register service hashes passwords with bcrypt(12), stores token hashes, an
     ipAddress: string;
     userAgent: string;
   }> = [];
-  const ipAddress = "203.0.113.10";
-  const userAgent = "Mozilla/5.0 (X11; Linux x86_64)";
   const service = createRegisterService({
-    repository: repo.repository,
-    rateLimiter: new RegisterRateLimiter({
-      now: fixedNow,
-    }),
-    now: fixedNow,
+    repository,
+    rateLimiter: new RegisterRateLimiter({ now }),
+    now,
     jwtAccessSecret: "test-secret",
     appendEvent: async ({ event }) => {
-      emittedEvents.push({
-        name: event.name,
-        data: event.data,
-      });
+      emittedEvents.push({ name: event.name, data: event.data });
     },
     enqueueJob: async ({ job }) => {
       enqueuedJobs.push({
@@ -127,6 +125,17 @@ test("register service hashes passwords with bcrypt(12), stores token hashes, an
       });
     },
   });
+  return { service, emittedEvents, enqueuedJobs };
+};
+
+test("register service hashes passwords with bcrypt(12), stores token hashes, and emits side effects", async () => {
+  const repo = createRepositoryDouble();
+  const ipAddress = "203.0.113.10";
+  const userAgent = "Mozilla/5.0 (X11; Linux x86_64)";
+  const { service, emittedEvents, enqueuedJobs } = buildRegisterServiceUnderTest({
+    repository: repo.repository,
+  });
+
   const payload = validateRegisterInput({
     fullName: "Jane Doe",
     email: "  Jane+Reg@Example.com ",
@@ -138,25 +147,31 @@ test("register service hashes passwords with bcrypt(12), stores token hashes, an
     userAgent,
   });
 
+  const [createdUser] = repo.createdUsers;
+  const [createdToken] = repo.createdTokens;
+  const [enqueuedJob] = enqueuedJobs;
+  const [emittedEvent] = emittedEvents;
+
+  assert.ok(createdUser && createdToken && enqueuedJob && emittedEvent);
   assert.equal(result.message, registerServiceConstants.registerSuccessMessage);
   assert.equal(repo.createdUsers.length, 1);
   assert.equal(repo.createdTokens.length, 1);
-  assert.equal(repo.createdUsers[0]?.email, "jane+reg@example.com");
-  assert.match(repo.createdUsers[0]?.passwordHash ?? "", /^\$2[aby]\$12\$/);
-  assert.equal(repo.createdTokens[0]?.tokenHash.length, 64);
+  assert.equal(createdUser.email, "jane+reg@example.com");
+  assert.match(createdUser.passwordHash, /^\$2[aby]\$12\$/);
+  assert.equal(createdToken.tokenHash.length, 64);
   assert.equal(
-    repo.createdTokens[0]?.expiresAt.toISOString(),
+    createdToken.expiresAt.toISOString(),
     new Date(new Date(fixedNowIso).getTime() + registerServiceConstants.verificationTokenTtlMs).toISOString(),
   );
-  assert.deepEqual(emittedEvents.map((event) => event.name), ["user.registered"]);
+  assert.deepEqual(emittedEvents.map((e) => e.name), ["user.registered"]);
   assert.equal(enqueuedJobs.length, 1);
-  assert.equal(enqueuedJobs[0]?.email, "jane+reg@example.com");
-  assert.equal(enqueuedJobs[0]?.attempts, 0);
-  assert.equal(enqueuedJobs[0]?.verificationTokenId, "token_1");
-  assert.equal(enqueuedJobs[0]?.ipAddress, ipAddress);
-  assert.equal(enqueuedJobs[0]?.userAgent, userAgent);
-  assert.equal(emittedEvents[0]?.data.ipAddress, ipAddress);
-  assert.equal(emittedEvents[0]?.data.userAgent, userAgent);
+  assert.equal(enqueuedJob.email, "jane+reg@example.com");
+  assert.equal(enqueuedJob.attempts, 0);
+  assert.equal(enqueuedJob.verificationTokenId, "token_1");
+  assert.equal(enqueuedJob.ipAddress, ipAddress);
+  assert.equal(enqueuedJob.userAgent, userAgent);
+  assert.equal(emittedEvent.data.ipAddress, ipAddress);
+  assert.equal(emittedEvent.data.userAgent, userAgent);
 });
 
 test("register service writes failed user.registered events to dead-letter storage", async () => {

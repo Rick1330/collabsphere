@@ -70,6 +70,76 @@ const createUserRegisteredEvent = ({
   },
 });
 
+const emitUserRegisteredEvent = async ({
+  event,
+  appendEvent,
+  appendDeadLetter,
+}: {
+  event: AuthDomainEvent;
+  appendEvent: typeof appendAuthDomainEvent;
+  appendDeadLetter: typeof appendAuthDomainEventDeadLetter;
+}) => {
+  await appendEvent({
+    event,
+  }).catch(async (error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    await appendDeadLetter({
+      event,
+    }).catch((deadLetterError) => {
+      const deadLetterMessage =
+        deadLetterError instanceof Error ? deadLetterError.message : String(deadLetterError);
+      console.warn(`[api] failed to append user.registered dead-letter event: ${deadLetterMessage}`);
+    });
+    console.warn(`[api] failed to append user.registered event: ${message}`);
+  });
+};
+
+const dispatchVerificationEmail = async ({
+  userId,
+  email,
+  fullName,
+  tokenId,
+  token,
+  issuedAt,
+  ipAddress,
+  userAgent,
+  jwtAccessSecret,
+  enqueueJob,
+}: {
+  userId: string;
+  email: string;
+  fullName: string;
+  tokenId: string;
+  token: string;
+  issuedAt: Date;
+  ipAddress: string;
+  userAgent: string;
+  jwtAccessSecret: string;
+  enqueueJob: typeof enqueueVerificationEmailJob;
+}) => {
+  const encryptedVerificationToken = encryptVerificationToken({
+    token,
+    secret: jwtAccessSecret,
+  });
+  const verificationJob = createVerificationEmailJob({
+    userId,
+    email,
+    fullName,
+    ipAddress,
+    userAgent,
+    verificationTokenId: tokenId,
+    encryptedVerificationToken,
+    now: issuedAt,
+  });
+
+  await enqueueJob({
+    job: verificationJob,
+  }).catch((error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`[api] failed to enqueue verification email job: ${message}`);
+  });
+};
+
 export type RegisterService = {
   register: (input: {
     payload: RegisterInput;
@@ -98,60 +168,6 @@ export const createRegisterService = ({
   enqueueJob?: typeof enqueueVerificationEmailJob;
 }): RegisterService => ({
   register: async ({ payload, ipAddress, userAgent }) => {
-    const emitUserRegisteredEvent = async ({ event }: { event: AuthDomainEvent }) => {
-      await appendEvent({
-        event,
-      }).catch(async (error) => {
-        const message = error instanceof Error ? error.message : String(error);
-        await appendDeadLetter({
-          event,
-        }).catch((deadLetterError) => {
-          const deadLetterMessage =
-            deadLetterError instanceof Error ? deadLetterError.message : String(deadLetterError);
-          console.warn(`[api] failed to append user.registered dead-letter event: ${deadLetterMessage}`);
-        });
-        console.warn(`[api] failed to append user.registered event: ${message}`);
-      });
-    };
-
-    const dispatchVerificationEmail = async ({
-      userId,
-      email,
-      fullName,
-      tokenId,
-      token,
-      issuedAt,
-    }: {
-      userId: string;
-      email: string;
-      fullName: string;
-      tokenId: string;
-      token: string;
-      issuedAt: Date;
-    }) => {
-      const encryptedVerificationToken = encryptVerificationToken({
-        token,
-        secret: jwtAccessSecret,
-      });
-      const verificationJob = createVerificationEmailJob({
-        userId,
-        email,
-        fullName,
-        ipAddress,
-        userAgent,
-        verificationTokenId: tokenId,
-        encryptedVerificationToken,
-        now: issuedAt,
-      });
-
-      await enqueueJob({
-        job: verificationJob,
-      }).catch((error) => {
-        const message = error instanceof Error ? error.message : String(error);
-        console.warn(`[api] failed to enqueue verification email job: ${message}`);
-      });
-    };
-
     rateLimiter.consume({
       ipAddress,
       normalizedEmail: payload.email,
@@ -175,17 +191,18 @@ export const createRegisterService = ({
     const registeredUser = registrationResult.user;
     const storedToken = registrationResult.verificationToken;
 
-    const userRegisteredEvent = createUserRegisteredEvent({
-      userId: registeredUser.id,
-      email: registeredUser.email,
-      ipAddress,
-      userAgent,
-      now: now(),
+    await emitUserRegisteredEvent({
+      event: createUserRegisteredEvent({
+        userId: registeredUser.id,
+        email: registeredUser.email,
+        ipAddress,
+        userAgent,
+        now: now(),
+      }),
+      appendEvent,
+      appendDeadLetter,
     });
 
-    await emitUserRegisteredEvent({
-      event: userRegisteredEvent,
-    });
     await dispatchVerificationEmail({
       userId: registeredUser.id,
       email: registeredUser.email,
@@ -193,6 +210,10 @@ export const createRegisterService = ({
       tokenId: storedToken.id,
       token: verificationToken,
       issuedAt: now(),
+      ipAddress,
+      userAgent,
+      jwtAccessSecret,
+      enqueueJob,
     });
 
     return {

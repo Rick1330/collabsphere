@@ -23,32 +23,27 @@ const createIssue = (field: string, message: string, rule: string): ValidationIs
   rule,
 });
 
-const isValidEmailShape = (email: string) => {
-  if (email.length === 0 || email.length > 254) {
-    return false;
-  }
+const hasValidEmailLength = (email: string) =>
+  email.length > 0 && email.length <= 254 && !/\s/.test(email);
 
+const splitEmail = (email: string): { local: string; domain: string } | null => {
   const atIndex = email.indexOf("@");
-  if (atIndex <= 0 || atIndex !== email.lastIndexOf("@")) {
-    return false;
-  }
-
+  if (atIndex <= 0 || atIndex !== email.lastIndexOf("@")) return null;
   const local = email.slice(0, atIndex);
   const domain = email.slice(atIndex + 1);
-  if (local.length === 0 || domain.length === 0) {
-    return false;
-  }
+  if (local.length === 0 || domain.length === 0) return null;
+  return { local, domain };
+};
 
-  if (/\s/.test(email)) {
-    return false;
-  }
-
+const hasValidDomainShape = (domain: string) => {
   const dotIndex = domain.indexOf(".");
-  if (dotIndex <= 0 || dotIndex === domain.length - 1) {
-    return false;
-  }
+  return dotIndex > 0 && dotIndex !== domain.length - 1;
+};
 
-  return true;
+const isValidEmailShape = (email: string) => {
+  if (!hasValidEmailLength(email)) return false;
+  const parts = splitEmail(email);
+  return parts !== null && hasValidDomainShape(parts.domain);
 };
 
 const assertPasswordStrength = (password: string) => {
@@ -96,20 +91,24 @@ const validateEmailField = (email: string): ValidationIssue | null => {
 const validatePasswordPresence = (password: string): ValidationIssue | null =>
   password ? null : createIssue("password", "Password is required", "isNotEmpty");
 
-export const validateRegisterInput = (payload: unknown): RegisterInput => {
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-    throw new ValidationAppError({
-      issues: [
-        {
-          field: "body",
-          message: "Request body must be a JSON object",
-          rule: "isObject",
-        },
-      ],
-    });
+const parseRegisterCandidate = (payload: unknown): Partial<Record<keyof RegisterInput, unknown>> => {
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    return payload as Partial<Record<keyof RegisterInput, unknown>>;
   }
 
-  const candidate = payload as Partial<Record<keyof RegisterInput, unknown>>;
+  throw new ValidationAppError({
+    issues: [
+      {
+        field: "body",
+        message: "Request body must be a JSON object",
+        rule: "isObject",
+      },
+    ],
+  });
+};
+
+export const validateRegisterInput = (payload: unknown): RegisterInput => {
+  const candidate = parseRegisterCandidate(payload);
   const fullName = typeof candidate.fullName === "string" ? candidate.fullName.trim() : "";
   const email = typeof candidate.email === "string" ? candidate.email.trim() : "";
   const password = typeof candidate.password === "string" ? candidate.password : "";
