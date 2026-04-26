@@ -6,7 +6,7 @@ import { AppError, createErrorResponse } from "../../apps/api/src/common/filters
 import { createAuthController } from "../../apps/api/src/auth/auth.controller.js";
 import {
   createRegisterService,
-  registerServiceConstants,
+  authServiceConstants,
 } from "../../apps/api/src/auth/auth.service.js";
 import { RegisterRateLimiter } from "../../apps/api/src/auth/register-rate-limit.js";
 import { validateRegisterInput } from "../../apps/api/src/auth/register.dto.js";
@@ -169,7 +169,7 @@ test("register service hashes passwords with bcrypt(12), stores token hashes, an
   const [emittedEvent] = emittedEvents;
 
   assert.ok(createdUser && createdToken && enqueuedJob && emittedEvent);
-  assert.equal(result.message, registerServiceConstants.registerSuccessMessage);
+  assert.equal(result.message, authServiceConstants.registerSuccessMessage);
   assert.equal(repo.createdUsers.length, 1);
   assert.equal(repo.createdTokens.length, 1);
   assert.equal(createdUser.email, "jane+reg@example.com");
@@ -177,7 +177,7 @@ test("register service hashes passwords with bcrypt(12), stores token hashes, an
   assert.equal(createdToken.tokenHash.length, 64);
   assert.equal(
     createdToken.expiresAt.toISOString(),
-    new Date(new Date(fixedNowIso).getTime() + registerServiceConstants.verificationTokenTtlMs).toISOString(),
+    new Date(new Date(fixedNowIso).getTime() + authServiceConstants.verificationTokenTtlMs).toISOString(),
   );
   assert.deepEqual(emittedEvents.map((e) => e.name), ["user.registered"]);
   assert.equal(enqueuedJobs.length, 1);

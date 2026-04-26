@@ -1,3 +1,4 @@
+import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
@@ -41,6 +42,7 @@ const arrangeVerifyEmail = ({
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("VerifyEmailHandler", () => {
@@ -60,13 +62,13 @@ describe("VerifyEmailHandler", () => {
     expect(screen.getByText("Verifying your email")).toBeInTheDocument();
   });
 
-  it("renders the invalid-link state immediately when the route token is missing", async () => {
+  it("renders the missing-state immediately when the route token is missing", async () => {
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
 
     renderVerifyEmailHandler("   ");
 
-    expect(await screen.findByText("Invalid link")).toBeInTheDocument();
+    expect(await screen.findByText("No verification token")).toBeInTheDocument();
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
@@ -94,7 +96,7 @@ describe("VerifyEmailHandler", () => {
         },
       },
       expectedHeading: "Verification link expired",
-      expectedActionLabel: "Go to sign in to request a new verification email",
+      expectedActionLabel: "Back to sign in",
     },
     {
       name: "renders an already-verified state for used tokens",
@@ -120,20 +122,7 @@ describe("VerifyEmailHandler", () => {
         },
       },
       expectedHeading: "Invalid link",
-      expectedActionLabel: "Go to sign in to request a new verification email",
-    },
-    {
-      name: "renders invalid-link state for unexpected API error codes",
-      token: "service-down-token",
-      status: 503,
-      body: {
-        error: {
-          code: "SERVICE_UNAVAILABLE",
-          message: "Email verification service unavailable",
-        },
-      },
-      expectedHeading: "Invalid link",
-      expectedActionLabel: "Go to sign in to request a new verification email",
+      expectedActionLabel: "Back to sign in",
     },
   ])("$name", async ({ token, status, body, expectedHeading, expectedActionLabel }) => {
     arrangeVerifyEmail({
@@ -147,7 +136,7 @@ describe("VerifyEmailHandler", () => {
     expect(screen.getByRole("link", { name: expectedActionLabel })).toHaveAttribute("href", "/login");
   });
 
-  it("renders the invalid-link fallback for unexpected API error codes", async () => {
+  it("renders the transient-error state for unexpected API error codes", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(
@@ -168,11 +157,82 @@ describe("VerifyEmailHandler", () => {
 
     renderVerifyEmailHandler("some-token");
 
-    expect(await screen.findByText("Invalid link")).toBeInTheDocument();
+    expect(await screen.findByText("We couldn't reach the verification service")).toBeInTheDocument();
     expect(
-      screen.getByRole("link", {
-        name: "Go to sign in to request a new verification email",
+      screen.getByRole("button", {
+        name: "Try again",
       }),
-    ).toHaveAttribute("href", "/login");
+    ).toBeInTheDocument();
+  });
+
+  it("fires exactly twice when the token changes", async () => {
+    const fetchSpy = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: { message: "Email verified successfully." } }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+
+    const { rerender } = render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <VerifyEmailHandler key="token-a" token="token-a" />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    await screen.findByText("Email verified");
+
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <VerifyEmailHandler key="token-b" token="token-b" />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    await screen.findByText("Email verified");
+
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(fetchSpy.mock.calls[0][1].body).token).toBe("token-a");
+    expect(JSON.parse(fetchSpy.mock.calls[1][1].body).token).toBe("token-b");
+  });
+
+  it("fires exactly once in StrictMode", async () => {
+    const fetchSpy = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: { message: "Email verified successfully." } }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <React.StrictMode>
+            <VerifyEmailHandler key="token-a" token="token-a" />
+          </React.StrictMode>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    await screen.findByText("Email verified");
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 });

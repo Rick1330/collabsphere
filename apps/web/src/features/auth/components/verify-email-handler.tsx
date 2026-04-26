@@ -167,6 +167,7 @@ export const VerifyEmailHandler = ({ token }: VerifyEmailHandlerProps) => {
     mutate,
     reset,
   } = useMutation({
+    mutationKey: ["verify-email", normalizedToken],
     mutationFn: verifyEmailToken,
     retry: false,
   });
