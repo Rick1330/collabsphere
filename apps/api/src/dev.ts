@@ -309,54 +309,6 @@ const handleAuthJsonAction = async ({
   );
 };
 
-const handleRegisterRequest = async ({
-  request,
-  response,
-  requestId,
-  getDurationMs,
-}: {
-  request: IncomingMessage;
-  response: ServerResponse;
-  requestId: string;
-  getDurationMs: () => number;
-}) => {
-  return handleAuthJsonAction({
-    request,
-    response,
-    requestId,
-    getDurationMs,
-    statusCode: 201,
-    execute: () =>
-      authController.register({
-        request,
-      }),
-  });
-};
-
-const handleVerifyEmailRequest = async ({
-  request,
-  response,
-  requestId,
-  getDurationMs,
-}: {
-  request: IncomingMessage;
-  response: ServerResponse;
-  requestId: string;
-  getDurationMs: () => number;
-}) => {
-  return handleAuthJsonAction({
-    request,
-    response,
-    requestId,
-    getDurationMs,
-    statusCode: 200,
-    execute: () =>
-      authController.verifyEmail({
-        request,
-      }),
-  });
-};
-
 type RequestHandler = (input: {
   request: IncomingMessage;
   response: ServerResponse;
@@ -380,18 +332,28 @@ const routeHandlers: Readonly<Record<string, RequestHandler>> = {
       getDurationMs,
     }),
   "POST /api/v1/auth/register": ({ request, response, requestId, getDurationMs }) =>
-    handleRegisterRequest({
+    handleAuthJsonAction({
       request,
       response,
       requestId,
       getDurationMs,
+      statusCode: 201,
+      execute: () =>
+        authController.register({
+          request,
+        }),
     }),
   "POST /api/v1/auth/verify-email": ({ request, response, requestId, getDurationMs }) =>
-    handleVerifyEmailRequest({
+    handleAuthJsonAction({
       request,
       response,
       requestId,
       getDurationMs,
+      statusCode: 200,
+      execute: () =>
+        authController.verifyEmail({
+          request,
+        }),
     }),
 };
 
