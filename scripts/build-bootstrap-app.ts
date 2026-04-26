@@ -27,6 +27,15 @@ const sharedApiEnvPath = path.join(repoRoot, "packages", "shared", "src", "api-e
 const sharedRuntimeEnvPath = path.join(repoRoot, "packages", "shared", "src", "runtime-env.ts");
 const sharedEnvCorePath = path.join(repoRoot, "packages", "shared", "src", "env-core.ts");
 const sharedBootstrapRuntimePath = path.join(repoRoot, "packages", "shared", "src", "bootstrap-runtime.ts");
+const sharedAuthEventsPath = path.join(repoRoot, "packages", "shared", "src", "events", "auth-events.ts");
+const sharedVerificationEmailQueuePath = path.join(
+  repoRoot,
+  "packages",
+  "shared",
+  "src",
+  "queues",
+  "verification-email.ts",
+);
 const sharedZodPackagePath = path.join(repoRoot, "packages", "shared", "node_modules", "zod");
 const sharedPackageJsonPath = path.join(repoRoot, "packages", "shared", "package.json");
 const typescriptCliPath = path.join(repoRoot, "node_modules", "typescript", "bin", "tsc");
@@ -36,6 +45,7 @@ const sharedBootstrapRuntimeImport = "../../../packages/shared/src/bootstrap-run
 const sharedDistImport = "./_shared/api-env.js";
 const sharedRuntimeDistImport = "./_shared/runtime-env.js";
 const sharedBootstrapRuntimeDistImport = "./_shared/bootstrap-runtime.js";
+const monorepoSharedImportPattern = /((?:\.\.\/)+)packages\/shared\/src\/([A-Za-z0-9_./-]+\.js)/g;
 
 type PackageJson = {
   name: string;
@@ -60,6 +70,15 @@ type BuildContext = {
 };
 
 const compileOutputDirs = [path.join(distDir, "apps"), path.join(distDir, "packages")];
+
+const knownSharedEntryPoints = [
+  sharedApiEnvPath,
+  sharedRuntimeEnvPath,
+  sharedEnvCorePath,
+  sharedBootstrapRuntimePath,
+  sharedAuthEventsPath,
+  sharedVerificationEmailQueuePath,
+];
 
 const sleep = (delayMs: number) => new Promise<void>((resolve) => setTimeout(resolve, delayMs));
 
@@ -308,6 +327,65 @@ const collectSharedRuntimeEntryPoints = ({
   return entryPoints;
 };
 
+const collectDistJavaScriptFiles = async ({
+  directory,
+}: {
+  directory: string;
+}): Promise<string[]> => {
+  const files: string[] = [];
+  const entries = await readdir(directory, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const entryPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...(await collectDistJavaScriptFiles({ directory: entryPath })));
+      continue;
+    }
+
+    if (entry.isFile() && entry.name.endsWith(".js")) {
+      files.push(entryPath);
+    }
+  }
+
+  return files;
+};
+
+const pathToPosix = (value: string) => value.split(path.sep).join(path.posix.sep);
+
+const rewriteSharedImportsInDistArtifacts = async ({
+  directory,
+}: {
+  directory: string;
+}) => {
+  const javaScriptFiles = await collectDistJavaScriptFiles({ directory });
+  let rewroteAnyFile = false;
+
+  for (const filePath of javaScriptFiles) {
+    const sourceCode = await readFile(filePath, "utf8");
+    if (!sourceCode.includes("packages/shared/src/")) {
+      continue;
+    }
+
+    const fileRelativePath = pathToPosix(path.relative(directory, filePath));
+    const fileDirRelativePath = path.posix.dirname(fileRelativePath);
+    const rewrittenSourceCode = sourceCode.replace(
+      monorepoSharedImportPattern,
+      (_match, _prefix: string, importSubpath: string) => {
+        const targetImportPath = path.posix.join("_shared", importSubpath);
+        const relativeImportPath = path.posix.relative(fileDirRelativePath, targetImportPath);
+        return relativeImportPath.startsWith(".") ? relativeImportPath : `./${relativeImportPath}`;
+      },
+    );
+
+    if (rewrittenSourceCode !== sourceCode) {
+      await writeFile(filePath, rewrittenSourceCode, "utf8");
+      rewroteAnyFile = true;
+    }
+  }
+
+  return rewroteAnyFile;
+};
+
 const stageSharedRuntimeArtifacts = async ({
   needsSharedEnv,
   sharedDistDir,
@@ -415,17 +493,19 @@ const main = async () => {
       needsSharedEnv,
       needsSharedBootstrap,
     });
-
     if (needsSharedEnv || needsSharedBootstrap) {
       const sharedDistDir = path.join(distDir, "_shared");
       const distNodeModulesDir = path.join(distDir, "node_modules");
       await mkdir(sharedDistDir, { recursive: true });
+      const mergedSharedEntryPoints = Array.from(
+        new Set([...sharedRuntimeEntryPoints, ...knownSharedEntryPoints]),
+      );
 
       await stageSharedRuntimeArtifacts({
         needsSharedEnv,
         sharedDistDir,
         distNodeModulesDir,
-        sharedRuntimeEntryPoints,
+        sharedRuntimeEntryPoints: mergedSharedEntryPoints,
       });
 
       distSourceCode = rewriteSharedRuntimeImports({ sourceCode: distSourceCode });
@@ -435,6 +515,7 @@ const main = async () => {
       }
     }
 
+    await rewriteSharedImportsInDistArtifacts({ directory: distDir });
     assertNoMonorepoSharedImports({ sourceCode: distSourceCode });
     await writeStagedArtifact({
       packageJson: context.packageJson,

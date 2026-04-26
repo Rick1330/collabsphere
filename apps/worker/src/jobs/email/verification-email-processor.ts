@@ -102,6 +102,9 @@ export const startVerificationEmailProcessor = ({
           );
         }
       }
+    } catch (tickError) {
+      const tickMessage = tickError instanceof Error ? tickError.message : String(tickError);
+      console.error(`[worker] verification email processor tick failed: ${tickMessage}`);
     } finally {
       processing = false;
     }
