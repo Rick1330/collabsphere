@@ -3,7 +3,25 @@ import { useMutation } from "@tanstack/react-query";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { AuthStatusCard } from "./auth-status-card";
 
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
 type ViewState = "missing" | "loading" | "success" | "expired" | "already-used" | "invalid" | "transient-error";
+
+type CardAction = { label: string; href: string } | { label: string; onClick: () => void };
+
+type CardConfig = {
+  variant: "loading" | "success" | "error" | "expired";
+  heading: string;
+  description: string;
+  action?: CardAction;
+  secondaryAction?: { label: string; href: string };
+};
+
+// ---------------------------------------------------------------------------
+// API error class
+// ---------------------------------------------------------------------------
 
 class VerifyEmailApiError extends Error {
   constructor(
@@ -16,39 +34,35 @@ class VerifyEmailApiError extends Error {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Component props
+// ---------------------------------------------------------------------------
+
 interface VerifyEmailHandlerProps {
   token: string;
 }
 
-const invalidCardConfig = {
-  variant: "error" as const,
+// ---------------------------------------------------------------------------
+// Card configurations
+// ---------------------------------------------------------------------------
+
+/** Shared action object reused across "missing", "expired", and "invalid" states. */
+const backToSignInAction = { label: "Back to sign in", href: "/login" } as const;
+
+const invalidCardConfig: CardConfig = {
+  variant: "error",
   heading: "Invalid link",
   description:
     "This verification link is not valid. It may have been copied incorrectly. Go to sign in to request a new verification email.",
-  action: {
-    label: "Back to sign in",
-    href: "/login",
-  },
+  action: backToSignInAction,
 };
 
-const viewStateCardConfig: Record<
-  ViewState,
-  {
-    variant: "loading" | "success" | "error" | "expired";
-    heading: string;
-    description: string;
-    action?: { label: string; href: string };
-    secondaryAction?: { label: string; href: string };
-  }
-> = {
+const viewStateCardConfig: Record<ViewState, CardConfig> = {
   missing: {
     variant: "error",
     heading: "No verification token",
     description: "This page expects a verification link. Open the link from your email, or sign in to request a new one.",
-    action: {
-      label: "Back to sign in",
-      href: "/login",
-    },
+    action: backToSignInAction,
   },
   loading: {
     variant: "loading",
@@ -65,10 +79,7 @@ const viewStateCardConfig: Record<
     variant: "expired",
     heading: "Verification link expired",
     description: "Verification links are valid for 24 hours. Go to sign in to request a new verification email.",
-    action: {
-      label: "Back to sign in",
-      href: "/login",
-    },
+    action: backToSignInAction,
   },
   "already-used": {
     variant: "success",
@@ -84,6 +95,10 @@ const viewStateCardConfig: Record<
     description: "Something went wrong on our end. Try again in a moment.",
   },
 };
+
+// ---------------------------------------------------------------------------
+// View-state resolver
+// ---------------------------------------------------------------------------
 
 const resolveViewState = ({
   normalizedToken,
@@ -131,6 +146,10 @@ const resolveViewState = ({
   return "transient-error";
 };
 
+// ---------------------------------------------------------------------------
+// API call
+// ---------------------------------------------------------------------------
+
 const verifyEmailToken = async (token: string) => {
   const response = await fetch("/api/v1/auth/verify-email", {
     method: "POST",
@@ -154,9 +173,20 @@ const verifyEmailToken = async (token: string) => {
   return null;
 };
 
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
 export const VerifyEmailHandler = ({ token }: VerifyEmailHandlerProps) => {
   const normalizedToken = token.trim();
   const reduced = useReducedMotion();
+  /**
+   * Guards against double-firing in React 18 StrictMode (where effects run
+   * twice in development). The ref persists across the cleanup/re-mount cycle
+   * within the same component instance, ensuring exactly one POST per mount.
+   * This ref is intentionally not reset on token change — that is handled at a
+   * higher level by the `key={token}` prop on the parent page component.
+   */
   const hasTriggeredVerificationRef = useRef(false);
   const {
     error,
@@ -167,7 +197,9 @@ export const VerifyEmailHandler = ({ token }: VerifyEmailHandlerProps) => {
     mutate,
     reset,
   } = useMutation({
-    mutationKey: ["verify-email", normalizedToken],
+    // No mutationKey — the useRef guard already provides idempotency and a
+    // key would cause the mutation function reference to change between
+    // StrictMode renders, interfering with the first run's in-flight request.
     mutationFn: verifyEmailToken,
     retry: false,
   });
@@ -199,7 +231,7 @@ export const VerifyEmailHandler = ({ token }: VerifyEmailHandlerProps) => {
     errorCode,
   });
   const cardConfig = viewStateCardConfig[viewState];
-  const activeAction = viewState === "transient-error"
+  const activeAction: CardAction | undefined = viewState === "transient-error"
     ? { label: "Try again", onClick: () => { reset(); mutate(normalizedToken); } }
     : cardConfig.action;
 

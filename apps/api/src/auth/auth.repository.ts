@@ -126,78 +126,76 @@ export const createPrismaRegisterRepository = ({
     }),
 });
 
+type PrismaEmailVerificationRow = {
+  id: string;
+  userId: string;
+  expiresAt: Date;
+  usedAt: Date | null;
+  user: { email: string; deletedAt: Date | null };
+};
+
+/** Maps a raw Prisma join row to a domain record, returning null when the user is soft-deleted. */
+const buildEmailVerificationRecord = (
+  row: PrismaEmailVerificationRow | null,
+): EmailVerificationRecord | null => {
+  if (!row || row.user.deletedAt !== null) {
+    return null;
+  }
+  return {
+    id: row.id,
+    userId: row.userId,
+    email: row.user.email,
+    expiresAt: row.expiresAt,
+    usedAt: row.usedAt,
+  };
+};
+
+/** Atomically marks the token as used, flips `user.isVerified`, and returns the verified user.
+ *  Returns null on either race (token already consumed) or soft-delete mid-transaction. */
+const consumeAndFlipVerified = async (
+  transaction: Parameters<Parameters<PrismaClient["$transaction"]>[0]>[0],
+  { tokenId, userId, verifiedAt }: { tokenId: string; userId: string; verifiedAt: Date },
+): Promise<VerifiedAuthUser | null> => {
+  const consumeResult = await transaction.emailVerificationToken.updateMany({
+    where: { id: tokenId, userId, usedAt: null },
+    data: { usedAt: verifiedAt },
+  });
+  if (consumeResult.count === 0) {
+    return null;
+  }
+
+  const updateResult = await transaction.user.updateMany({
+    where: { id: userId, deletedAt: null },
+    data: { isVerified: true },
+  });
+  if (updateResult.count === 0) {
+    return null;
+  }
+
+  return transaction.user.findUnique({
+    where: { id: userId },
+    select: { id: true, email: true },
+  });
+};
+
 export const createPrismaVerifyEmailRepository = ({
   prisma,
 }: {
   prisma: PrismaClient;
 }): VerifyEmailRepository => ({
-  findEmailVerificationByHash: async (tokenHash) =>
-    prisma.emailVerificationToken.findUnique({
-      where: {
-        tokenHash,
-      },
+  findEmailVerificationByHash: async (tokenHash) => {
+    const row = await prisma.emailVerificationToken.findUnique({
+      where: { tokenHash },
       select: {
         id: true,
         userId: true,
         expiresAt: true,
         usedAt: true,
-        user: {
-          select: {
-            email: true,
-            deletedAt: true,
-          },
-        },
+        user: { select: { email: true, deletedAt: true } },
       },
-    }).then((record) =>
-      record && record.user.deletedAt === null
-        ? {
-            id: record.id,
-            userId: record.userId,
-            email: record.user.email,
-            expiresAt: record.expiresAt,
-            usedAt: record.usedAt,
-          }
-        : null,
-    ),
-  consumeEmailVerificationToken: async ({ tokenId, userId, verifiedAt }) =>
-    prisma.$transaction(async (transaction) => {
-      const consumeResult = await transaction.emailVerificationToken.updateMany({
-        where: {
-          id: tokenId,
-          userId,
-          usedAt: null,
-        },
-        data: {
-          usedAt: verifiedAt,
-        },
-      });
-
-      if (consumeResult.count === 0) {
-        return null;
-      }
-
-      const updateResult = await transaction.user.updateMany({
-        where: {
-          id: userId,
-          deletedAt: null,
-        },
-        data: {
-          isVerified: true,
-        },
-      });
-
-      if (updateResult.count === 0) {
-        return null;
-      }
-
-      return transaction.user.findUnique({
-        where: {
-          id: userId,
-        },
-        select: {
-          id: true,
-          email: true,
-        },
-      });
-    }),
+    });
+    return buildEmailVerificationRecord(row);
+  },
+  consumeEmailVerificationToken: ({ tokenId, userId, verifiedAt }) =>
+    prisma.$transaction((tx) => consumeAndFlipVerified(tx, { tokenId, userId, verifiedAt })),
 });

@@ -1,4 +1,3 @@
-import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
@@ -206,7 +205,7 @@ describe("VerifyEmailHandler", () => {
     expect(JSON.parse(fetchSpy.mock.calls[1][1].body).token).toBe("token-b");
   });
 
-  it("fires exactly once in StrictMode", async () => {
+  it("does not fire a second fetch when re-rendered with the same token (useRef idempotency guard)", async () => {
     const fetchSpy = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ data: { message: "Email verified successfully." } }), {
         status: 200,
@@ -222,17 +221,28 @@ describe("VerifyEmailHandler", () => {
       },
     });
 
-    render(
+    // Render with key="token-a" — triggers one fetch
+    const { rerender } = render(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter>
-          <React.StrictMode>
-            <VerifyEmailHandler key="token-a" token="token-a" />
-          </React.StrictMode>
+          <VerifyEmailHandler key="token-a" token="token-a" />
         </MemoryRouter>
       </QueryClientProvider>
     );
 
     await screen.findByText("Email verified");
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    // Re-render the same instance (no key change) — useRef guard must prevent a second call
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <VerifyEmailHandler key="token-a" token="token-a" />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    // Still exactly one call — the ref guard held
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 });

@@ -46,7 +46,11 @@ Execution-focused reference for authentication endpoints, request/response expec
 
 ### Verify Email
 `POST /api/v1/auth/verify-email`
-- Errors: `400 TOKEN_INVALID`, `410 TOKEN_EXPIRED`, `400 TOKEN_ALREADY_USED`
+- 200 `{ data: { message: string } }` on success
+- Errors: `400 TOKEN_INVALID`, `410 TOKEN_EXPIRED`, `400 TOKEN_ALREADY_USED`, `400 VALIDATION_ERROR`, `429 RATE_LIMITED`
+- **Status-code overrides** (vs. catalog default): `TOKEN_INVALID` → `400` (not `401`); `TOKEN_EXPIRED` → `410` (not `400`). See `apps/api/src/auth/auth.service.ts` `createVerifyEmailService` for the override implementations and cross-reference `docs/spec/12-errors/12.4-error-code-catalog.md §verify-email overrides`.
+- **Rate limit**: 10 requests / 5 minutes / IP. Implemented in `apps/api/src/auth/verify-email-rate-limit.ts`.
+- **Soft-delete guard**: tokens belonging to soft-deleted users (`user.deletedAt !== null`) are treated as non-existent (`TOKEN_INVALID`).
 
 ### Login
 `POST /api/v1/auth/login`

@@ -1,7 +1,5 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import type { IncomingMessage } from "node:http";
-import { Readable } from "node:stream";
 import test from "node:test";
 import { AppError } from "../../apps/api/src/common/filters/app-error.filter.js";
 import { createAuthController } from "../../apps/api/src/auth/auth.controller.js";
@@ -15,33 +13,13 @@ import type {
   VerifyEmailRepository,
 } from "../../apps/api/src/auth/auth.repository.js";
 import { validateVerifyEmailInput } from "../../apps/api/src/auth/verify-email.dto.js";
+import { createJsonRequest } from "./_helpers/http.js";
 
 const fixedNowIso = "2026-04-26T12:00:00.000Z";
 const fixedNow = () => new Date(fixedNowIso);
 
 const hashSha256 = (value: string) => createHash("sha256").update(value, "utf8").digest("hex");
 
-const createJsonRequest = ({
-  body,
-  contentType = "application/json",
-}: {
-  body: unknown;
-  contentType?: string;
-}): IncomingMessage => {
-  const stream = Readable.from([JSON.stringify(body)]) as unknown as IncomingMessage & {
-    headers: Record<string, string>;
-    socket: { remoteAddress: string };
-  };
-
-  stream.headers = {
-    "content-type": contentType,
-  };
-  stream.socket = {
-    remoteAddress: "203.0.113.30",
-  };
-
-  return stream;
-};
 
 const createVerifyEmailRepositoryDouble = () => {
   const recordsByHash = new Map<string, EmailVerificationRecord>();
@@ -223,7 +201,7 @@ test("verify email service returns TOKEN_INVALID for an unknown token", async ()
   await assert.rejects(
     service.verifyEmail({
       payload: validateVerifyEmailInput({
-        token: "missing-token",
+        token: "missing-token-1234",
       }),
       ipAddress: "203.0.113.30",
     }),
@@ -231,89 +209,105 @@ test("verify email service returns TOKEN_INVALID for an unknown token", async ()
   );
 });
 
-test("verify email service maps token failure paths to canonical errors", async () => {
-  const scenarios = [
-    {
-      rawToken: "expired-token",
-      record: {
-        id: "token_2",
-        userId: "user_2",
-        email: "expired@example.com",
-        expiresAt: new Date("2026-04-26T11:59:59.000Z"),
-        usedAt: null,
-      },
-      expectedError: (error: unknown) =>
-        error instanceof AppError && error.code === "TOKEN_EXPIRED" && error.statusCode === 410,
-    },
-    {
-      rawToken: "used-token",
-      record: {
-        id: "token_3",
-        userId: "user_3",
-        email: "used@example.com",
-        expiresAt: new Date("2026-04-27T12:00:00.000Z"),
-        usedAt: new Date("2026-04-26T10:00:00.000Z"),
-      },
-      expectedError: (error: unknown) => error instanceof AppError && error.code === "TOKEN_ALREADY_USED",
-    },
-    {
-      rawToken: "raced-token",
-      record: {
-        id: "token_4",
-        userId: "user_4",
-        email: "race@example.com",
-        expiresAt: new Date("2026-04-27T12:00:00.000Z"),
-        usedAt: null,
-      },
-      consumeFailureTokenId: "token_4",
-      expectedError: (error: unknown) => error instanceof AppError && error.code === "TOKEN_ALREADY_USED",
-    },
-    {
-      rawToken: "deleted-user-token",
-      record: {
-        id: "token_5",
-        userId: "user_5",
-        email: "deleted@example.com",
-        expiresAt: new Date("2026-04-27T12:00:00.000Z"),
-        usedAt: null,
-      },
-      user: {
-        id: "user_5",
-        email: "deleted@example.com",
-        isVerified: false,
-        deletedAt: new Date("2026-04-26T11:00:00.000Z"),
-      },
-      expectedError: (error: unknown) => error instanceof AppError && error.code === "TOKEN_INVALID",
-    },
-  ] as const;
+type FailureScenario = {
+  rawToken: string;
+  record: {
+    id: string;
+    userId: string;
+    email: string;
+    expiresAt: Date;
+    usedAt: Date | null;
+  };
+  user?: { id: string; email: string; isVerified: boolean; deletedAt: Date | null };
+  consumeFailureTokenId?: string;
+  expectedError: (error: unknown) => boolean;
+};
 
-  for (const scenario of scenarios) {
-    const repo = createVerifyEmailRepositoryDouble();
-    addVerificationRecord({
-      repo,
-      rawToken: scenario.rawToken,
-      record: scenario.record,
-    });
-    if ("user" in scenario && scenario.user) {
-      repo.usersById.set(scenario.user.id, scenario.user);
-    }
-
-    if ("consumeFailureTokenId" in scenario && scenario.consumeFailureTokenId) {
-      repo.consumeFailures.add(scenario.consumeFailureTokenId);
-    }
-
-    const service = createVerifyEmailServiceUnderTest(repo.repository);
-
-    await assert.rejects(
-      service.verifyEmail({
-      payload: validateVerifyEmailInput({
-          token: scenario.rawToken,
-        }),
-        ipAddress: "203.0.113.30",
-      }),
-      scenario.expectedError,
-    );
+const runFailureScenario = async (scenario: FailureScenario) => {
+  const repo = createVerifyEmailRepositoryDouble();
+  addVerificationRecord({
+    repo,
+    rawToken: scenario.rawToken,
+    record: scenario.record,
+  });
+  if (scenario.user) {
+    repo.usersById.set(scenario.user.id, scenario.user);
   }
+  if (scenario.consumeFailureTokenId) {
+    repo.consumeFailures.add(scenario.consumeFailureTokenId);
+  }
+  const service = createVerifyEmailServiceUnderTest(repo.repository);
+  await assert.rejects(
+    service.verifyEmail({
+      payload: validateVerifyEmailInput({ token: scenario.rawToken }),
+      ipAddress: "203.0.113.30",
+    }),
+    scenario.expectedError,
+  );
+};
+
+test("verify email rejects expired tokens with TOKEN_EXPIRED 410", async () => {
+  await runFailureScenario({
+    rawToken: "expired-token-16",
+    record: {
+      id: "token_2",
+      userId: "user_2",
+      email: "expired@example.com",
+      expiresAt: new Date("2026-04-26T11:59:59.000Z"),
+      usedAt: null,
+    },
+    expectedError: (error: unknown) =>
+      error instanceof AppError && error.code === "TOKEN_EXPIRED" && error.statusCode === 410,
+  });
+});
+
+test("verify email rejects already-used tokens with TOKEN_ALREADY_USED", async () => {
+  await runFailureScenario({
+    rawToken: "used-token-12345",
+    record: {
+      id: "token_3",
+      userId: "user_3",
+      email: "used@example.com",
+      expiresAt: new Date("2026-04-27T12:00:00.000Z"),
+      usedAt: new Date("2026-04-26T10:00:00.000Z"),
+    },
+    expectedError: (error: unknown) => error instanceof AppError && error.code === "TOKEN_ALREADY_USED",
+  });
+});
+
+test("verify email maps consume race condition to TOKEN_ALREADY_USED", async () => {
+  await runFailureScenario({
+    rawToken: "raced-token-1234",
+    record: {
+      id: "token_4",
+      userId: "user_4",
+      email: "race@example.com",
+      expiresAt: new Date("2026-04-27T12:00:00.000Z"),
+      usedAt: null,
+    },
+    consumeFailureTokenId: "token_4",
+    expectedError: (error: unknown) => error instanceof AppError && error.code === "TOKEN_ALREADY_USED",
+  });
+});
+
+test("verify email rejects tokens for soft-deleted users with TOKEN_INVALID", async () => {
+  await runFailureScenario({
+    rawToken: "deleted-user-token",
+    record: {
+      id: "token_5",
+      userId: "user_5",
+      email: "deleted@example.com",
+      expiresAt: new Date("2026-04-27T12:00:00.000Z"),
+      usedAt: null,
+    },
+    user: {
+      id: "user_5",
+      email: "deleted@example.com",
+      isVerified: false,
+      deletedAt: new Date("2026-04-26T11:00:00.000Z"),
+    },
+    expectedError: (error: unknown) => error instanceof AppError && error.code === "TOKEN_INVALID",
+  });
 });
 
 test("verify email controller validates application/json and trims the token payload", async () => {
