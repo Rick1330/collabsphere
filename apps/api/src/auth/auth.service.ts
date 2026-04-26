@@ -21,6 +21,7 @@ import {
   type VerifyEmailRepository,
 } from "./auth.repository.js";
 import { RegisterRateLimiter } from "./register-rate-limit.js";
+import { VerifyEmailRateLimiter } from "./verify-email-rate-limit.js";
 
 const registerSuccessMessage = "Registration successful. Please verify your email.";
 const verifyEmailSuccessMessage = "Email verified successfully.";
@@ -177,7 +178,7 @@ export type RegisterService = {
 };
 
 export type VerifyEmailService = {
-  verifyEmail: (input: { payload: VerifyEmailInput }) => Promise<{ message: string }>;
+  verifyEmail: (input: { payload: VerifyEmailInput; ipAddress: string }) => Promise<{ message: string }>;
 };
 
 const createTokenExpiredError = () =>
@@ -299,16 +300,20 @@ export const createRegisterService = ({
 
 export const createVerifyEmailService = ({
   repository,
+  rateLimiter,
   now = () => new Date(),
   appendEvent = appendAuthDomainEvent,
   appendDeadLetter = appendAuthDomainEventDeadLetter,
 }: {
   repository: VerifyEmailRepository;
+  rateLimiter: VerifyEmailRateLimiter;
   now?: () => Date;
   appendEvent?: typeof appendAuthDomainEvent;
   appendDeadLetter?: typeof appendAuthDomainEventDeadLetter;
 }): VerifyEmailService => ({
-  verifyEmail: async ({ payload }) => {
+  verifyEmail: async ({ payload, ipAddress }) => {
+    rateLimiter.consume({ ipAddress });
+
     const currentTime = now();
     const tokenHash = hashSha256(payload.token);
     const verification = resolveUsableEmailVerificationRecord({
@@ -379,6 +384,9 @@ export const createPrismaBackedVerifyEmailService = ({
   createVerifyEmailService({
     repository: createPrismaVerifyEmailRepository({
       prisma,
+    }),
+    rateLimiter: new VerifyEmailRateLimiter({
+      now,
     }),
     now,
   });

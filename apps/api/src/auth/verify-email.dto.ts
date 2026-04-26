@@ -42,10 +42,12 @@ export const validateVerifyEmailInput = (payload: unknown): VerifyEmailInput => 
   const token = typeof candidate.token === "string" ? candidate.token.trim() : "";
   const issues = [] as ValidationIssue[];
 
+  const tokenPattern = /^[A-Za-z0-9_-]{16,512}$/;
+
   if (!token) {
     issues.push(createIssue("token", "Verification token is required", "isNotEmpty"));
-  } else if (token.length > maxTokenLength) {
-    issues.push(createIssue("token", "Verification token exceeds maximum length", "maxLength"));
+  } else if (!tokenPattern.test(token)) {
+    issues.push(createIssue("token", "Verification token format is invalid", "matches"));
   }
 
   if (issues.length > 0) {

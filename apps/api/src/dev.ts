@@ -49,8 +49,16 @@ let registerServicePromise: Promise<RegisterService> | null = null;
 let verifyEmailServicePromise: Promise<VerifyEmailService> | null = null;
 let prismaClientForShutdown: { $disconnect: () => Promise<void> } | null = null;
 let prismaClientPromise: Promise<PrismaClient> | null = null;
+let isShuttingDown = false;
 
 const getPrismaClient = async () => {
+  if (isShuttingDown) {
+    throw new AppError({
+      code: "SERVICE_UNAVAILABLE",
+      message: "Server is shutting down",
+    });
+  }
+
   if (!prismaClientPromise) {
     prismaClientPromise = import("@prisma/client")
       .then(({ PrismaClient }) => {
@@ -425,6 +433,7 @@ startHttpBootstrapServer({
   defaultPort: 3001,
   readyPath: "/api/v1/health",
   onShutdown: async () => {
+    isShuttingDown = true;
     if (!prismaClientForShutdown) {
       return;
     }

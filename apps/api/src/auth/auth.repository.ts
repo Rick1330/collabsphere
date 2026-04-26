@@ -60,6 +60,15 @@ export const isUniqueConstraintError = (error: unknown) => {
   return candidate.code === "P2002";
 };
 
+export const isPrismaRecordNotFoundError = (error: unknown) => {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const candidate = error as Partial<{ code: unknown }>;
+  return candidate.code === "P2025";
+};
+
 export const createPrismaRegisterRepository = ({
   prisma,
 }: {
@@ -135,11 +144,12 @@ export const createPrismaVerifyEmailRepository = ({
         user: {
           select: {
             email: true,
+            deletedAt: true,
           },
         },
       },
     }).then((record) =>
-      record
+      record && record.user.deletedAt === null
         ? {
             id: record.id,
             userId: record.userId,
@@ -166,12 +176,23 @@ export const createPrismaVerifyEmailRepository = ({
         return null;
       }
 
-      return transaction.user.update({
+      const updateResult = await transaction.user.updateMany({
         where: {
           id: userId,
+          deletedAt: null,
         },
         data: {
           isVerified: true,
+        },
+      });
+
+      if (updateResult.count === 0) {
+        return null;
+      }
+
+      return transaction.user.findUnique({
+        where: {
+          id: userId,
         },
         select: {
           id: true,

@@ -4,6 +4,7 @@ import { getRequestContext } from "../common/request-context.js";
 import type { RegisterService, VerifyEmailService } from "./auth.service.js";
 import { mapRegisterPersistenceError } from "./auth.service.js";
 import { validateRegisterInput } from "./register.dto.js";
+import { isPrismaRecordNotFoundError } from "./auth.repository.js";
 import { validateVerifyEmailInput } from "./verify-email.dto.js";
 
 const maxAuthBodyBytes = 32 * 1024;
@@ -107,10 +108,21 @@ export const createAuthController = ({
     const rawPayload = await readJsonBody(request);
     const payload = validateVerifyEmailInput(rawPayload);
 
-    // verify-email currently has no unique-constraint path, so persistence-error remapping
-    // like register() is unnecessary until this flow gains new write paths with DB conflict handling.
-    return verifyEmailService.verifyEmail({
-      payload,
-    });
+    try {
+      return await verifyEmailService.verifyEmail({
+        payload,
+        ipAddress: resolveClientIp(request),
+      });
+    } catch (error) {
+      if (isPrismaRecordNotFoundError(error)) {
+        throw new AppError({
+          code: "TOKEN_INVALID",
+          statusCode: 400,
+          message: "Verification token is invalid",
+          cause: error,
+        });
+      }
+      throw error;
+    }
   },
 });
