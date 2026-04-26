@@ -91,8 +91,11 @@ const validateEmailField = (email: string): ValidationIssue | null => {
 const validatePasswordPresence = (password: string): ValidationIssue | null =>
   password ? null : createIssue("password", "Password is required", "isNotEmpty");
 
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === "object" && !Array.isArray(value);
+
 const parseRegisterCandidate = (payload: unknown): Partial<Record<keyof RegisterInput, unknown>> => {
-  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+  if (isPlainObject(payload)) {
     return payload as Partial<Record<keyof RegisterInput, unknown>>;
   }
 
