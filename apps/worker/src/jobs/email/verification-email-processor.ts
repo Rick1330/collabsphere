@@ -48,6 +48,37 @@ const createRetryJob = ({
   return retryJob;
 };
 
+const scheduleRetryJob = async ({
+  job,
+  attemptedAt,
+  attempts,
+  message,
+}: {
+  job: VerificationEmailJob;
+  attemptedAt: Date;
+  attempts: number;
+  message: string;
+}) => {
+  try {
+    const retryJob = createRetryJob({
+      job,
+      attemptedAt,
+      attempts,
+    });
+    await enqueueVerificationEmailJob({
+      job: retryJob,
+    });
+    console.warn(
+      `[worker] verification job retry scheduled (job=${job.jobId}, attempts=${attempts}/${job.maxAttempts}, reason=${message})`,
+    );
+  } catch (enqueueError) {
+    const enqueueMessage = enqueueError instanceof Error ? enqueueError.message : String(enqueueError);
+    console.error(
+      `[worker] failed to re-enqueue retry job (job=${job.jobId}, reason=${enqueueMessage})`,
+    );
+  }
+};
+
 export const startVerificationEmailProcessor = ({
   jwtAccessSecret,
   baseUrl,
@@ -86,25 +117,12 @@ export const startVerificationEmailProcessor = ({
           const message = error instanceof Error ? error.message : String(error);
 
           if (isRetryable) {
-            try {
-              const retryJob = createRetryJob({
-                job,
-                attemptedAt: now,
-                attempts,
-              });
-              await enqueueVerificationEmailJob({
-                job: retryJob,
-              });
-              console.warn(
-                `[worker] verification job retry scheduled (job=${job.jobId}, attempts=${attempts}/${job.maxAttempts}, reason=${message})`,
-              );
-            } catch (enqueueError) {
-              const enqueueMessage =
-                enqueueError instanceof Error ? enqueueError.message : String(enqueueError);
-              console.error(
-                `[worker] failed to re-enqueue retry job (job=${job.jobId}, reason=${enqueueMessage})`,
-              );
-            }
+            await scheduleRetryJob({
+              job,
+              attemptedAt: now,
+              attempts,
+              message,
+            });
             continue;
           }
 
