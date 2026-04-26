@@ -45,7 +45,7 @@ export const validateVerifyEmailInput = (payload: unknown): VerifyEmailInput => 
   if (!token) {
     issues.push(createIssue("token", "Verification token is required", "isNotEmpty"));
   } else if (token.length > maxTokenLength) {
-    issues.push(createIssue("token", "Verification token is not valid", "maxLength"));
+    issues.push(createIssue("token", "Verification token exceeds maximum length", "maxLength"));
   }
 
   if (issues.length > 0) {
