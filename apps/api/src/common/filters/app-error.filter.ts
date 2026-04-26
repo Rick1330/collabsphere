@@ -249,6 +249,7 @@ type AppErrorOptions = {
   message?: string;
   statusCode?: number;
   details?: ValidationErrorDetail[];
+  headers?: Record<string, string>;
   cause?: unknown;
 };
 
@@ -262,6 +263,7 @@ type NormalizedAppError = {
   code: CanonicalErrorCode;
   message: string;
   details?: ValidationErrorDetail[];
+  headers?: Record<string, string>;
   statusCode: number;
   originalError: unknown;
 };
@@ -275,6 +277,7 @@ type CreateErrorResponseOptions = {
 type CreateErrorResponseResult = {
   statusCode: number;
   payload: ErrorEnvelope;
+  headers?: Record<string, string>;
   normalizedError: NormalizedAppError;
 };
 
@@ -284,13 +287,15 @@ const databaseErrorPattern =
 export class AppError extends Error {
   readonly code: CanonicalErrorCode;
   readonly details?: ValidationErrorDetail[];
+  readonly headers?: Record<string, string>;
   readonly statusCode: number;
 
-  constructor({ code, message, statusCode, details, cause }: AppErrorOptions) {
+  constructor({ code, message, statusCode, details, headers, cause }: AppErrorOptions) {
     super(message ?? getDefaultErrorMessage(code), cause ? { cause } : undefined);
     this.name = "AppError";
     this.code = code;
     this.details = details;
+    this.headers = headers;
     this.statusCode = statusCode ?? errorStatusByCode[code];
   }
 }
@@ -320,12 +325,49 @@ const resolveUnknownErrorCode = (error: unknown): CanonicalErrorCode => {
   return databaseErrorPattern.test(message) ? "DATABASE_ERROR" : "INTERNAL_ERROR";
 };
 
+const allowedResponseHeaderByLowercaseName: Readonly<Record<string, string>> = {
+  "retry-after": "Retry-After",
+  "www-authenticate": "WWW-Authenticate",
+};
+
+const sanitizeResponseHeaders = ({
+  headers,
+}: {
+  headers?: Record<string, string>;
+}): Record<string, string> | undefined => {
+  if (!headers) {
+    return undefined;
+  }
+
+  const sanitized: Record<string, string> = {};
+
+  for (const [headerName, headerValue] of Object.entries(headers)) {
+    if (typeof headerValue !== "string") {
+      continue;
+    }
+
+    const canonicalName = allowedResponseHeaderByLowercaseName[headerName.toLowerCase()];
+    const trimmedValue = headerValue.trim();
+
+    if (!canonicalName || !trimmedValue) {
+      continue;
+    }
+
+    sanitized[canonicalName] = trimmedValue;
+  }
+
+  return Object.keys(sanitized).length > 0 ? sanitized : undefined;
+};
+
 const normalizeAppError = (error: unknown): NormalizedAppError => {
   if (error instanceof AppError) {
     return {
       code: error.code,
       message: error.message,
       details: error.details,
+      headers: sanitizeResponseHeaders({
+        headers: error.headers,
+      }),
       statusCode: error.statusCode,
       originalError: error.cause ?? error,
     };
@@ -336,6 +378,7 @@ const normalizeAppError = (error: unknown): NormalizedAppError => {
     code,
     message: getDefaultErrorMessage(code),
     statusCode: errorStatusByCode[code],
+    headers: undefined,
     originalError: error,
   };
 };
@@ -362,6 +405,7 @@ export const createErrorResponse = ({
 
   return {
     statusCode: normalizedError.statusCode,
+    headers: normalizedError.headers,
     normalizedError,
     payload: {
       error: {

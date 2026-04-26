@@ -13,6 +13,7 @@ export interface StartHttpBootstrapServerOptions {
   service: string;
   defaultPort: number;
   readyPath?: string;
+  onShutdown?: () => Promise<void> | void;
 }
 
 export interface ValidateServiceEnvOptions<TEnv, TError extends Error> {
@@ -101,6 +102,7 @@ export const startHttpBootstrapServer = ({
   service,
   defaultPort,
   readyPath = "",
+  onShutdown,
 }: StartHttpBootstrapServerOptions) => {
   const host = process.env.HOST ?? defaultHost;
   const port = parseServicePort({
@@ -125,7 +127,18 @@ export const startHttpBootstrapServer = ({
 
     shuttingDown = true;
     console.log(`[${service}] received ${signal}, shutting down`);
-    server.close(() => process.exit(0));
+    server.close(async () => {
+      if (onShutdown) {
+        try {
+          await onShutdown();
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          console.warn(`[${service}] shutdown hook failed: ${message}`);
+        }
+      }
+
+      process.exit(0);
+    });
   };
 
   process.once("SIGINT", () => shutdown("SIGINT"));

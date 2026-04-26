@@ -16,6 +16,7 @@ export const apiEnvKeys = Object.freeze([
   "REDIS_URL",
   "JWT_ACCESS_SECRET",
   "JWT_ACCESS_TTL_MINUTES",
+  "BCRYPT_COST",
   "REFRESH_TOKEN_TTL_DAYS",
   "CORS_ORIGINS",
   "EMAIL_PROVIDER_API_KEY",
@@ -41,6 +42,9 @@ const apiBaseShape = {
 const baseApiEnvSchema = sharedEnvSchema
   .pick(apiBaseShape)
   .extend({
+    BCRYPT_COST: createPositiveInteger("BCRYPT_COST").refine((value) => value >= 12 && value <= 15, {
+      message: "BCRYPT_COST must be between 12 and 15.",
+    }),
     EMAIL_PROVIDER_API_KEY: createRequiredString("EMAIL_PROVIDER_API_KEY").optional(),
     EMAIL_SMTP_HOST: createRequiredString("EMAIL_SMTP_HOST").optional(),
     EMAIL_SMTP_PORT: createPositiveInteger("EMAIL_SMTP_PORT").optional(),
@@ -77,7 +81,7 @@ const selectApiEnv = (input: Record<string, string | undefined>) =>
     string | undefined
   >;
 
-const normalizeOptionalEmailValue = (value: string | undefined) => {
+const normalizeOptionalEnvValue = (value: string | undefined) => {
   if (typeof value !== "string") {
     return value;
   }
@@ -87,9 +91,10 @@ const normalizeOptionalEmailValue = (value: string | undefined) => {
 
 const normalizeOptionalEmailFields = (selected: Record<ApiEnvKey, string | undefined>) => ({
   ...selected,
-  EMAIL_PROVIDER_API_KEY: normalizeOptionalEmailValue(selected.EMAIL_PROVIDER_API_KEY),
-  EMAIL_SMTP_HOST: normalizeOptionalEmailValue(selected.EMAIL_SMTP_HOST),
-  EMAIL_SMTP_PORT: normalizeOptionalEmailValue(selected.EMAIL_SMTP_PORT),
+  BCRYPT_COST: normalizeOptionalEnvValue(selected.BCRYPT_COST) ?? "12",
+  EMAIL_PROVIDER_API_KEY: normalizeOptionalEnvValue(selected.EMAIL_PROVIDER_API_KEY),
+  EMAIL_SMTP_HOST: normalizeOptionalEnvValue(selected.EMAIL_SMTP_HOST),
+  EMAIL_SMTP_PORT: normalizeOptionalEnvValue(selected.EMAIL_SMTP_PORT),
 });
 
 export const parseApiRuntimeEnv = (input: Record<string, string | undefined>): ApiRuntimeEnv => {

@@ -1,12 +1,18 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { EnvValidationError, parseApiRuntimeEnv } from "../../../packages/shared/src/api-env.js";
 import { resolveEmailConfig } from "./config/email.js";
+import { createAuthController } from "./auth/auth.controller.js";
+import {
+  createPrismaBackedRegisterService,
+  type RegisterService,
+} from "./auth/auth.service.js";
 import {
   AppError,
   createErrorResponse,
   ValidationAppError,
 } from "./common/filters/app-error.filter.js";
 import {
+  createActionResponsePayload,
   type SuccessResponsePayload,
   wrapSuccessResponse,
 } from "./common/interceptors/response-envelope.interceptor.js";
@@ -36,6 +42,44 @@ try {
 }
 
 const { logger } = createLoggerModule();
+let registerServicePromise: Promise<RegisterService> | null = null;
+let prismaClientForShutdown: { $disconnect: () => Promise<void> } | null = null;
+
+const createRuntimeRegisterService = async (): Promise<RegisterService> => {
+  try {
+    const { PrismaClient } = await import("@prisma/client");
+    const prisma = new PrismaClient();
+    prismaClientForShutdown = prisma;
+    return createPrismaBackedRegisterService({
+      prisma,
+      bcryptCostFactor: apiEnv.BCRYPT_COST,
+      jwtAccessSecret: apiEnv.JWT_ACCESS_SECRET,
+    });
+  } catch (error) {
+    throw new AppError({
+      code: "SERVICE_UNAVAILABLE",
+      message: "Registration service unavailable",
+      cause: error,
+    });
+  }
+};
+
+const getRegisterService = () => {
+  if (!registerServicePromise) {
+    registerServicePromise = createRuntimeRegisterService().catch((error) => {
+      registerServicePromise = null;
+      throw error;
+    });
+  }
+
+  return registerServicePromise;
+};
+
+const authController = createAuthController({
+  registerService: {
+    register: async (input) => (await getRegisterService()).register(input),
+  },
+});
 
 const paginationFixtureItems = Array.from({ length: 53 }, (_, index) => ({
   id: `fixture_${String(index + 1).padStart(3, "0")}`,
@@ -46,15 +90,20 @@ const writeJson = (
   response: ServerResponse,
   statusCode: number,
   payload: unknown,
-  requestId?: string,
+  {
+    requestId,
+    extraHeaders,
+  }: {
+    requestId: string;
+    extraHeaders?: Record<string, string>;
+  },
 ) => {
-  const headers = {
+  const headers: Record<string, string> = {
     "content-type": "application/json; charset=utf-8",
+    ...(extraHeaders ?? {}),
   } as Record<string, string>;
 
-  if (requestId) {
-    headers["x-request-id"] = requestId;
-  }
+  headers["x-request-id"] = requestId;
 
   response.writeHead(statusCode, headers);
   response.end(JSON.stringify(payload, null, 2));
@@ -73,7 +122,7 @@ const writeSuccessJson = (
       payload,
       requestId,
     }),
-    requestId,
+    { requestId },
   );
 
 const writeErrorJson = ({
@@ -87,7 +136,7 @@ const writeErrorJson = ({
   requestId: string;
   durationMs: number;
 }) => {
-  const { statusCode, payload, normalizedError } = createErrorResponse({
+  const { statusCode, payload, normalizedError, headers } = createErrorResponse({
     error,
     requestId,
   });
@@ -96,7 +145,10 @@ const writeErrorJson = ({
     durationMs,
     errorCode: normalizedError.code,
   });
-  return writeJson(response, statusCode, payload, requestId);
+  return writeJson(response, statusCode, payload, {
+    requestId,
+    extraHeaders: headers,
+  });
 };
 const { healthController } = createHealthModule({
   databaseUrl: apiEnv.DATABASE_URL,
@@ -176,6 +228,36 @@ const handlePaginationFixturesRequest = ({
   );
 };
 
+const handleRegisterRequest = async ({
+  request,
+  response,
+  requestId,
+  getDurationMs,
+}: {
+  request: IncomingMessage;
+  response: ServerResponse;
+  requestId: string;
+  getDurationMs: () => number;
+}) => {
+  const registerResult = await authController.register({
+    request,
+  });
+
+  logger.logRequestLifecycle({
+    statusCode: 201,
+    durationMs: getDurationMs(),
+  });
+
+  return writeSuccessJson(
+    response,
+    201,
+    createActionResponsePayload({
+      message: registerResult.message,
+    }),
+    requestId,
+  );
+};
+
 const handleRequest = async ({
   request,
   response,
@@ -202,6 +284,15 @@ const handleRequest = async ({
       response,
       requestId,
       url,
+      getDurationMs,
+    });
+  }
+
+  if (request.method === "POST" && url.pathname === "/api/v1/auth/register") {
+    return handleRegisterRequest({
+      request,
+      response,
+      requestId,
       getDurationMs,
     });
   }
@@ -248,4 +339,12 @@ startHttpBootstrapServer({
   service: "api",
   defaultPort: 3001,
   readyPath: "/api/v1/health",
+  onShutdown: async () => {
+    if (!prismaClientForShutdown) {
+      return;
+    }
+
+    await prismaClientForShutdown.$disconnect();
+    prismaClientForShutdown = null;
+  },
 });

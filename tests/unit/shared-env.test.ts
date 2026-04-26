@@ -163,15 +163,50 @@ test("API runtime parser accepts the API bootstrap subset without collab or stor
   const parsed = parseApiRuntimeEnv(createApiEnvInput()) as {
     DATABASE_URL: string;
     API_BASE_URL: string;
+    BCRYPT_COST: number;
     CORS_ORIGINS: string[];
   };
 
   assert.equal(parsed.DATABASE_URL, validEnv.DATABASE_URL);
   assert.equal(parsed.API_BASE_URL, validEnv.API_BASE_URL);
+  assert.equal(parsed.BCRYPT_COST, 12);
   assert.deepEqual(parsed.CORS_ORIGINS, [
     "http://localhost:3000",
     "http://localhost:3002",
   ]);
+});
+
+test("API runtime parser accepts BCRYPT_COST overrides in the supported range", () => {
+  const parsed = parseApiRuntimeEnv(
+    createApiEnvInput({
+      BCRYPT_COST: "15",
+    }),
+  ) as { BCRYPT_COST: number };
+
+  assert.equal(parsed.BCRYPT_COST, 15);
+});
+
+test("API runtime parser rejects BCRYPT_COST values outside 12..15", () => {
+  for (const cost of ["10", "11", "16"]) {
+    assert.throws(
+      () =>
+        parseApiRuntimeEnv(
+          createApiEnvInput({
+            BCRYPT_COST: cost,
+          }),
+        ),
+      (error) => {
+        assert.ok(error instanceof EnvValidationError);
+        assert.deepEqual(error.issues, [
+          {
+            key: "BCRYPT_COST",
+            message: "BCRYPT_COST must be between 12 and 15.",
+          },
+        ]);
+        return true;
+      },
+    );
+  }
 });
 
 test("API runtime parser normalizes CORS origins to bare origins", () => {
