@@ -6,11 +6,23 @@ export type RegisterInput = {
   password: string;
 };
 
+type ValidationIssue = {
+  field: string;
+  message: string;
+  rule: string;
+};
+
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const minPasswordLength = 8;
 const maxPasswordLength = 72;
 
 export const normalizeEmail = (email: string) => email.trim().toLowerCase();
+
+const createIssue = (field: string, message: string, rule: string): ValidationIssue => ({
+  field,
+  message,
+  rule,
+});
 
 const assertPasswordStrength = (password: string) => {
   const passwordByteLength = Buffer.byteLength(password, "utf8");
@@ -30,6 +42,33 @@ const assertPasswordStrength = (password: string) => {
   }
 };
 
+const validateFullName = (fullName: string): ValidationIssue | null => {
+  if (!fullName) {
+    return createIssue("fullName", "Full name is required", "isNotEmpty");
+  }
+
+  if (fullName.length > 200) {
+    return createIssue("fullName", "Full name must be at most 200 characters", "maxLength");
+  }
+
+  return null;
+};
+
+const validateEmail = (email: string): ValidationIssue | null => {
+  if (!email) {
+    return createIssue("email", "Email is required", "isNotEmpty");
+  }
+
+  if (!emailPattern.test(email)) {
+    return createIssue("email", "Invalid email address", "isEmail");
+  }
+
+  return null;
+};
+
+const validatePasswordPresence = (password: string): ValidationIssue | null =>
+  password ? null : createIssue("password", "Password is required", "isNotEmpty");
+
 export const validateRegisterInput = (payload: unknown): RegisterInput => {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     throw new ValidationAppError({
@@ -47,26 +86,11 @@ export const validateRegisterInput = (payload: unknown): RegisterInput => {
   const fullName = typeof candidate.fullName === "string" ? candidate.fullName.trim() : "";
   const email = typeof candidate.email === "string" ? candidate.email.trim() : "";
   const password = typeof candidate.password === "string" ? candidate.password : "";
-  const issues: Array<{ field: string; message: string; rule: string }> = [];
-  const pushIssue = (field: string, message: string, rule: string) => {
-    issues.push({ field, message, rule });
-  };
-
-  if (!fullName) {
-    pushIssue("fullName", "Full name is required", "isNotEmpty");
-  } else if (fullName.length > 200) {
-    pushIssue("fullName", "Full name must be at most 200 characters", "maxLength");
-  }
-
-  if (!email) {
-    pushIssue("email", "Email is required", "isNotEmpty");
-  } else if (!emailPattern.test(email)) {
-    pushIssue("email", "Invalid email address", "isEmail");
-  }
-
-  if (!password) {
-    pushIssue("password", "Password is required", "isNotEmpty");
-  }
+  const issues = [
+    validateFullName(fullName),
+    validateEmail(email),
+    validatePasswordPresence(password),
+  ].filter((issue): issue is ValidationIssue => issue !== null);
 
   if (issues.length > 0) {
     throw new ValidationAppError({

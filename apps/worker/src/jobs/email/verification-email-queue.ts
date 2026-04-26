@@ -20,8 +20,8 @@ export const decryptVerificationToken = ({
   secret: string;
 }) => {
   const [ivPart, tagPart, cipherPart] = encryptedToken.split(".");
-
-  if (!ivPart || !tagPart || !cipherPart) {
+  const hasAllSegments = Boolean(ivPart && tagPart && cipherPart);
+  if (!hasAllSegments) {
     throw new Error("Invalid verification token payload.");
   }
 

@@ -40,18 +40,20 @@ export const isVerificationEmailJob = (value: unknown): value is VerificationEma
   }
 
   const candidate = value as Partial<VerificationEmailJob>;
-  return (
-    typeof candidate.jobId === "string" &&
-    typeof candidate.createdAt === "string" &&
-    typeof candidate.nextAttemptAt === "string" &&
-    typeof candidate.attempts === "number" &&
-    typeof candidate.maxAttempts === "number" &&
-    typeof candidate.userId === "string" &&
-    typeof candidate.email === "string" &&
-    typeof candidate.fullName === "string" &&
-    typeof candidate.verificationTokenId === "string" &&
-    typeof candidate.encryptedVerificationToken === "string"
-  );
+  const hasStringFields = [
+    candidate.jobId,
+    candidate.createdAt,
+    candidate.nextAttemptAt,
+    candidate.userId,
+    candidate.email,
+    candidate.fullName,
+    candidate.verificationTokenId,
+    candidate.encryptedVerificationToken,
+  ].every((field) => typeof field === "string");
+  const hasNumberFields =
+    typeof candidate.attempts === "number" && typeof candidate.maxAttempts === "number";
+
+  return hasStringFields && hasNumberFields;
 };
 
 export const readVerificationEmailJobs = async ({ queueFilePath }: { queueFilePath: string }) => {

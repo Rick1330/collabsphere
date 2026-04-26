@@ -27,6 +27,43 @@ const hashSha256 = (value: string) => createHash("sha256").update(value, "utf8")
 
 const createOpaqueToken = () => randomBytes(32).toString("base64url");
 
+const assertRegistrationEmailAvailable = ({
+  existingUser,
+}: {
+  existingUser: Awaited<ReturnType<RegisterRepository["findActiveUserByEmail"]>>;
+}) => {
+  if (!existingUser) {
+    return;
+  }
+
+  throw new AppError({
+    code: "EMAIL_ALREADY_EXISTS",
+    message: "Email already exists",
+  });
+};
+
+const createUserRegisteredEvent = ({
+  userId,
+  email,
+  now,
+}: {
+  userId: string;
+  email: string;
+  now: Date;
+}): AuthDomainEvent => ({
+  eventId: randomUUID(),
+  name: "user.registered",
+  occurredAt: now.toISOString(),
+  actor: {
+    userId,
+    workspaceId: null,
+  },
+  data: {
+    userId,
+    email,
+  },
+});
+
 export type RegisterService = {
   register: (input: {
     payload: RegisterInput;
@@ -59,12 +96,7 @@ export const createRegisterService = ({
 
     const existingUser = await repository.findActiveUserByEmail(payload.email);
 
-    if (existingUser) {
-      throw new AppError({
-        code: "EMAIL_ALREADY_EXISTS",
-        message: "Email already exists",
-      });
-    }
+    assertRegistrationEmailAvailable({ existingUser });
 
     const passwordHash = await bcrypt.hash(payload.password, bcryptCostFactor);
     const verificationToken = createOpaqueToken();
@@ -80,19 +112,11 @@ export const createRegisterService = ({
     const registeredUser = registrationResult.user;
     const storedToken = registrationResult.verificationToken;
 
-    const userRegisteredEvent: AuthDomainEvent = {
-      eventId: randomUUID(),
-      name: "user.registered",
-      occurredAt: now().toISOString(),
-      actor: {
-        userId: registeredUser.id,
-        workspaceId: null,
-      },
-      data: {
-        userId: registeredUser.id,
-        email: registeredUser.email,
-      },
-    };
+    const userRegisteredEvent = createUserRegisteredEvent({
+      userId: registeredUser.id,
+      email: registeredUser.email,
+      now: now(),
+    });
 
     await appendEvent({
       event: userRegisteredEvent,
