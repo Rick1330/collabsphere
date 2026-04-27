@@ -72,11 +72,20 @@ const createVerifyEmailRepositoryDouble = () => {
   };
 };
 
-const createVerifyEmailServiceUnderTest = (repository: VerifyEmailRepository) =>
+const createVerifyEmailServiceUnderTest = (
+  repository: VerifyEmailRepository,
+  overrides: {
+    now?: () => Date;
+    appendEvent?: Parameters<typeof createVerifyEmailService>[0]["appendEvent"];
+    appendDeadLetter?: Parameters<typeof createVerifyEmailService>[0]["appendDeadLetter"];
+  } = {},
+) =>
   createVerifyEmailService({
     repository,
-    rateLimiter: new VerifyEmailRateLimiter({ now: fixedNow }),
-    now: fixedNow,
+    rateLimiter: new VerifyEmailRateLimiter({ now: overrides.now ?? fixedNow }),
+    now: overrides.now ?? fixedNow,
+    appendEvent: overrides.appendEvent,
+    appendDeadLetter: overrides.appendDeadLetter,
   });
 
 const addVerificationRecord = ({
@@ -113,10 +122,7 @@ test("verify email service marks the token used and emits user.email_verified", 
     deletedAt: null,
   });
 
-  const service = createVerifyEmailService({
-    repository: repo.repository,
-    rateLimiter: new VerifyEmailRateLimiter({ now: fixedNow }),
-    now: fixedNow,
+  const service = createVerifyEmailServiceUnderTest(repo.repository, {
     appendEvent: async ({ event }) => {
       emittedEvents.push({
         name: event.name,
@@ -170,10 +176,7 @@ test("verify email service dead-letter fallback for email_verified", async () =>
     deletedAt: null,
   });
 
-  const service = createVerifyEmailService({
-    repository: repo.repository,
-    rateLimiter: new VerifyEmailRateLimiter({ now: fixedNow }),
-    now: fixedNow,
+  const service = createVerifyEmailServiceUnderTest(repo.repository, {
     appendEvent: async () => {
       throw new Error("Event stream failed");
     },
@@ -378,18 +381,16 @@ test("verify email service limits requests to 10 per 5 minutes per IP", async ()
   let currentTimeMs = new Date("2026-04-26T12:00:00.000Z").getTime();
   const mutableNow = () => new Date(currentTimeMs);
   const repo = createVerifyEmailRepositoryDouble();
-  
-  const service = createVerifyEmailService({
-    repository: repo.repository,
-    rateLimiter: new VerifyEmailRateLimiter({ now: mutableNow }),
+
+  const service = createVerifyEmailServiceUnderTest(repo.repository, {
     now: mutableNow,
   });
 
-  for (let i = 0; i < 10; i++) {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
     await assert.rejects(
       service.verifyEmail({
         payload: { token: "token-will-fail-anyway-due-to-missing" },
-        ipAddress: "192.168.1.100",
+        ipAddress: "203.0.113.30",
       }),
       (error: unknown) => error instanceof AppError && error.code === "TOKEN_INVALID"
     );
@@ -398,7 +399,7 @@ test("verify email service limits requests to 10 per 5 minutes per IP", async ()
   await assert.rejects(
     service.verifyEmail({
       payload: { token: "token-will-fail-anyway-due-to-missing" },
-      ipAddress: "192.168.1.100",
+      ipAddress: "203.0.113.30",
     }),
     (error: unknown) => error instanceof AppError && error.code === "RATE_LIMITED"
   );
@@ -408,7 +409,7 @@ test("verify email service limits requests to 10 per 5 minutes per IP", async ()
   await assert.rejects(
     service.verifyEmail({
       payload: { token: "token-will-fail-anyway-due-to-missing" },
-      ipAddress: "192.168.1.100",
+      ipAddress: "203.0.113.30",
     }),
     (error: unknown) => error instanceof AppError && error.code === "TOKEN_INVALID"
   );

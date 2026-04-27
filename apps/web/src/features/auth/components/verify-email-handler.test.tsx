@@ -1,10 +1,14 @@
+import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { VerifyEmailHandler } from "./verify-email-handler";
 
-const renderVerifyEmailHandler = (token: string) => {
+const renderVerifyEmailHandler = (
+  token: string,
+  options: { strictMode?: boolean } = {},
+) => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -12,13 +16,29 @@ const renderVerifyEmailHandler = (token: string) => {
     },
   });
 
-  return render(
+  const tree = (
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
-        <VerifyEmailHandler token={token} />
+        <VerifyEmailHandler key={token} token={token} />
       </MemoryRouter>
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
+
+  const renderResult = render(options.strictMode ? <React.StrictMode>{tree}</React.StrictMode> : tree);
+
+  return {
+    ...renderResult,
+    rerenderWithToken: (newToken: string) => {
+      const newTree = (
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter>
+            <VerifyEmailHandler key={newToken} token={newToken} />
+          </MemoryRouter>
+        </QueryClientProvider>
+      );
+      renderResult.rerender(options.strictMode ? <React.StrictMode>{newTree}</React.StrictMode> : newTree);
+    },
+  };
 };
 
 const arrangeVerifyEmail = ({
@@ -173,30 +193,11 @@ describe("VerifyEmailHandler", () => {
     );
     vi.stubGlobal("fetch", fetchSpy);
 
-    const queryClient = new QueryClient({
-      defaultOptions: {
-        queries: { retry: false },
-        mutations: { retry: false },
-      },
-    });
-
-    const { rerender } = render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          <VerifyEmailHandler key="token-a" token="token-a" />
-        </MemoryRouter>
-      </QueryClientProvider>
-    );
+    const { rerenderWithToken } = renderVerifyEmailHandler("token-a");
 
     await screen.findByText("Email verified");
 
-    rerender(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          <VerifyEmailHandler key="token-b" token="token-b" />
-        </MemoryRouter>
-      </QueryClientProvider>
-    );
+    rerenderWithToken("token-b");
 
     await screen.findByText("Email verified");
 
@@ -214,33 +215,13 @@ describe("VerifyEmailHandler", () => {
     );
     vi.stubGlobal("fetch", fetchSpy);
 
-    const queryClient = new QueryClient({
-      defaultOptions: {
-        queries: { retry: false },
-        mutations: { retry: false },
-      },
-    });
-
-    // Render with key="token-a" — triggers one fetch
-    const { rerender } = render(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          <VerifyEmailHandler key="token-a" token="token-a" />
-        </MemoryRouter>
-      </QueryClientProvider>
-    );
+    const { rerenderWithToken } = renderVerifyEmailHandler("token-a");
 
     await screen.findByText("Email verified");
     expect(fetchSpy).toHaveBeenCalledTimes(1);
 
     // Re-render the same instance (no key change) — useRef guard must prevent a second call
-    rerender(
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          <VerifyEmailHandler key="token-a" token="token-a" />
-        </MemoryRouter>
-      </QueryClientProvider>
-    );
+    rerenderWithToken("token-a");
 
     // Still exactly one call — the ref guard held
     expect(fetchSpy).toHaveBeenCalledTimes(1);

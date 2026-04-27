@@ -419,9 +419,9 @@ test("register rate limiter prunes expired buckets to prevent unbounded growth",
   });
 
   const limiterState = limiter as unknown as {
-    ipBuckets: Map<string, { timestamps: number[] }>;
-    emailBuckets: Map<string, { timestamps: number[] }>;
+    ipLimiter: { _debugStats: (key?: string) => { timestamps?: number[], bucketCount?: number } };
+    emailLimiter: { _debugStats: (key?: string) => { timestamps?: number[], bucketCount?: number } };
   };
-  assert.ok((limiterState.ipBuckets.get("198.51.100.55")?.timestamps.length ?? 0) <= 1);
-  assert.ok(limiterState.emailBuckets.size <= 2);
+  assert.ok((limiterState.ipLimiter._debugStats("198.51.100.55").timestamps?.length ?? 0) <= 1);
+  assert.ok((limiterState.emailLimiter._debugStats().bucketCount ?? 0) <= 2);
 });

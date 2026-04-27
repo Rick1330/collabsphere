@@ -109,4 +109,14 @@ export class InMemoryRateLimiter {
 
     bucket.timestamps.push(nowMs);
   }
+
+  /**
+   * Internal test helper to avoid exposing private bucket state.
+   */
+  _debugStats(key?: string) {
+    if (key) {
+      return { timestamps: this.buckets.get(key)?.timestamps || [] };
+    }
+    return { bucketCount: this.buckets.size };
+  }
 }
