@@ -9,7 +9,7 @@
 - Done:
   - Re-read repo process rules in `AGENTS.md`, `CONTRIBUTING.md`, `docs/agent-ref/ops/README.md`, `docs/agent-ref/ops/github-issue-lifecycle.md`, `.github/queue/README.md`, and `docs/spec/14-devops/14.7-release-process.md`.
   - Confirmed the paused local branch `feature/229-deploy-workflow-staging-and-prod-gates` is not the correct execution base for current recovery work.
-  - Created a clean recovery worktree from current `origin/main` at `D:\coloe\collabsphere-repo-recovery`.
+  - Created a clean recovery clone from current `origin/main` in a dedicated local workspace.
   - Confirmed the latest successful deploy on `main` was run `24883040660` on 2026-04-24 for commit `584fd28b801d6c26f20d92aaa6dac6bc753bcf6b`.
   - Confirmed the latest failed deploys on `main` were runs `24887346156` and `24892370485`, both failing in the `build` job before any Azure mutation.
   - Confirmed the current failure cause is Prisma client generation missing before app builds:

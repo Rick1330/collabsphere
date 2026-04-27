@@ -9,8 +9,9 @@ interface AuthStatusCardProps {
   variant: "loading" | "success" | "error" | "expired";
   heading: string;
   description: string | React.ReactNode;
-  action?: { label: string; href: string };
+  action?: { label: string; href: string } | { label: string; onClick: () => void };
   secondaryAction?: { label: string; href: string };
+  disableAnimations?: boolean;
 }
 
 const iconConfig = {
@@ -29,11 +30,111 @@ const CustomSpinner = () => (
   </div>
 );
 
-export const AuthStatusCard = ({ variant, heading, description, action, secondaryAction }: AuthStatusCardProps) => {
+/** Computes framer-motion animation props for the card icon and outer container.
+ *  When `disabled` is true (or reduced motion is preferred) all motion is zeroed out. */
+const useCardAnimations = (
+  variant: AuthStatusCardProps["variant"],
+  reduced: boolean | null,
+  disabled: boolean,
+) => {
+  const skip = disabled || !!reduced;
+
+  const iconMotion = skip
+    ? {}
+    : variant === "success"
+      ? {
+          initial: { scale: 0, rotate: -90 },
+          animate: { scale: 1, rotate: 0 },
+          transition: { type: "spring" as const, stiffness: 400, damping: 15, delay: 0.15 },
+        }
+      : variant !== "loading"
+        ? {
+            initial: { scale: 0.8, opacity: 0 },
+            animate: { scale: 1, opacity: 1 },
+            transition: { type: "spring" as const, stiffness: 300, damping: 20 },
+          }
+        : {};
+
+  const containerAnimation = skip
+    ? {}
+    : { initial: { scale: 0.8, opacity: 0 }, animate: { scale: 1, opacity: 1 }, transition: { type: "spring" as const, stiffness: 300, damping: 20 } };
+
+  return { iconMotion, containerAnimation };
+};
+
+const actionBtnClass =
+  "cs-focus cs-btn-primary shine-effect w-full h-11 rounded-lg text-sm font-semibold mt-6 flex items-center justify-center";
+
+/** Renders either a <button>, internal <Link>, or external <a> depending on action shape. */
+const CardAction = ({ action }: { action: NonNullable<AuthStatusCardProps["action"]> }) => {
+  if ("onClick" in action) {
+    return (
+      <button type="button" onClick={action.onClick} className={actionBtnClass}>
+        {action.label}
+      </button>
+    );
+  }
+  if (isInternalHref(action.href)) {
+    return (
+      <Link to={action.href} className={actionBtnClass}>
+        {action.label}
+      </Link>
+    );
+  }
+  return (
+    <a href={action.href} className={actionBtnClass}>
+      {action.label}
+    </a>
+  );
+};
+
+const secondaryLinkStyle = { color: "rgba(45,212,191,0.7)" };
+const secondaryLinkClass = "block mt-3 text-sm font-medium transition-colors duration-150";
+
+/** Renders a secondary action link (href only — onClick not supported for secondary). */
+const CardSecondaryAction = ({ action }: { action: NonNullable<AuthStatusCardProps["secondaryAction"]> }) => {
+  const handleEnter = (e: React.MouseEvent<HTMLElement>) => { e.currentTarget.style.color = "#2DD4BF"; };
+  const handleLeave = (e: React.MouseEvent<HTMLElement>) => { e.currentTarget.style.color = "rgba(45,212,191,0.7)"; };
+
+  if (isInternalHref(action.href)) {
+    return (
+      <Link
+        to={action.href}
+        className={secondaryLinkClass}
+        style={secondaryLinkStyle}
+        onMouseEnter={handleEnter}
+        onMouseLeave={handleLeave}
+      >
+        {action.label}
+      </Link>
+    );
+  }
+  return (
+    <a
+      href={action.href}
+      className={secondaryLinkClass}
+      style={secondaryLinkStyle}
+      onMouseEnter={handleEnter}
+      onMouseLeave={handleLeave}
+    >
+      {action.label}
+    </a>
+  );
+};
+
+export const AuthStatusCard = ({
+  variant,
+  heading,
+  description,
+  action,
+  secondaryAction,
+  disableAnimations = false,
+}: AuthStatusCardProps) => {
   const reduced = useReducedMotion();
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [elapsed, setElapsed] = useState(0);
   const cfg = iconConfig[variant];
+  const { iconMotion, containerAnimation } = useCardAnimations(variant, reduced, disableAnimations);
 
   useEffect(() => {
     headingRef.current?.focus();
@@ -46,24 +147,6 @@ export const AuthStatusCard = ({ variant, heading, description, action, secondar
   }, [variant]);
 
   const role = variant === "loading" || variant === "success" ? "status" : "alert";
-  const iconMotion =
-    variant === "success" && !reduced
-      ? {
-          initial: { scale: 0, rotate: -90 },
-          animate: { scale: 1, rotate: 0 },
-          transition: { type: "spring" as const, stiffness: 400, damping: 15, delay: 0.15 },
-        }
-      : variant !== "loading" && !reduced
-        ? {
-            initial: { scale: 0.8, opacity: 0 },
-            animate: { scale: 1, opacity: 1 },
-            transition: { type: "spring" as const, stiffness: 300, damping: 20 },
-          }
-        : {};
-
-  const containerAnimation = !reduced
-    ? { initial: { scale: 0.8, opacity: 0 }, animate: { scale: 1, opacity: 1 }, transition: { type: "spring" as const, stiffness: 300, damping: 20 } }
-    : {};
 
   return (
     <div className="text-center" role={role}>
@@ -95,41 +178,9 @@ export const AuthStatusCard = ({ variant, heading, description, action, secondar
         </p>
       )}
 
-      {action && (
-        isInternalHref(action.href) ? (
-          <Link to={action.href} className="cs-focus cs-btn-primary shine-effect w-full h-11 rounded-lg text-sm font-semibold mt-6 flex items-center justify-center">
-            {action.label}
-          </Link>
-        ) : (
-          <a href={action.href} className="cs-focus cs-btn-primary shine-effect w-full h-11 rounded-lg text-sm font-semibold mt-6 flex items-center justify-center">
-            {action.label}
-          </a>
-        )
-      )}
+      {action && <CardAction action={action} />}
 
-      {secondaryAction && (
-        isInternalHref(secondaryAction.href) ? (
-          <Link
-            to={secondaryAction.href}
-            className="block mt-3 text-sm font-medium transition-colors duration-150"
-            style={{ color: "rgba(45,212,191,0.7)" }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = "#2DD4BF"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(45,212,191,0.7)"; }}
-          >
-            {secondaryAction.label}
-          </Link>
-        ) : (
-          <a
-            href={secondaryAction.href}
-            className="block mt-3 text-sm font-medium transition-colors duration-150"
-            style={{ color: "rgba(45,212,191,0.7)" }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = "#2DD4BF"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(45,212,191,0.7)"; }}
-          >
-            {secondaryAction.label}
-          </a>
-        )
-      )}
+      {secondaryAction && <CardSecondaryAction action={secondaryAction} />}
     </div>
   );
 };

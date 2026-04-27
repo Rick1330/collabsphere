@@ -6,7 +6,7 @@ import { AppError, createErrorResponse } from "../../apps/api/src/common/filters
 import { createAuthController } from "../../apps/api/src/auth/auth.controller.js";
 import {
   createRegisterService,
-  registerServiceConstants,
+  authServiceConstants,
 } from "../../apps/api/src/auth/auth.service.js";
 import { RegisterRateLimiter } from "../../apps/api/src/auth/register-rate-limit.js";
 import { validateRegisterInput } from "../../apps/api/src/auth/register.dto.js";
@@ -37,10 +37,26 @@ const createRegisterRequest = ({
   };
   stream.socket = {
     remoteAddress,
-  };
+  } as unknown as IncomingMessage["socket"] & { remoteAddress: string };
 
   return stream;
 };
+
+const createAuthControllerForRegisterTests = ({
+  registerImpl = async () => ({ message: "unused" }),
+  verifyEmailImpl = async () => ({ message: "unused" }),
+}: {
+  registerImpl?: NonNullable<Parameters<typeof createAuthController>[0]["registerService"]["register"]>;
+  verifyEmailImpl?: NonNullable<Parameters<typeof createAuthController>[0]["verifyEmailService"]["verifyEmail"]>;
+}) =>
+  createAuthController({
+    registerService: {
+      register: registerImpl,
+    },
+    verifyEmailService: {
+      verifyEmail: verifyEmailImpl,
+    },
+  });
 
 const createRepositoryDouble = () => {
   const createdUsers: Array<{ email: string; fullName: string; passwordHash: string }> = [];
@@ -153,7 +169,7 @@ test("register service hashes passwords with bcrypt(12), stores token hashes, an
   const [emittedEvent] = emittedEvents;
 
   assert.ok(createdUser && createdToken && enqueuedJob && emittedEvent);
-  assert.equal(result.message, registerServiceConstants.registerSuccessMessage);
+  assert.equal(result.message, authServiceConstants.registerSuccessMessage);
   assert.equal(repo.createdUsers.length, 1);
   assert.equal(repo.createdTokens.length, 1);
   assert.equal(createdUser.email, "jane+reg@example.com");
@@ -161,7 +177,7 @@ test("register service hashes passwords with bcrypt(12), stores token hashes, an
   assert.equal(createdToken.tokenHash.length, 64);
   assert.equal(
     createdToken.expiresAt.toISOString(),
-    new Date(new Date(fixedNowIso).getTime() + registerServiceConstants.verificationTokenTtlMs).toISOString(),
+    new Date(new Date(fixedNowIso).getTime() + authServiceConstants.verificationTokenTtlMs).toISOString(),
   );
   assert.deepEqual(emittedEvents.map((e) => e.name), ["user.registered"]);
   assert.equal(enqueuedJobs.length, 1);
@@ -212,13 +228,11 @@ test("register service writes failed user.registered events to dead-letter stora
 });
 
 test("register controller maps unique persistence errors to EMAIL_ALREADY_EXISTS", async () => {
-  const controller = createAuthController({
-    registerService: {
-      register: async () => {
-        throw {
-          code: "P2002",
-        };
-      },
+  const controller = createAuthControllerForRegisterTests({
+    registerImpl: async () => {
+      throw {
+        code: "P2002",
+      };
     },
   });
 
@@ -237,10 +251,8 @@ test("register controller maps unique persistence errors to EMAIL_ALREADY_EXISTS
 });
 
 test("register controller requires application/json media type", async () => {
-  const controller = createAuthController({
-    registerService: {
-      register: async () => ({ message: "ok" }),
-    },
+  const controller = createAuthControllerForRegisterTests({
+    registerImpl: async () => ({ message: "ok" }),
   });
 
   await assert.rejects(
@@ -407,9 +419,35 @@ test("register rate limiter prunes expired buckets to prevent unbounded growth",
   });
 
   const limiterState = limiter as unknown as {
-    ipBuckets: Map<string, { timestamps: number[] }>;
-    emailBuckets: Map<string, { timestamps: number[] }>;
+    ipLimiter: { _debugStats: (key?: string) => { timestamps?: number[], bucketCount?: number } };
+    emailLimiter: { _debugStats: (key?: string) => { timestamps?: number[], bucketCount?: number } };
   };
-  assert.ok((limiterState.ipBuckets.get("198.51.100.55")?.timestamps.length ?? 0) <= 1);
-  assert.ok(limiterState.emailBuckets.size <= 2);
+  assert.ok((limiterState.ipLimiter._debugStats("198.51.100.55").timestamps?.length ?? 0) <= 1);
+  assert.ok((limiterState.emailLimiter._debugStats().bucketCount ?? 0) <= 2);
+});
+
+test("register rate limiter does not record the IP bucket when the email bucket rejects", () => {
+  const limiter = new RegisterRateLimiter({ now: fixedNow });
+
+  for (let index = 0; index < 5; index += 1) {
+    limiter.consume({
+      ipAddress: `198.51.100.${index + 1}`,
+      normalizedEmail: "shared@example.com",
+    });
+  }
+
+  assert.throws(
+    () =>
+      limiter.consume({
+        ipAddress: "198.51.100.99",
+        normalizedEmail: "shared@example.com",
+      }),
+    (error: unknown) => error instanceof AppError && error.code === "RATE_LIMITED",
+  );
+
+  const limiterState = limiter as unknown as {
+    ipLimiter: { _debugStats: (key?: string) => { timestamps?: number[] } };
+  };
+
+  assert.equal(limiterState.ipLimiter._debugStats("198.51.100.99").timestamps?.length ?? 0, 0);
 });

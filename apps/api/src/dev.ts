@@ -1,10 +1,13 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import type { PrismaClient } from "@prisma/client";
 import { EnvValidationError, parseApiRuntimeEnv } from "../../../packages/shared/src/api-env.js";
 import { resolveEmailConfig } from "./config/email.js";
 import { createAuthController } from "./auth/auth.controller.js";
 import {
   createPrismaBackedRegisterService,
   type RegisterService,
+  createPrismaBackedVerifyEmailService,
+  type VerifyEmailService,
 } from "./auth/auth.service.js";
 import {
   AppError,
@@ -43,13 +46,38 @@ try {
 
 const { logger } = createLoggerModule();
 let registerServicePromise: Promise<RegisterService> | null = null;
+let verifyEmailServicePromise: Promise<VerifyEmailService> | null = null;
 let prismaClientForShutdown: { $disconnect: () => Promise<void> } | null = null;
+let prismaClientPromise: Promise<PrismaClient> | null = null;
+let isShuttingDown = false;
+
+const getPrismaClient = async () => {
+  if (isShuttingDown) {
+    throw new AppError({
+      code: "SERVICE_UNAVAILABLE",
+      message: "Server is shutting down",
+    });
+  }
+
+  if (!prismaClientPromise) {
+    prismaClientPromise = import("@prisma/client")
+      .then(({ PrismaClient }) => {
+        const prisma = new PrismaClient();
+        prismaClientForShutdown = prisma;
+        return prisma;
+      })
+      .catch((error) => {
+        prismaClientPromise = null;
+        throw error;
+      });
+  }
+
+  return prismaClientPromise;
+};
 
 const createRuntimeRegisterService = async (): Promise<RegisterService> => {
   try {
-    const { PrismaClient } = await import("@prisma/client");
-    const prisma = new PrismaClient();
-    prismaClientForShutdown = prisma;
+    const prisma = await getPrismaClient();
     return createPrismaBackedRegisterService({
       prisma,
       bcryptCostFactor: apiEnv.BCRYPT_COST,
@@ -59,6 +87,21 @@ const createRuntimeRegisterService = async (): Promise<RegisterService> => {
     throw new AppError({
       code: "SERVICE_UNAVAILABLE",
       message: "Registration service unavailable",
+      cause: error,
+    });
+  }
+};
+
+const createRuntimeVerifyEmailService = async (): Promise<VerifyEmailService> => {
+  try {
+    const prisma = await getPrismaClient();
+    return createPrismaBackedVerifyEmailService({
+      prisma,
+    });
+  } catch (error) {
+    throw new AppError({
+      code: "SERVICE_UNAVAILABLE",
+      message: "Email verification service unavailable",
       cause: error,
     });
   }
@@ -75,9 +118,23 @@ const getRegisterService = () => {
   return registerServicePromise;
 };
 
+const getVerifyEmailService = () => {
+  if (!verifyEmailServicePromise) {
+    verifyEmailServicePromise = createRuntimeVerifyEmailService().catch((error) => {
+      verifyEmailServicePromise = null;
+      throw error;
+    });
+  }
+
+  return verifyEmailServicePromise;
+};
+
 const authController = createAuthController({
   registerService: {
     register: async (input) => (await getRegisterService()).register(input),
+  },
+  verifyEmailService: {
+    verifyEmail: async (input) => (await getVerifyEmailService()).verifyEmail(input),
   },
 });
 
@@ -228,34 +285,80 @@ const handlePaginationFixturesRequest = ({
   );
 };
 
-const handleRegisterRequest = async ({
-  request,
+const handleAuthJsonAction = async ({
   response,
   requestId,
   getDurationMs,
+  statusCode,
+  execute,
 }: {
-  request: IncomingMessage;
   response: ServerResponse;
   requestId: string;
   getDurationMs: () => number;
+  statusCode: number;
+  execute: () => Promise<{ message: string }>;
 }) => {
-  const registerResult = await authController.register({
-    request,
-  });
+  const actionResult = await execute();
 
   logger.logRequestLifecycle({
-    statusCode: 201,
+    statusCode,
     durationMs: getDurationMs(),
   });
 
   return writeSuccessJson(
     response,
-    201,
+    statusCode,
     createActionResponsePayload({
-      message: registerResult.message,
+      message: actionResult.message,
     }),
     requestId,
   );
+};
+
+type RequestHandler = (input: {
+  request: IncomingMessage;
+  response: ServerResponse;
+  requestId: string;
+  url: URL;
+  getDurationMs: () => number;
+}) => Promise<void> | void;
+
+const routeHandlers: Readonly<Record<string, RequestHandler>> = {
+  "GET /api/v1/health": ({ response, requestId, getDurationMs }) =>
+    handleHealthRequest({
+      response,
+      requestId,
+      getDurationMs,
+    }),
+  "GET /api/v1/pagination/fixtures": ({ response, requestId, url, getDurationMs }) =>
+    handlePaginationFixturesRequest({
+      response,
+      requestId,
+      url,
+      getDurationMs,
+    }),
+  "POST /api/v1/auth/register": ({ request, response, requestId, getDurationMs }) =>
+    handleAuthJsonAction({
+      response,
+      requestId,
+      getDurationMs,
+      statusCode: 201,
+      execute: () =>
+        authController.register({
+          request,
+        }),
+    }),
+  "POST /api/v1/auth/verify-email": ({ request, response, requestId, getDurationMs }) =>
+    handleAuthJsonAction({
+      response,
+      requestId,
+      getDurationMs,
+      statusCode: 200,
+      execute: () =>
+        authController.verifyEmail({
+          request,
+        }),
+    }),
 };
 
 const handleRequest = async ({
@@ -270,29 +373,15 @@ const handleRequest = async ({
   getDurationMs: () => number;
 }) => {
   const url = parseRequestUrl(request);
+  const routeKey = `${request.method ?? "GET"} ${url.pathname}`;
+  const routeHandler = routeHandlers[routeKey];
 
-  if (request.method === "GET" && url.pathname === "/api/v1/health") {
-    return handleHealthRequest({
-      response,
-      requestId,
-      getDurationMs,
-    });
-  }
-
-  if (request.method === "GET" && url.pathname === "/api/v1/pagination/fixtures") {
-    return handlePaginationFixturesRequest({
-      response,
-      requestId,
-      url,
-      getDurationMs,
-    });
-  }
-
-  if (request.method === "POST" && url.pathname === "/api/v1/auth/register") {
-    return handleRegisterRequest({
+  if (routeHandler) {
+    return routeHandler({
       request,
       response,
       requestId,
+      url,
       getDurationMs,
     });
   }
@@ -340,11 +429,13 @@ startHttpBootstrapServer({
   defaultPort: 3001,
   readyPath: "/api/v1/health",
   onShutdown: async () => {
+    isShuttingDown = true;
     if (!prismaClientForShutdown) {
       return;
     }
 
     await prismaClientForShutdown.$disconnect();
     prismaClientForShutdown = null;
+    prismaClientPromise = null;
   },
 });

@@ -1,16 +1,16 @@
 import assert from "node:assert/strict";
 import path from "node:path";
+import type { Readable } from "node:stream";
 import test from "node:test";
 
-import {
-  collectStream,
+const {
   getJson,
   repoRoot,
   spawnBootstrap,
   stopChild,
   waitForStdoutMatch,
   withMockDependencies,
-} from "../../../tests/unit/bootstrap-test-helpers.ts";
+} = await import("../../../tests/unit/bootstrap-test-helpers.ts");
 
 const apiEntryPath = path.join(repoRoot, "apps", "api", "src", "dev.ts");
 
@@ -30,6 +30,15 @@ const validApiEnv = Object.freeze({
 
 const spawnApi = (envOverrides: NodeJS.ProcessEnv) =>
   spawnBootstrap({ entryPath: apiEntryPath, cwd: repoRoot, envOverrides });
+
+const collectStream = (stream: Readable) => {
+  let value = "";
+  stream.setEncoding("utf8");
+  stream.on("data", (chunk: string) => {
+    value += chunk;
+  });
+  return () => value;
+};
 
 type PaginationMeta = {
   page: number;

@@ -12,14 +12,19 @@ import {
 } from "./auth-events.js";
 import { AppError } from "../common/filters/app-error.filter.js";
 import { type RegisterInput } from "./register.dto.js";
+import { type VerifyEmailInput } from "./verify-email.dto.js";
 import {
   createPrismaRegisterRepository,
+  createPrismaVerifyEmailRepository,
   isUniqueConstraintError,
   type RegisterRepository,
+  type VerifyEmailRepository,
 } from "./auth.repository.js";
 import { RegisterRateLimiter } from "./register-rate-limit.js";
+import { VerifyEmailRateLimiter } from "./verify-email-rate-limit.js";
 
 const registerSuccessMessage = "Registration successful. Please verify your email.";
+const verifyEmailSuccessMessage = "Email verified successfully.";
 const defaultBcryptCostFactor = 12;
 const verificationTokenTtlMs = 24 * 60 * 60 * 1000;
 
@@ -70,14 +75,38 @@ const createUserRegisteredEvent = ({
   },
 });
 
-const emitUserRegisteredEvent = async ({
+const createUserEmailVerifiedEvent = ({
+  userId,
+  email,
+  now,
+}: {
+  userId: string;
+  email: string;
+  now: Date;
+}): AuthDomainEvent => ({
+  eventId: randomUUID(),
+  name: "user.email_verified",
+  occurredAt: now.toISOString(),
+  actor: {
+    userId,
+    workspaceId: null,
+  },
+  data: {
+    userId,
+    email,
+  },
+});
+
+const emitAuthEvent = async ({
   event,
   appendEvent,
   appendDeadLetter,
+  logLabel,
 }: {
   event: AuthDomainEvent;
   appendEvent: typeof appendAuthDomainEvent;
   appendDeadLetter: typeof appendAuthDomainEventDeadLetter;
+  logLabel: AuthDomainEvent["name"];
 }) => {
   await appendEvent({
     event,
@@ -88,9 +117,9 @@ const emitUserRegisteredEvent = async ({
     }).catch((deadLetterError) => {
       const deadLetterMessage =
         deadLetterError instanceof Error ? deadLetterError.message : String(deadLetterError);
-      console.warn(`[api] failed to append user.registered dead-letter event: ${deadLetterMessage}`);
+      console.warn(`[api] failed to append ${logLabel} dead-letter event: ${deadLetterMessage}`);
     });
-    console.warn(`[api] failed to append user.registered event: ${message}`);
+    console.warn(`[api] failed to append ${logLabel} event: ${message}`);
   });
 };
 
@@ -148,6 +177,52 @@ export type RegisterService = {
   }) => Promise<{ message: string }>;
 };
 
+export type VerifyEmailService = {
+  verifyEmail: (input: { payload: VerifyEmailInput; ipAddress: string }) => Promise<{ message: string }>;
+};
+
+const createTokenExpiredError = () =>
+  new AppError({
+    code: "TOKEN_EXPIRED",
+    message: "Verification token has expired",
+    // Verification links are one-time resources that are gone after TTL, so this endpoint
+    // intentionally overrides the catalog default for TOKEN_EXPIRED and responds with 410.
+    // See also TOKEN_INVALID override below and docs/agent-ref/api/auth-endpoints.md:49.
+    statusCode: 410,
+  });
+
+const resolveUsableEmailVerificationRecord = ({
+  verification,
+  now,
+}: {
+  verification: Awaited<ReturnType<VerifyEmailRepository["findEmailVerificationByHash"]>>;
+  now: Date;
+}) => {
+  if (!verification) {
+    throw new AppError({
+      code: "TOKEN_INVALID",
+      message: "Verification token is invalid",
+      // Verify-email tokens are standalone resources, not session credentials, so this
+      // endpoint intentionally overrides the catalog default for TOKEN_INVALID (401 -> 400).
+      // See also TOKEN_EXPIRED override above and docs/agent-ref/api/auth-endpoints.md:49.
+      statusCode: 400,
+    });
+  }
+
+  if (verification.usedAt) {
+    throw new AppError({
+      code: "TOKEN_ALREADY_USED",
+      message: "Verification token has already been used",
+    });
+  }
+
+  if (verification.expiresAt.getTime() <= now.getTime()) {
+    throw createTokenExpiredError();
+  }
+
+  return verification;
+};
+
 export const createRegisterService = ({
   repository,
   rateLimiter,
@@ -191,7 +266,7 @@ export const createRegisterService = ({
     const registeredUser = registrationResult.user;
     const storedToken = registrationResult.verificationToken;
 
-    await emitUserRegisteredEvent({
+    await emitAuthEvent({
       event: createUserRegisteredEvent({
         userId: registeredUser.id,
         email: registeredUser.email,
@@ -201,6 +276,7 @@ export const createRegisterService = ({
       }),
       appendEvent,
       appendDeadLetter,
+      logLabel: "user.registered",
     });
 
     await dispatchVerificationEmail({
@@ -218,6 +294,59 @@ export const createRegisterService = ({
 
     return {
       message: registerSuccessMessage,
+    };
+  },
+});
+
+export const createVerifyEmailService = ({
+  repository,
+  rateLimiter,
+  now = () => new Date(),
+  appendEvent = appendAuthDomainEvent,
+  appendDeadLetter = appendAuthDomainEventDeadLetter,
+}: {
+  repository: VerifyEmailRepository;
+  rateLimiter: VerifyEmailRateLimiter;
+  now?: () => Date;
+  appendEvent?: typeof appendAuthDomainEvent;
+  appendDeadLetter?: typeof appendAuthDomainEventDeadLetter;
+}): VerifyEmailService => ({
+  verifyEmail: async ({ payload, ipAddress }) => {
+    rateLimiter.consume({ ipAddress });
+
+    const currentTime = now();
+    const tokenHash = hashSha256(payload.token);
+    const verification = resolveUsableEmailVerificationRecord({
+      verification: await repository.findEmailVerificationByHash(tokenHash),
+      now: currentTime,
+    });
+
+    const verifiedUser = await repository.consumeEmailVerificationToken({
+      tokenId: verification.id,
+      userId: verification.userId,
+      verifiedAt: currentTime,
+    });
+
+    if (!verifiedUser) {
+      throw new AppError({
+        code: "TOKEN_ALREADY_USED",
+        message: "Verification token has already been used",
+      });
+    }
+
+    await emitAuthEvent({
+      event: createUserEmailVerifiedEvent({
+        userId: verifiedUser.id,
+        email: verifiedUser.email,
+        now: currentTime,
+      }),
+      appendEvent,
+      appendDeadLetter,
+      logLabel: "user.email_verified",
+    });
+
+    return {
+      message: verifyEmailSuccessMessage,
     };
   },
 });
@@ -245,6 +374,23 @@ export const createPrismaBackedRegisterService = ({
     jwtAccessSecret,
   });
 
+export const createPrismaBackedVerifyEmailService = ({
+  prisma,
+  now,
+}: {
+  prisma: Parameters<typeof createPrismaVerifyEmailRepository>[0]["prisma"];
+  now?: () => Date;
+}) =>
+  createVerifyEmailService({
+    repository: createPrismaVerifyEmailRepository({
+      prisma,
+    }),
+    rateLimiter: new VerifyEmailRateLimiter({
+      now,
+    }),
+    now,
+  });
+
 export const mapRegisterPersistenceError = (error: unknown) => {
   if (isUniqueConstraintError(error)) {
     return new AppError({
@@ -257,8 +403,9 @@ export const mapRegisterPersistenceError = (error: unknown) => {
   return error;
 };
 
-export const registerServiceConstants = {
+export const authServiceConstants = {
   bcryptCostFactor: defaultBcryptCostFactor,
   registerSuccessMessage,
+  verifyEmailSuccessMessage,
   verificationTokenTtlMs,
 } as const;
