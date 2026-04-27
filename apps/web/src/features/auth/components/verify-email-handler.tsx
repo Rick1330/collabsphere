@@ -165,7 +165,8 @@ const verifyEmailToken = async (token: string) => {
     const body = (await response.json().catch(() => null)) as
       | { error?: { code?: string; message?: string } }
       | null;
-    const code = body?.error?.code ?? "TOKEN_INVALID";
+    const code =
+      body?.error?.code ?? (response.status >= 500 ? "SERVICE_UNAVAILABLE" : "TOKEN_INVALID");
     const message = body?.error?.message ?? "Unable to verify email address.";
     throw new VerifyEmailApiError(code, response.status, message);
   }

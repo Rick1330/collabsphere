@@ -9,7 +9,7 @@
 ## Progress
 - Done:
   - Re-read the repo issue/branch/process rules in `AGENTS.md`, `CONTRIBUTING.md`, `docs/agent-ref/ops/github-issue-lifecycle.md`, and `docs/agent-ref/ops/pr-review-workflow.md`.
-  - Re-read the earlier deployment decision notes in `D:\coloe\decision\cs-008-staging-recovery-decision.md` and `D:\coloe\decision\staging-runtime-input-matrix.md`.
+  - Re-read the earlier deployment decision notes from the local operator decision workspace (kept outside this repo).
   - Confirmed this work belongs in `lane:maintenance`, not the planned delivery queue.
   - Created issue `#1586`:
     - title: `[OPS] Reduce staging cost and bootstrap managed data plane for staging/production`
@@ -29,6 +29,8 @@
   - Opened PR `#1587` against `main` for review of the repo-side deployment/runtime split.
   - Updated PR `#1587` development-closing section to `Closes #1586` so merge closes the parent ops issue.
   - Confirmed PR `#1587` review threads are all resolved and linked closing issue references include `#1586`.
+  - Confirmed PR `#1587` merged to `main` on `2026-04-25` as commit `40b6ea9561a0e62fdafdb8fcb68164f84baefc6d`.
+  - Confirmed issue `#1586` is now closed with `status:done`.
   - Confirmed production deploy intent is implemented in workflow contracts:
     - `.github/workflows/deploy-production-aws.yml` triggers on `push.tags: [\"v*\"]` and `workflow_dispatch`
     - production deploys still require the target commit to already be on `main`
@@ -50,15 +52,11 @@
     - YAML parsing for updated workflow/manifests
     - targeted workflow/unit tests for the deploy/bootstrap surfaces
 - In progress:
-  - Merge-readiness for PR `#1587` (awaiting final human review/merge decision).
-  - Choose the remaining staging/production managed data-plane secret ownership details and retirement path.
+  - none (issue closed)
 - Blocked:
-  - AWS CLI is installed locally but currently unauthenticated again on this machine (`aws sts get-caller-identity` returns `NoCredentials`).
+  - none for issue `#1586` closure; follow-on live provisioning still depends on AWS auth when resumed.
 - Next:
-  - Keep the PR body and linked-issue handoff in the canonical repo format.
-  - Keep issue handoff/execplan details synchronized with the now-green PR check state.
-  - Re-establish AWS auth when the next live provisioning slice starts.
-  - Continue the live infra work intentionally left out of this PR: AWS OIDC/services/data plane, R2 runtime credentials/CORS, and staging pg/redis retirement planning.
+  - Use project `#4` and future ops follow-ups for remaining live provisioning work intentionally left out of PR `#1587`: AWS OIDC/services data plane, R2 runtime credentials/CORS hardening, and staging pg/redis retirement sequencing.
 
 ## Surprises & Discoveries
 - The user concern about the latest failed deployment and the cloud topology were two different problems:
@@ -89,11 +87,11 @@
 - Decision: do not commit to AWS-backed staging PostgreSQL/Redis until the cost/latency/ops tradeoff is explicitly checked.
   - Rationale: AWS credits alone are not enough to justify a cross-cloud steady-state if operational overhead or latency is worse than the savings.
   - Alternatives: move staging data services to AWS immediately because credits exist.
-  - Source (spec/domain/agent-ref): issue `#1586`, live staging inspection, `D:\coloe\decision\staging-runtime-input-matrix.md`
+  - Source (spec/domain/agent-ref): issue `#1586`, live staging inspection, local operator decision notes (outside repo)
 - Decision: preserve the bootstrap-first boundary for environment creation.
   - Rationale: the prior staging recovery already established that `deploy.yml` should remain an incremental deploy workflow rather than a zero-to-one environment creation surface.
   - Alternatives: teach `deploy.yml` to fully provision first-run cloud infrastructure.
-  - Source (spec/domain/agent-ref): `D:\coloe\decision\cs-008-staging-recovery-decision.md`, `infra/azure/container-apps/README.md`
+  - Source (spec/domain/agent-ref): local operator decision notes (outside repo), `infra/azure/container-apps/README.md`
 - Decision: prefer repo-managed bootstrap code and documented runbooks over one-off portal-only setup.
   - Rationale: production bootstrap and future staging changes need to be repeatable and reviewable.
   - Alternatives: keep the knowledge in manual notes only.
@@ -108,7 +106,7 @@
   - separate Azure staging and AWS production workflow/bootstrap surfaces
   - initial R2 bootstrap and source-controlled infra/docs
 - Remaining work is now split between:
-  - PR merge-readiness and human approval/merge timing for the repo-side slice (checks are currently green)
+  - post-merge production/staging live provisioning follow-ons beyond the repo-side slice
   - later live cloud provisioning for the still-missing AWS and R2 runtime pieces
 
 ## Context and Orientation
@@ -135,8 +133,7 @@
   - `apps/collab/package.json`
   - `apps/worker/package.json`
 - Prior planning/decision artifacts:
-  - `D:\coloe\decision\cs-008-staging-recovery-decision.md`
-  - `D:\coloe\decision\staging-runtime-input-matrix.md`
+  - local operator decision notes from the staging recovery cycle (outside repo; machine-specific paths intentionally omitted)
   - `.agent/execplans/deployment-and-data-plane-recovery-2026-04-24.md`
 - Cloud state:
   - Azure staging exists and is healthy
@@ -223,7 +220,7 @@
 - Resume instructions:
   - start with this ExecPlan
   - then read issue `#1586`
-  - then read `D:\coloe\decision\cs-008-staging-recovery-decision.md`
+  - then read local operator decision notes from the staging recovery cycle (outside repo)
   - then inspect current Azure/AWS auth state before taking provisioning actions
 
 ## Interfaces and Dependencies

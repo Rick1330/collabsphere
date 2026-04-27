@@ -184,6 +184,27 @@ describe("VerifyEmailHandler", () => {
     ).toBeInTheDocument();
   });
 
+  it("renders transient-error when a 5xx response body is not JSON", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response("<html><body>Bad Gateway</body></html>", {
+          status: 502,
+          headers: { "Content-Type": "text/html" },
+        }),
+      ),
+    );
+
+    renderVerifyEmailHandler("some-token");
+
+    expect(await screen.findByText("We couldn't reach the verification service")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: "Try again",
+      }),
+    ).toBeInTheDocument();
+  });
+
   it("fires exactly twice when the token changes", async () => {
     const fetchSpy = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ data: { message: "Email verified successfully." } }), {

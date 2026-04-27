@@ -37,7 +37,7 @@ const createRegisterRequest = ({
   };
   stream.socket = {
     remoteAddress,
-  };
+  } as unknown as IncomingMessage["socket"] & { remoteAddress: string };
 
   return stream;
 };
