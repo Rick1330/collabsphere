@@ -255,8 +255,9 @@ const runFailureScenario = async (scenario: FailureScenario) => {
   );
 };
 
-test("verify email rejects expired tokens with TOKEN_EXPIRED 410", async () => {
-  await runFailureScenario({
+const failureScenarios: Array<{ name: string } & FailureScenario> = [
+  {
+    name: "verify email rejects expired tokens with TOKEN_EXPIRED 410",
     rawToken: "expired-token-16",
     record: {
       id: "token_2",
@@ -267,11 +268,9 @@ test("verify email rejects expired tokens with TOKEN_EXPIRED 410", async () => {
     },
     expectedError: (error: unknown) =>
       error instanceof AppError && error.code === "TOKEN_EXPIRED" && error.statusCode === 410,
-  });
-});
-
-test("verify email rejects already-used tokens with TOKEN_ALREADY_USED", async () => {
-  await runFailureScenario({
+  },
+  {
+    name: "verify email rejects already-used tokens with TOKEN_ALREADY_USED",
     rawToken: "used-token-12345",
     record: {
       id: "token_3",
@@ -281,11 +280,9 @@ test("verify email rejects already-used tokens with TOKEN_ALREADY_USED", async (
       usedAt: new Date("2026-04-26T10:00:00.000Z"),
     },
     expectedError: (error: unknown) => error instanceof AppError && error.code === "TOKEN_ALREADY_USED",
-  });
-});
-
-test("verify email maps consume race condition to TOKEN_ALREADY_USED", async () => {
-  await runFailureScenario({
+  },
+  {
+    name: "verify email maps consume race condition to TOKEN_ALREADY_USED",
     rawToken: "raced-token-1234",
     record: {
       id: "token_4",
@@ -296,11 +293,9 @@ test("verify email maps consume race condition to TOKEN_ALREADY_USED", async () 
     },
     consumeFailureTokenId: "token_4",
     expectedError: (error: unknown) => error instanceof AppError && error.code === "TOKEN_ALREADY_USED",
-  });
-});
-
-test("verify email rejects tokens for soft-deleted users with TOKEN_INVALID", async () => {
-  await runFailureScenario({
+  },
+  {
+    name: "verify email rejects tokens for soft-deleted users with TOKEN_INVALID",
     rawToken: "deleted-user-token",
     record: {
       id: "token_5",
@@ -316,8 +311,14 @@ test("verify email rejects tokens for soft-deleted users with TOKEN_INVALID", as
       deletedAt: new Date("2026-04-26T11:00:00.000Z"),
     },
     expectedError: (error: unknown) => error instanceof AppError && error.code === "TOKEN_INVALID",
+  },
+];
+
+for (const scenario of failureScenarios) {
+  test(scenario.name, async () => {
+    await runFailureScenario(scenario);
   });
-});
+}
 
 test("verify email controller validates application/json and trims the token payload", async () => {
   let capturedPayload: { token: string } | null = null;
