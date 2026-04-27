@@ -425,3 +425,29 @@ test("register rate limiter prunes expired buckets to prevent unbounded growth",
   assert.ok((limiterState.ipLimiter._debugStats("198.51.100.55").timestamps?.length ?? 0) <= 1);
   assert.ok((limiterState.emailLimiter._debugStats().bucketCount ?? 0) <= 2);
 });
+
+test("register rate limiter does not record the IP bucket when the email bucket rejects", () => {
+  const limiter = new RegisterRateLimiter({ now: fixedNow });
+
+  for (let index = 0; index < 5; index += 1) {
+    limiter.consume({
+      ipAddress: `198.51.100.${index + 1}`,
+      normalizedEmail: "shared@example.com",
+    });
+  }
+
+  assert.throws(
+    () =>
+      limiter.consume({
+        ipAddress: "198.51.100.99",
+        normalizedEmail: "shared@example.com",
+      }),
+    (error: unknown) => error instanceof AppError && error.code === "RATE_LIMITED",
+  );
+
+  const limiterState = limiter as unknown as {
+    ipLimiter: { _debugStats: (key?: string) => { timestamps?: number[] } };
+  };
+
+  assert.equal(limiterState.ipLimiter._debugStats("198.51.100.99").timestamps?.length ?? 0, 0);
+});

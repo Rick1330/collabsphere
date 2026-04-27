@@ -20,7 +20,6 @@ const fixedNow = () => new Date(fixedNowIso);
 
 const hashSha256 = (value: string) => createHash("sha256").update(value, "utf8").digest("hex");
 
-
 const createVerifyEmailRepositoryDouble = () => {
   const recordsByHash = new Map<string, EmailVerificationRecord>();
   const consumedTokens: Array<{ tokenId: string; userId: string; verifiedAt: Date }> = [];
@@ -103,10 +102,10 @@ const addVerificationRecord = ({
   });
 };
 
-test("verify email service marks the token used and emits user.email_verified", async () => {
-  const repo = createVerifyEmailRepositoryDouble();
-  const emittedEvents: Array<{ name: string; data: Record<string, unknown> }> = [];
-  const rawToken = "opaque-verification-token";
+const seedHappyPathFixture = (
+  repo: ReturnType<typeof createVerifyEmailRepositoryDouble>,
+  rawToken: string,
+) => {
   repo.recordsByHash.set(hashSha256(rawToken), {
     id: "token_1",
     userId: "user_1",
@@ -114,13 +113,32 @@ test("verify email service marks the token used and emits user.email_verified", 
     expiresAt: new Date("2026-04-27T12:00:00.000Z"),
     usedAt: null,
   });
-
   repo.usersById.set("user_1", {
     id: "user_1",
     email: "learner@example.com",
     isVerified: false,
     deletedAt: null,
   });
+};
+
+const expectVerifyEmailRejection = async (
+  service: ReturnType<typeof createVerifyEmailServiceUnderTest>,
+  expectedCode: string,
+) => {
+  await assert.rejects(
+    service.verifyEmail({
+      payload: { token: "token-will-fail-anyway-due-to-missing" },
+      ipAddress: "203.0.113.30",
+    }),
+    (error: unknown) => error instanceof AppError && error.code === expectedCode,
+  );
+};
+
+test("verify email service marks the token used and emits user.email_verified", async () => {
+  const repo = createVerifyEmailRepositoryDouble();
+  const emittedEvents: Array<{ name: string; data: Record<string, unknown> }> = [];
+  const rawToken = "opaque-verification-token";
+  seedHappyPathFixture(repo, rawToken);
 
   const service = createVerifyEmailServiceUnderTest(repo.repository, {
     appendEvent: async ({ event }) => {
@@ -162,19 +180,7 @@ test("verify email service dead-letter fallback for email_verified", async () =>
   const repo = createVerifyEmailRepositoryDouble();
   const deadLetterEvents: Array<{ name: string; data: Record<string, unknown> }> = [];
   const rawToken = "opaque-verification-token";
-  repo.recordsByHash.set(hashSha256(rawToken), {
-    id: "token_1",
-    userId: "user_1",
-    email: "learner@example.com",
-    expiresAt: new Date("2026-04-27T12:00:00.000Z"),
-    usedAt: null,
-  });
-  repo.usersById.set("user_1", {
-    id: "user_1",
-    email: "learner@example.com",
-    isVerified: false,
-    deletedAt: null,
-  });
+  seedHappyPathFixture(repo, rawToken);
 
   const service = createVerifyEmailServiceUnderTest(repo.repository, {
     appendEvent: async () => {
@@ -387,30 +393,12 @@ test("verify email service limits requests to 10 per 5 minutes per IP", async ()
   });
 
   for (let attempt = 0; attempt < 10; attempt += 1) {
-    await assert.rejects(
-      service.verifyEmail({
-        payload: { token: "token-will-fail-anyway-due-to-missing" },
-        ipAddress: "203.0.113.30",
-      }),
-      (error: unknown) => error instanceof AppError && error.code === "TOKEN_INVALID"
-    );
+    await expectVerifyEmailRejection(service, "TOKEN_INVALID");
   }
 
-  await assert.rejects(
-    service.verifyEmail({
-      payload: { token: "token-will-fail-anyway-due-to-missing" },
-      ipAddress: "203.0.113.30",
-    }),
-    (error: unknown) => error instanceof AppError && error.code === "RATE_LIMITED"
-  );
+  await expectVerifyEmailRejection(service, "RATE_LIMITED");
 
   currentTimeMs += 5 * 60 * 1000 + 1000;
 
-  await assert.rejects(
-    service.verifyEmail({
-      payload: { token: "token-will-fail-anyway-due-to-missing" },
-      ipAddress: "203.0.113.30",
-    }),
-    (error: unknown) => error instanceof AppError && error.code === "TOKEN_INVALID"
-  );
+  await expectVerifyEmailRejection(service, "TOKEN_INVALID");
 });

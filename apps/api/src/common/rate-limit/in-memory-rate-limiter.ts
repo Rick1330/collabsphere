@@ -94,11 +94,7 @@ export class InMemoryRateLimiter {
     }
   }
 
-  /** Registers one request for `key`. Throws `AppError(RATE_LIMITED)` when the limit is exceeded. */
-  consume(key: string) {
-    const nowMs = this.now().getTime();
-    this.prune(nowMs);
-
+  private assertBucketAvailable(key: string, nowMs: number) {
     const bucket = this.getOrCreate(key);
     const trimmed = trimExpiredTimestamps({ nowMs, windowMs: this.windowMs, timestamps: bucket.timestamps });
     bucket.timestamps = trimmed;
@@ -107,6 +103,22 @@ export class InMemoryRateLimiter {
       throw buildRateLimitError(getRetryAfterSeconds({ nowMs, windowMs: this.windowMs, timestamps: trimmed }));
     }
 
+    return bucket;
+  }
+
+  /** Checks whether a request can be recorded without mutating the bucket count. */
+  assertAllowed(key: string) {
+    const nowMs = this.now().getTime();
+    this.prune(nowMs);
+    this.assertBucketAvailable(key, nowMs);
+  }
+
+  /** Registers one request for `key`. Throws `AppError(RATE_LIMITED)` when the limit is exceeded. */
+  consume(key: string) {
+    const nowMs = this.now().getTime();
+    this.prune(nowMs);
+
+    const bucket = this.assertBucketAvailable(key, nowMs);
     bucket.timestamps.push(nowMs);
   }
 

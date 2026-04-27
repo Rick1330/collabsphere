@@ -21,8 +21,13 @@ export class RegisterRateLimiter {
   }
 
   consume({ ipAddress, normalizedEmail }: { ipAddress: string; normalizedEmail: string }) {
-    // Check IP first so we don't record the email attempt when IP is already throttled.
-    this.ipLimiter.consume(ipAddress.trim() || "unknown");
-    this.emailLimiter.consume(normalizedEmail.trim().toLowerCase());
+    const ipKey = ipAddress.trim() || "unknown";
+    const emailKey = normalizedEmail.trim().toLowerCase();
+
+    this.ipLimiter.assertAllowed(ipKey);
+    this.emailLimiter.assertAllowed(emailKey);
+
+    this.ipLimiter.consume(ipKey);
+    this.emailLimiter.consume(emailKey);
   }
 }
