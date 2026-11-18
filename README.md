@@ -11,4 +11,4 @@ I started this repository as my final-year project. I ran out of time to continu
 
 ## About this archive
 
-The code, commit history, issues, pull requests, and project planning in this repository are preserved for historical context. The issue tracker contains a large imported/generated project plan; its open items are not a current roadmap and should not be treated as work planned for the successor. This repository is archived and will not receive further development.
+The code, commit history, issues, pull requests, and project planning in this repository are preserved for historical context. The 1,113 generated planning issues have been closed as not planned; their records remain available for reference and do not describe work planned for the successor. This repository is archived and will not receive further development.
